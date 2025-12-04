@@ -1,83 +1,75 @@
 import streamlit as st
-import base64
 import os
 
 st.set_page_config(page_title="Fiches & Ressources", page_icon="📚")
 
 st.title("📚 Ressources Psycho-éducatives")
+st.write("Consultez les fiches directement ci-dessous ou téléchargez-les pour les imprimer.")
 
-# --- FONCTION PDF (Gardée pour les autres onglets) ---
-def afficher_pdf(nom_fichier):
-    if not os.path.exists(nom_fichier):
-        st.error(f"Fichier '{nom_fichier}' introuvable.")
-        return
-    
-    with open(nom_fichier, "rb") as f:
-        pdf_data = f.read()
-        
-    st.download_button(
-        label=f"📥 Télécharger le PDF complet",
-        data=pdf_data,
-        file_name=nom_fichier,
-        mime='application/pdf'
-    )
-    
-    # Affichage classique (iframe) pour PC
-    base64_pdf = base64.b64encode(pdf_data).decode('utf-8')
-    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf"></iframe>'
-    st.markdown(pdf_display, unsafe_allow_html=True)
+# --- FONCTION D'AFFICHAGE INTELLIGENTE ---
+def afficher_ressource(titre_pdf, nom_fichier_pdf, liste_images):
+    """
+    Affiche le bouton de téléchargement du PDF + les images en dessous
+    """
+    # 1. BOUTON DE TÉLÉCHARGEMENT (Si le PDF existe)
+    if os.path.exists(nom_fichier_pdf):
+        with open(nom_fichier_pdf, "rb") as f:
+            st.download_button(
+                label=f"📥 Télécharger la fiche '{titre_pdf}' (PDF)",
+                data=f,
+                file_name=nom_fichier_pdf,
+                mime="application/pdf",
+                help="Idéal pour l'impression ou la lecture sur grand écran."
+            )
+    else:
+        st.warning(f"Le fichier PDF '{nom_fichier_pdf}' est introuvable sur le serveur.")
+
+    st.divider()
+
+    # 2. GALERIE D'IMAGES (Pour le mobile)
+    for image_name in liste_images:
+        if os.path.exists(image_name):
+            # use_container_width=True permet à l'image de s'adapter parfaitement à l'écran du téléphone
+            st.image(image_name, use_container_width=True)
+        else:
+            st.info(f"Image '{image_name}' non chargée. (Faites une capture d'écran du PDF et nommez-la ainsi).")
 
 
 # --- LES ONGLETS ---
 tab1, tab2, tab3 = st.tabs(["Fonctions des Émotions", "Roue des Émotions", "Distorsions Cognitives"])
 
+# ONGLET 1
 with tab1:
     st.header("À quoi servent nos émotions ?")
-    # Ici on garde le PDF classique
-    afficher_pdf("Les fonctions des émotions.pdf") 
+    st.caption("Comprendre le message caché derrière chaque émotion.")
+    
+    afficher_ressource(
+        titre_pdf="Fonctions des émotions",
+        nom_fichier_pdf="Les fonctions des émotions.pdf",  # Nom exact de votre PDF actuel
+        liste_images=["fonctions.jpg"]                      # Nom de votre nouvelle image
+    )
 
+# ONGLET 2
 with tab2:
     st.header("La Roue de Plutchik")
-    # Ici on garde le PDF classique
-    afficher_pdf("Roue des sentiments de Plutchik.pdf")
+    st.caption("Un outil pour identifier précisément ce que vous ressentez.")
+    
+    afficher_ressource(
+        titre_pdf="Roue des sentiments",
+        nom_fichier_pdf="Roue des sentiments de Plutchik.pdf",
+        liste_images=["roue.jpg"]
+    )
 
+# ONGLET 3
 with tab3:
-    st.header("Les 10 Distorsions Cognitives")
-    st.write("Voici les pièges de pensée les plus courants. Les reconnaissez-vous ?")
+    st.header("Les Distorsions Cognitives")
+    st.caption("Les pièges de pensée les plus courants.")
     
-    # 1. On garde le bouton pour télécharger le fichier original
-    # (Il faut que le fichier PDF soit toujours dans le dossier)
-    if os.path.exists("Distorsions cognitives.pdf"):
-        with open("Distorsions cognitives.pdf", "rb") as f:
-            st.download_button(
-                label="📥 Télécharger la fiche PDF (Impression)",
-                data=f,
-                file_name="Distorsions cognitives.pdf",
-                mime="application/pdf"
-            )
-    
-    st.divider()
-    
-    # 2. L'AFFICHAGE VISUEL (IMAGES) - Parfait pour le mobile
-    # Assurez-vous d'avoir uploadé disto_1.jpg, disto_2.jpg, etc.
-    
-    # Page 1
-    if os.path.exists("disto_1.jpg"):
-        st.image("disto_1.jpg", caption="Page 1 : Tout ou rien, Filtre, Catastrophisme...", use_container_width=True)
-    else:
-        st.warning("Image 'disto_1.jpg' manquante. Veuillez l'ajouter au projet.")
-        
-    st.divider()
-    
-    # Page 2
-    if os.path.exists("disto_2.jpg"):
-        st.image("disto_2.jpg", caption="Page 2 : Raisonnement émotionnel, Je dois...", use_container_width=True)
-        
-    st.divider()
-    
-    # Page 3
-    if os.path.exists("disto_3.jpg"):
-        st.image("disto_3.jpg", caption="Page 3 : Étiquetage, Comparaison...", use_container_width=True)
+    afficher_ressource(
+        titre_pdf="Liste des Distorsions",
+        nom_fichier_pdf="Distorsions cognitives.pdf",
+        liste_images=["disto_1.jpg", "disto_2.jpg", "disto_3.jpg"] # Les 3 pages
+    )
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
