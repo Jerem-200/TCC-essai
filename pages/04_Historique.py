@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import altair as alt # Bibliothèque nécessaire pour le graphique en barres groupées
 
 st.set_page_config(page_title="Historique", page_icon="📜", layout="wide")
 
@@ -55,44 +56,52 @@ with tab3:
 
     # Vérification s'il y a des activités pour afficher la suite
     if not st.session_state.data_activites.empty:
-        # On affiche d'abord le tableau brut pour référence
+        
+        # ---------------------------------------------------------
+        # GRAPHIQUE 2 : MOYENNE PAR ACTIVITÉ (Barres groupées style "Image")
+        # ---------------------------------------------------------
+        st.subheader("2. Quelles activités vous font du bien ? (Moyenne)")
+        st.write("Comparaison des scores moyens par type d'activité.")
+
+        # Préparation des données
+        df_act = st.session_state.data_activites.copy()
+        cols_to_mean = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
+        
+        # Nettoyage et conversion en numérique
+        for col in cols_to_mean:
+            df_act[col] = pd.to_numeric(df_act[col], errors='coerce')
+        
+        # Calcul de la moyenne par activité
+        df_mean = df_act.groupby("Activité")[cols_to_mean].mean().reset_index()
+        
+        # Transformation pour le graphique (Format long)
+        df_long = df_mean.melt("Activité", var_name="Type", value_name="Score")
+
+        # Création du graphique Altair (Barres côte à côte)
+        chart = alt.Chart(df_long).mark_bar().encode(
+            x=alt.X('Activité:N', title=None),  # L'activité en bas
+            y=alt.Y('Score:Q', title='Score Moyen (0-10)'),
+            color=alt.Color('Type:N', legend=alt.Legend(title="Indicateur")), # Couleur selon le type
+            xOffset='Type:N' # C'est cette option qui met les barres côte à côte !
+        ).properties(
+            height=400 # Hauteur du graphique
+        )
+        
+        st.altair_chart(chart, use_container_width=True)
+
+        st.divider()
+
+        # ---------------------------------------------------------
+        # GRAPHIQUE 3 : ÉVOLUTION CHRONOLOGIQUE (Ligne)
+        # ---------------------------------------------------------
+        st.subheader("3. Fluctuations au fil du temps")
+        st.write("Détail de chaque activité enregistrée, dans l'ordre chronologique.")
+        st.line_chart(
+            st.session_state.data_activites[["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]]
+        )
+        
         with st.expander("Voir le tableau détaillé des données"):
             st.dataframe(st.session_state.data_activites, use_container_width=True)
-
-        col_g, col_d = st.columns(2)
-
-        # ---------------------------------------------------------
-        # GRAPHIQUE 2 : ÉVOLUTION CHRONOLOGIQUE (Ligne)
-        # ---------------------------------------------------------
-        with col_g:
-            st.subheader("2. Fluctuations au fil du temps")
-            st.write("Comment varient vos sentiments activité après activité ?")
-            # On affiche les 3 courbes sur le même graph
-            st.line_chart(
-                st.session_state.data_activites[["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]]
-            )
-
-        # ---------------------------------------------------------
-        # GRAPHIQUE 3 : MOYENNE PAR ACTIVITÉ (Barres)
-        # ---------------------------------------------------------
-        with col_d:
-            st.subheader("3. Quelles activités vous font du bien ?")
-            st.write("Moyenne des scores par type d'activité.")
-            
-            # Calcul magique : on groupe par nom d'activité et on fait la moyenne
-            # On force la conversion en nombres pour éviter les bugs
-            df_act = st.session_state.data_activites.copy()
-            cols_to_mean = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
-            
-            # Petit nettoyage pour être sûr que ce sont des chiffres
-            for col in cols_to_mean:
-                df_act[col] = pd.to_numeric(df_act[col], errors='coerce')
-            
-            # Le calcul de la moyenne
-            df_mean = df_act.groupby("Activité")[cols_to_mean].mean()
-            
-            # Affichage en diagramme à barres
-            st.bar_chart(df_mean)
 
     else:
         st.info("Aucune activité enregistrée. Commencez à remplir votre registre !")
