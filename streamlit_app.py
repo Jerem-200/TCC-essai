@@ -64,3 +64,17 @@ with st.sidebar:
     st.page_link("pages/01_Colonnes_Beck.py", label="Colonnes de Beck", icon="🧩")
     st.page_link("pages/02_Echelles_BDI.py", label="Échelles BDI", icon="📊")
     st.page_link("pages/03_Ressources.py", label="Ressources", icon="📚")
+
+
+    st.divider()
+
+# Nouveau bouton large pour l'historique
+st.info("### 📜 Mon Suivi")
+st.write("Consultez vos anciens exercices et l'évolution de vos scores.")
+# Attention : vérifiez que le nom du fichier correspond exactement à ce que vous avez créé
+st.page_link("pages/04_Historique.py", label="Ouvrir mon Historique", icon="📅")
+
+st.divider()
+
+with st.expander("📚 Voir les Ressources et Fiches"):
+    # ... (votre code existant pour les ressources)
