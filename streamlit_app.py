@@ -1,4 +1,29 @@
 import streamlit as st
+import pandas as pd # N'oubliez pas l'import si ce n'est pas déjà fait
+
+st.set_page_config(page_title="Mon Compagnon TCC", page_icon="🧠", layout="wide")
+
+# --- SYSTÈME D'AUTHENTIFICATION (LE VERROU) ---
+if "authentifie" not in st.session_state:
+    st.session_state.authentifie = False
+
+def verifier_mot_de_passe():
+    # Définissez ici le mot de passe du patient
+    if st.session_state.password_input == "TCC2025": 
+        st.session_state.authentifie = True
+    else:
+        st.error("Mot de passe incorrect")
+
+if not st.session_state.authentifie:
+    st.title("🔒 Espace Patient Sécurisé")
+    st.write("Veuillez entrer votre code d'accès personnel pour continuer.")
+    st.text_input("Mot de passe", type="password", key="password_input", on_change=verifier_mot_de_passe)
+    st.stop()  # <--- Ceci arrête le chargement du reste de l'app tant que c'est verrouillé
+
+# --- TOUT LE RESTE DE VOTRE CODE COMMENCE ICI ---
+# (Initialisation des données, Titre, Tableau de bord...)
+
+import streamlit as st
 
 st.set_page_config(
     page_title="Mon Compagnon TCC",
