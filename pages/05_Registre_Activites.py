@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import altair as alt # NOUVEAU : Pour le graphique groupé
+import altair as alt # Pour le beau graphique groupé
 from datetime import datetime
 
 st.set_page_config(page_title="Registre des Activités", page_icon="📝")
@@ -31,13 +31,16 @@ with st.form("activity_form"):
     activite_desc = st.text_input("Qu'avez-vous fait ?", placeholder="Ex: Petit déjeuner, Travail, Marche...")
 
     st.write("**Évaluation de l'activité :**")
+    
+    # ON REPASSE AUX CURSEURS (SLIDERS) COMME VOUS PRÉFÉREZ
+    # On les met sur 3 colonnes pour que ce soit joli, mais ce sont bien des sliders.
     c1, c2, c3 = st.columns(3)
     with c1:
-        plaisir = st.number_input("🎉 Plaisir (0-10)", 0, 10, 5)
+        plaisir = st.slider("🎉 Plaisir (0-10)", 0, 10, 5)
     with c2:
-        maitrise = st.number_input("💪 Maîtrise (0-10)", 0, 10, 5)
+        maitrise = st.slider("💪 Maîtrise (0-10)", 0, 10, 5)
     with c3:
-        satisfaction = st.number_input("🏆 Satisfaction (0-10)", 0, 10, 5)
+        satisfaction = st.slider("🏆 Satisfaction (0-10)", 0, 10, 5)
 
     submitted_act = st.form_submit_button("Ajouter l'activité")
 
@@ -79,31 +82,24 @@ with st.form("humeur_form"):
         )
         st.success(f"Humeur du {date_humeur} enregistrée !")
 
-# --- 4. APERÇU DU JOUR (AVEC GRAPHIQUE BARRES GROUPÉES) ---
+# --- 4. APERÇU DU JOUR (GRAPHIQUE BARRES GROUPÉES) ---
 st.divider()
 st.subheader(f"Résumé du {datetime.now().strftime('%d/%m/%Y')}")
 
-# Filtrer les activités d'aujourd'hui
 today_str = str(datetime.now().date())
 df_today = st.session_state.data_activites[st.session_state.data_activites["Date"] == today_str]
 
 if not df_today.empty:
-    # Tableau
     st.dataframe(df_today[["Heure", "Activité", "Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]], use_container_width=True)
     
     st.write("**Visualisation des activités du jour :**")
     
-    # --- GRAPHIQUE ALTAIR (Barres Groupées) ---
-    # 1. On prépare les données en format "long" pour Altair
-    # Cela transforme le tableau pour avoir une ligne par type de score
+    # Préparation des données pour Altair
     df_chart = df_today.copy()
-    
-    # Conversion forcée en numérique pour éviter les erreurs
     cols_score = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
     for col in cols_score:
         df_chart[col] = pd.to_numeric(df_chart[col], errors='coerce')
 
-    # Transformation ("Melt")
     df_long = df_chart.melt(
         id_vars=["Activité"], 
         value_vars=cols_score, 
@@ -111,14 +107,14 @@ if not df_today.empty:
         value_name="Score"
     )
 
-    # 2. Création du graphique
+    # Graphique Altair (Barres côte à côte)
     chart = alt.Chart(df_long).mark_bar().encode(
-        x=alt.X('Activité:N', title=None, axis=alt.Axis(labelAngle=0)), # Activité en bas (texte horizontal)
+        x=alt.X('Activité:N', title=None, axis=alt.Axis(labelAngle=0)), 
         y=alt.Y('Score:Q', title='Note (0-10)'),
-        color=alt.Color('Indicateur:N', legend=alt.Legend(title="Type")), # Couleur selon Plaisir/Maitrise/Satisf
-        xOffset='Indicateur:N' # C'est LA clé : décale les barres pour les grouper côte à côte
+        color=alt.Color('Indicateur:N', legend=alt.Legend(title="Type")),
+        xOffset='Indicateur:N' 
     ).properties(
-        height=350 # Hauteur du graphique
+        height=350
     )
     
     st.altair_chart(chart, use_container_width=True)
