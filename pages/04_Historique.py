@@ -56,6 +56,7 @@ if st.button("⬅️ Retour au Tableau de bord"):
 
     # ... (votre code des colonnes 1 et 2 existantes) ...
 
+
 st.divider()
 
 # Nouveau bouton large pour l'historique
