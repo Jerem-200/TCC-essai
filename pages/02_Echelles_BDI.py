@@ -1,13 +1,16 @@
 import streamlit as st
+import pandas as pd
 from datetime import datetime
 
-st.set_page_config(page_title="Évaluation BDI-II", page_icon="📊")
+st.set_page_config(page_title="Échelles BDI", page_icon="📊")
 
 st.title("📊 Échelle BDI-II (Dépression)")
 st.write("Ce questionnaire comporte 21 groupes d'énoncés. Choisissez l'énoncé qui décrit le mieux comment vous vous êtes senti(e) au cours des deux dernières semaines.")
 
-# Liste des questions (À compléter avec le vrai texte du BDI-II)
-# Structure: "Titre de la question": ["Option 0 points", "Option 1 point", "Option 2 points", "Option 3 points"]
+# --- 1. S'ASSURER QUE LA MÉMOIRE EXISTE ---
+if "data_echelles" not in st.session_state:
+    st.session_state.data_echelles = pd.DataFrame(columns=["Date", "Type", "Score", "Commentaire"])
+
 
 questions_bdi = {
     "1. Tristesse": [
@@ -143,36 +146,55 @@ questions_bdi = {
         "3 J'ai perdu tout intérêt pour le sexe."
     ]
 }
-
+# --- 3. LE FORMULAIRE ---
 score_total = 0
-reponses = {}
 
 with st.form("bdi_form"):
     for question, options in questions_bdi.items():
         st.write(f"**{question}**")
-        # On utilise un radio button. L'index (0, 1, 2, 3) donne directement le score !
-        choix = st.radio("Choix", options, index=0, key=question, label_visibility="collapsed")
-        # On récupère le premier caractère (le chiffre) pour le score
-        points = int(choix.split(" - ")[0])
+        # On affiche les choix
+        choix = st.radio(f"Choix pour {question}", options, index=0, label_visibility="collapsed")
+        
+        # --- CORRECTION ICI ---
+        # On prend juste le premier caractère de la chaîne (le '0', '1', '2' ou '3')
+        # C'est plus solide : ça marche qu'il y ait un tiret ou non.
+        points = int(choix[0])
+        
         score_total += points
-        reponses[question] = points
         st.markdown("---")
 
+    # Le bouton est bien à l'intérieur du form, tout à la fin
     submitted = st.form_submit_button("Calculer et Enregistrer le Score")
 
-if submitted:
-    st.subheader(f"Votre Score Total : {score_total} / 63")
-    
-    # Interprétation standard (À vérifier selon vos normes cliniques)
-    if score_total <= 10:
-        st.success("Dépression mineure")
-    elif score_total <= 19:
-        st.info("Dépression légère")
-    elif score_total <= 30:
-        st.warning("Dépression modérée")
-    else:
-        st.error("Dépression sévère")
+    if submitted:
+        # Interprétation (Indicative)
+        interpretation = ""
+        if score_total <= 13:
+            interpretation = "Dépression minimale"
+            st.success(f"Score : {score_total} / 63 ({interpretation})")
+        elif score_total <= 19:
+            interpretation = "Dépression légère"
+            st.info(f"Score : {score_total} / 63 ({interpretation})")
+        elif score_total <= 28:
+            interpretation = "Dépression modérée"
+            st.warning(f"Score : {score_total} / 63 ({interpretation})")
+        else:
+            interpretation = "Dépression sévère"
+            st.error(f"Score : {score_total} / 63 ({interpretation})")
 
-    # Simulation sauvegarde
-    st.write("Détail envoyé à la base de données :")
-    st.json({"Date": str(datetime.now()), "Type": "BDI-II", "Score": score_total})
+        # Sauvegarde
+        new_row = {
+            "Date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "Type": "BDI-II",
+            "Score": score_total,
+            "Commentaire": interpretation
+        }
+        
+        st.session_state.data_echelles = pd.concat(
+            [st.session_state.data_echelles, pd.DataFrame([new_row])],
+            ignore_index=True
+        )
+        st.success("Résultat enregistré dans l'Historique.")
+
+st.divider()
+st.page_link("streamlit_app.py", label="Retour au Tableau de bord", icon="🏠")
