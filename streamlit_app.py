@@ -65,3 +65,11 @@ with st.sidebar:
     st.page_link("pages/02_Echelles_BDI.py", label="Échelles BDI", icon="📊")
     st.page_link("pages/03_Ressources.py", label="Ressources", icon="📚")
 
+
+st.divider()
+# Si vous voulez revenir à l'accueil
+# Note: st.switch_page est une alternative moderne à st.page_link pour les boutons
+if st.button("⬅️ Retour au Tableau de bord"):
+    st.switch_page("streamlit_app.py")
+
+    # ... (votre code des colonnes 1 et 2 existantes) ...

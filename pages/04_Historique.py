@@ -48,10 +48,4 @@ with tab2:
         st.info("Aucune évaluation enregistrée pour cette session.")
 
 # Bouton retour
-st.divider()
-# Si vous voulez revenir à l'accueil
-# Note: st.switch_page est une alternative moderne à st.page_link pour les boutons
-if st.button("⬅️ Retour au Tableau de bord"):
-    st.switch_page("streamlit_app.py")
 
-    # ... (votre code des colonnes 1 et 2 existantes) ...
