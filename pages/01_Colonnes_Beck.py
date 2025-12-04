@@ -6,21 +6,20 @@ st.set_page_config(page_title="Colonnes de Beck", page_icon="🧩")
 
 st.title("🧩 Colonnes de Beck")
 
-# --- 1. LE DICTIONNAIRE DES DISTORSIONS (REMIS EN PLACE) ---
-# Basé sur votre document PDF "Distorsions cognitives"
+# --- 1. LE DICTIONNAIRE DES DISTORSIONS ---
 distorsions_dict = {
-    [cite_start]"Pensée tout ou rien": "Penser de manière extrême : soit c'est parfait, soit c'est terrible[cite: 4].",
-    [cite_start]"Filtre mental": "Se focaliser sur un détail négatif en ignorant le reste[cite: 8].",
-    [cite_start]"Catastrophisme": "Imaginer le pire scénario possible ('Et si...?')[cite: 11].",
-    [cite_start]"Surgénéralisation": "Tirer une conclusion générale d'un seul événement[cite: 14].",
-    [cite_start]"Disqualification du positif": "Rejeter les expériences positives ('Ça ne compte pas')[cite: 17].",
-    [cite_start]"Culpabilisation": "S'attribuer la faute pour des choses hors de notre contrôle[cite: 20].",
-    [cite_start]"Raisonnement émotionnel": "Croire que si on le ressent, c'est que c'est vrai[cite: 23].",
-    [cite_start]"Les 'Je dois / Il faut'": "Règles rigides sur comment on devrait se comporter[cite: 26].",
-    [cite_start]"Conclusion hâtive": "Juger sans preuves suffisantes (lecture de pensée)[cite: 29].",
-    [cite_start]"Étiquetage": "Se coller une étiquette définitive ('Je suis nul')[cite: 32].",
-    [cite_start]"Comparaison sociale": "Se comparer aux autres en ne voyant que ses défauts[cite: 36].",
-    [cite_start]"Fusion pensée-action": "Croire que penser à une chose équivaut à la faire (pensée magique)[cite: 37, 39]."
+    "Pensée tout ou rien": "Penser de manière extrême : soit c'est parfait, soit c'est terrible.",
+    "Filtre mental": "Se focaliser sur un détail négatif en ignorant le reste.",
+    "Catastrophisme": "Imaginer le pire scénario possible ('Et si...?').",
+    "Surgénéralisation": "Tirer une conclusion générale d'un seul événement.",
+    "Disqualification du positif": "Rejeter les expériences positives ('Ça ne compte pas').",
+    "Culpabilisation": "S'attribuer la faute pour des choses hors de notre contrôle.",
+    "Raisonnement émotionnel": "Croire que si on le ressent, c'est que c'est vrai.",
+    "Les 'Je dois / Il faut'": "Règles rigides sur comment on devrait se comporter.",
+    "Conclusion hâtive": "Juger sans preuves suffisantes (lecture de pensée).",
+    "Étiquetage": "Se coller une étiquette définitive ('Je suis nul').",
+    "Comparaison sociale": "Se comparer aux autres en ne voyant que ses défauts.",
+    "Fusion pensée-action": "Croire que penser à une chose équivaut à la faire."
 }
 
 # --- 2. S'ASSURER QUE LA MÉMOIRE EXISTE ---
@@ -54,8 +53,7 @@ with st.form("beck_form"):
     pensee_auto = st.text_area("Pensée Automatique (Ce qui vous traverse l'esprit)")
     croyance_auto = st.slider("Croyance dans cette pensée (0-10)", 0, 10, 8)
     
-    # --- LA SECTION DISTORSIONS EST ICI ---
-    with st.expander("🔍 Identifier les Distorsions Cognitives (Cliquez pour ouvrir)"):
+    with st.expander("🔍 Identifier les Distorsions Cognitives"):
         st.write("Cochez les pièges dans lesquels vous pensez être tombé :")
         selected_distorsions = []
         for dist, desc in distorsions_dict.items():
@@ -84,7 +82,7 @@ with st.form("beck_form"):
             "Émotion": emotion,
             "Intensité (Avant)": intensite_avant,
             "Pensée Auto": pensee_auto,
-            "Distorsions": ", ".join(selected_distorsions), # On enregistre la liste cochée
+            "Distorsions": ", ".join(selected_distorsions),
             "Croyance (Avant)": croyance_auto,
             "Pensée Rationnelle": pensee_rat,
             "Croyance (Rationnelle)": croyance_rat,
