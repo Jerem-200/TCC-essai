@@ -1,20 +1,19 @@
 import streamlit as st
 import pandas as pd
+import altair as alt # NOUVEAU : Pour le graphique groupé
 from datetime import datetime
 
 st.set_page_config(page_title="Registre des Activités", page_icon="📝")
 
 st.title("📝 Registre des Activités")
 
-# --- 1. INITIALISATION DES MÉMOIRES (Deux bases distinctes) ---
-# Base A : Les activités détaillées
+# --- 1. INITIALISATION DES MÉMOIRES ---
 if "data_activites" not in st.session_state:
     st.session_state.data_activites = pd.DataFrame(columns=[
         "Date", "Heure", "Activité", 
         "Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"
     ])
 
-# Base B : L'humeur globale journalière
 if "data_humeur_jour" not in st.session_state:
     st.session_state.data_humeur_jour = pd.DataFrame(columns=["Date", "Humeur Globale (0-10)"])
 
@@ -32,7 +31,6 @@ with st.form("activity_form"):
     activite_desc = st.text_input("Qu'avez-vous fait ?", placeholder="Ex: Petit déjeuner, Travail, Marche...")
 
     st.write("**Évaluation de l'activité :**")
-    # On utilise des colonnes pour que ce soit plus compact
     c1, c2, c3 = st.columns(3)
     with c1:
         plaisir = st.number_input("🎉 Plaisir (0-10)", 0, 10, 5)
@@ -60,7 +58,7 @@ with st.form("activity_form"):
 
 st.divider()
 
-# --- 3. FORMULAIRE B : HUMEUR GLOBALE (Une seule fois par jour) ---
+# --- 3. FORMULAIRE B : HUMEUR GLOBALE ---
 st.subheader("2. Bilan de la journée (Humeur globale)")
 st.caption("À remplir une fois la journée terminée.")
 
@@ -71,8 +69,6 @@ with st.form("humeur_form"):
     submitted_humeur = st.form_submit_button("Enregistrer l'humeur du jour")
     
     if submitted_humeur:
-        # On vérifie si une note existe déjà pour cette date pour éviter les doublons (optionnel mais propre)
-        # Ici on ajoute simplement une nouvelle ligne
         new_humeur = {
             "Date": str(date_humeur),
             "Humeur Globale (0-10)": humeur_globale
@@ -83,7 +79,7 @@ with st.form("humeur_form"):
         )
         st.success(f"Humeur du {date_humeur} enregistrée !")
 
-# --- 4. APERÇU DU JOUR ---
+# --- 4. APERÇU DU JOUR (AVEC GRAPHIQUE BARRES GROUPÉES) ---
 st.divider()
 st.subheader(f"Résumé du {datetime.now().strftime('%d/%m/%Y')}")
 
@@ -95,11 +91,38 @@ if not df_today.empty:
     # Tableau
     st.dataframe(df_today[["Heure", "Activité", "Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]], use_container_width=True)
     
-    # NOUVEAU GRAPHIQUE EN BARRES (Histogramme)
     st.write("**Visualisation des activités du jour :**")
-    # On prépare les données pour le graphique : Index = Activité (ou Heure)
-    chart_data = df_today.set_index("Activité")[["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]]
-    st.bar_chart(chart_data)
+    
+    # --- GRAPHIQUE ALTAIR (Barres Groupées) ---
+    # 1. On prépare les données en format "long" pour Altair
+    # Cela transforme le tableau pour avoir une ligne par type de score
+    df_chart = df_today.copy()
+    
+    # Conversion forcée en numérique pour éviter les erreurs
+    cols_score = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
+    for col in cols_score:
+        df_chart[col] = pd.to_numeric(df_chart[col], errors='coerce')
+
+    # Transformation ("Melt")
+    df_long = df_chart.melt(
+        id_vars=["Activité"], 
+        value_vars=cols_score, 
+        var_name="Indicateur", 
+        value_name="Score"
+    )
+
+    # 2. Création du graphique
+    chart = alt.Chart(df_long).mark_bar().encode(
+        x=alt.X('Activité:N', title=None, axis=alt.Axis(labelAngle=0)), # Activité en bas (texte horizontal)
+        y=alt.Y('Score:Q', title='Note (0-10)'),
+        color=alt.Color('Indicateur:N', legend=alt.Legend(title="Type")), # Couleur selon Plaisir/Maitrise/Satisf
+        xOffset='Indicateur:N' # C'est LA clé : décale les barres pour les grouper côte à côte
+    ).properties(
+        height=350 # Hauteur du graphique
+    )
+    
+    st.altair_chart(chart, use_container_width=True)
+
 else:
     st.info("Aucune activité notée pour aujourd'hui.")
 

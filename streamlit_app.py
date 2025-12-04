@@ -72,5 +72,5 @@ with st.sidebar:
     st.page_link("pages/01_Colonnes_Beck.py", label="🧩 Colonnes de Beck")
     st.page_link("pages/02_Echelles_BDI.py", label="📊 Échelles BDI")
     st.page_link("pages/05_Registre_Activites.py", label="📝 Registre Activités")
-    st.page_link("pages/03_Ressources.py", label="📚 Ressources")
     st.page_link("pages/04_Historique.py", label="📜 Historique")
+    st.page_link("pages/03_Ressources.py", label="📚 Ressources")
