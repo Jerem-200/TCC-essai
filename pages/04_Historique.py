@@ -53,3 +53,18 @@ st.divider()
 # Note: st.switch_page est une alternative moderne à st.page_link pour les boutons
 if st.button("⬅️ Retour au Tableau de bord"):
     st.switch_page("streamlit_app.py")
+
+    # ... (votre code des colonnes 1 et 2 existantes) ...
+
+st.divider()
+
+# Nouveau bouton large pour l'historique
+st.info("### 📜 Mon Suivi")
+st.write("Consultez vos anciens exercices et l'évolution de vos scores.")
+# Attention : vérifiez que le nom du fichier correspond exactement à ce que vous avez créé
+st.page_link("pages/04_Historique.py", label="Ouvrir mon Historique", icon="📅")
+
+st.divider()
+
+with st.expander("📚 Voir les Ressources et Fiches"):
+    # ... (votre code existant pour les ressources)
