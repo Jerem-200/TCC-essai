@@ -6,46 +6,50 @@ st.set_page_config(page_title="Historique", page_icon="📜", layout="wide")
 st.title("📜 Historique de vos progrès")
 st.write("Retrouvez ici l'ensemble de vos exercices et suivis.")
 
-# Vérification si les données existent (pour éviter les erreurs)
+# Initialisation de sécurité
 if "data_beck" not in st.session_state:
-    st.session_state.data_beck = pd.DataFrame(columns=["Date", "Situation", "Émotion", "Pensée Auto", "Pensée Rationnelle"])
-
+    st.session_state.data_beck = pd.DataFrame(columns=["Date", "Situation", "Émotion", "Pensée Auto"])
 if "data_echelles" not in st.session_state:
     st.session_state.data_echelles = pd.DataFrame(columns=["Date", "Type", "Score", "Commentaire"])
+# NOUVEAU : Initialisation Registre
+if "data_activites" not in st.session_state:
+    st.session_state.data_activites = pd.DataFrame(columns=["Date", "Heure", "Activité", "Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"])
 
-# --- ONGLETS ---
-tab1, tab2 = st.tabs(["🧩 Colonnes de Beck", "📊 Échelles & Scores"])
+# Ajout du 3ème onglet
+tab1, tab2, tab3 = st.tabs(["🧩 Colonnes de Beck", "📊 Échelles & Scores", "📝 Registre Activités"])
 
 with tab1:
-    st.header("Vos restructurations cognitives")
+    st.header("Restructuration")
     if not st.session_state.data_beck.empty:
-        # On affiche le tableau
         st.dataframe(st.session_state.data_beck, use_container_width=True)
-        
-        # Petit bonus : Un bouton pour télécharger (utile pour vous l'envoyer)
-        csv_beck = st.session_state.data_beck.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Télécharger ces données (CSV)", csv_beck, "beck_historique.csv", "text/csv")
     else:
-        st.info("Aucun exercice de Beck enregistré pour cette session.")
+        st.info("Pas de données.")
 
 with tab2:
-    st.header("Suivi de l'humeur (BDI et autres)")
+    st.header("Suivi des scores")
     if not st.session_state.data_echelles.empty:
         st.dataframe(st.session_state.data_echelles, use_container_width=True)
-        
-        # Bonus : Un graphique simple pour voir l'évolution
-        st.subheader("Évolution graphique")
-        # On essaie de faire un graphique seulement s'il y a des scores numériques
         try:
-            chart_data = st.session_state.data_echelles[["Date", "Score"]].copy()
-            st.line_chart(chart_data.set_index("Date"))
+            st.line_chart(st.session_state.data_echelles.set_index("Date")["Score"])
         except:
-            st.warning("Pas assez de données pour le graphique.")
-
-        csv_echelles = st.session_state.data_echelles.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Télécharger les scores (CSV)", csv_echelles, "scores_historique.csv", "text/csv")
+            pass
     else:
-        st.info("Aucune évaluation enregistrée pour cette session.")
+        st.info("Pas de données.")
 
-# Bouton retour
+# NOUVEL ONGLET
+with tab3:
+    st.header("Journal des Activités")
+    if not st.session_state.data_activites.empty:
+        st.dataframe(st.session_state.data_activites, use_container_width=True)
+        
+        # Petit graphique sympa : Plaisir vs Satisfaction
+        try:
+            st.caption("Évolution du Plaisir et de la Satisfaction par activité")
+            st.line_chart(st.session_state.data_activites[["Plaisir (0-10)", "Satisfaction (0-10)"]])
+        except:
+            pass
+    else:
+        st.info("Votre registre est vide pour le moment.")
 
+st.divider()
+st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
