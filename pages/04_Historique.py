@@ -101,8 +101,8 @@ with tab3:
 
         # Construction du graphique simple mais avec GROS POINTS
         line_chart = alt.Chart(df_line_long).mark_line(
-            # C'est ici que ça se joue : size=200 fait des gros points bien visibles
-            point=alt.OverlayMarkDef(size=200, filled=True) 
+            # C'est ici que ça se joue : size=100 fait des gros points bien visibles
+            point=alt.OverlayMarkDef(size=100, filled=True) 
         ).encode(
             x=alt.X('Full_Date:T', title='Heure', axis=alt.Axis(format='%H:%M')),
             y=alt.Y('Score:Q', title='Note (0-10)'),
