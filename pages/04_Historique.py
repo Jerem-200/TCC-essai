@@ -16,10 +16,10 @@ if "data_activites" not in st.session_state:
 if "data_humeur_jour" not in st.session_state:
     st.session_state.data_humeur_jour = pd.DataFrame(columns=["Date", "Humeur Globale (0-10)"])
 
-# --- LES ONGLETS ---
+# --- ONGLETS ---
 tab1, tab2, tab3 = st.tabs(["🧩 Colonnes de Beck", "📊 Échelles & Scores", "📝 Registre & Activités"])
 
-# ONGLET 1 : BECK
+# ONGLET 1
 with tab1:
     st.header("Restructuration")
     if not st.session_state.data_beck.empty:
@@ -27,7 +27,7 @@ with tab1:
     else:
         st.info("Pas de données.")
 
-# ONGLET 2 : BDI
+# ONGLET 2
 with tab2:
     st.header("Suivi des scores (BDI)")
     if not st.session_state.data_echelles.empty:
@@ -54,12 +54,11 @@ with tab3:
     # 2. ACTIVITÉS
     if not st.session_state.data_activites.empty:
         
-        # BARRES MOYENNES
+        # BARRES MOYENNES (Grouped Bar Chart)
         st.subheader("2. Quelles activités vous font du bien ? (Moyenne)")
         
         df_act = st.session_state.data_activites.copy()
         cols_to_mean = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
-        
         for col in cols_to_mean:
             df_act[col] = pd.to_numeric(df_act[col], errors='coerce')
         
@@ -78,18 +77,21 @@ with tab3:
 
         st.divider()
 
-        # GRAPHIQUE 3 : ÉVOLUTION CHRONOLOGIQUE PRÉCISE
+        # -------------------------------------------------------------
+        # GRAPHIQUE 3 : ÉVOLUTION CHRONOLOGIQUE (GROS POINTS)
+        # -------------------------------------------------------------
         st.subheader("3. Fluctuations au fil du temps")
-        st.write("Chronologie précise des activités.")
+        st.write("Survolez les points pour voir le détail.")
         
-        # Préparation des données avec date précise
+        # Préparation des données
         df_line = st.session_state.data_activites.copy()
-        
-        # On combine Date + Heure (HH:MM) proprement
-        # Ex: "2023-12-05" + "14:30" -> Timestamp complet
-        df_line['Full_Date'] = pd.to_datetime(df_line['Date'].astype(str) + ' ' + df_line['Heure'].astype(str), errors='coerce')
+        try:
+            # On construit une date complète pour l'axe chronologique
+            df_line['Full_Date'] = pd.to_datetime(df_line['Date'].astype(str) + ' ' + df_line['Heure'].astype(str), errors='coerce')
+        except:
+            df_line['Full_Date'] = pd.to_datetime(df_line['Date'])
 
-        # Format long pour Altair
+        # Format long
         df_line_long = df_line.melt(
             id_vars=['Full_Date', 'Activité'], 
             value_vars=["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"],
@@ -97,13 +99,18 @@ with tab3:
             value_name="Score"
         )
 
-        # Graphique
-        line_chart = alt.Chart(df_line_long).mark_line(point=True).encode(
-            x=alt.X('Full_Date:T', title='Temps', axis=alt.Axis(format='%d/%m %H:%M')), # Format jour/mois heure:minute
+        # Construction du graphique simple mais avec GROS POINTS
+        line_chart = alt.Chart(df_line_long).mark_line(
+            # C'est ici que ça se joue : size=200 fait des gros points bien visibles
+            point=alt.OverlayMarkDef(size=200, filled=True) 
+        ).encode(
+            x=alt.X('Full_Date:T', title='Heure', axis=alt.Axis(format='%H:%M')),
             y=alt.Y('Score:Q', title='Note (0-10)'),
-            color=alt.Color('Indicateur:N'),
+            color=alt.Color('Indicateur:N', legend=alt.Legend(title="Type")),
+            
+            # Info-bulle classique (s'affiche quand on touche le gros point)
             tooltip=[
-                alt.Tooltip('Full_Date', title='Date', format='%d/%m %H:%M'),
+                alt.Tooltip('Full_Date', title='Heure', format='%H:%M'),
                 alt.Tooltip('Activité', title='Activité'),
                 alt.Tooltip('Indicateur', title='Type'),
                 alt.Tooltip('Score', title='Note')
@@ -113,7 +120,6 @@ with tab3:
         st.altair_chart(line_chart, use_container_width=True)
         
         with st.expander("Voir le tableau détaillé"):
-            # On trie le tableau par date et heure avant de l'afficher
             st.dataframe(df_line.sort_values(by="Full_Date")[["Date", "Heure", "Activité", "Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]], use_container_width=True)
 
     else:
