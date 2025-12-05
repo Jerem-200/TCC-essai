@@ -23,17 +23,17 @@ if "analyse_detaillee" not in st.session_state:
 # BLOC 1 : DÉFINITION & BRAINSTORMING (Interactif)
 # ==============================================================================
 st.markdown("### 1. Définition")
-[cite_start]st.caption("Définissez le problème de façon précise. [cite: 180-181]"),
+st.caption("Définissez le problème de façon précise.")
 probleme = st.text_area("Quel est le problème ?", placeholder="Qui ? Quoi ? Où ? Quand ?")
 
 st.markdown("### 2. Objectifs")
-[cite_start]st.caption("Quels seraient les signes concrets que l'objectif est atteint ? [cite: 184-185]"),
+st.caption("Quels seraient les signes concrets que l'objectif est atteint ?")
 objectif = st.text_area("Mon objectif réaliste :")
 
 st.divider()
 
 st.markdown("### 3. Recherche de solutions")
-[cite_start]st.caption("Listez vos solutions une par ligne. [cite: 186-187]"),
+st.caption("Listez vos solutions une par ligne.")
 
 # Astuce : On sort ce champ du formulaire pour que Streamlit le lise en direct
 solutions_text = st.text_area("Vos idées (Une par ligne) :", height=100, help="Écrivez une idée, appuyez sur Entrée, écrivez la suivante...")
@@ -49,7 +49,7 @@ st.divider()
 st.markdown("### 4. Analyse Avantages / Inconvénients")
 
 if len(liste_solutions) > 0:
-    [cite_start]st.write("Pour chaque solution, ajoutez des arguments 'Pour' ou 'Contre'. [cite: 192-194]"),
+    st.write("Pour chaque solution, ajoutez des arguments 'Pour' ou 'Contre'.")
     
     # On met l'ajout d'argument dans son propre petit formulaire pour être propre
     with st.form("ajout_argument_form", clear_on_submit=True):
@@ -111,7 +111,7 @@ st.divider()
 # ==============================================================================
 with st.form("plan_final_form"):
     st.markdown("### 5. Décision finale")
-    [cite_start]st.caption("Quelle solution choisissez-vous finalement ? [cite: 195-196]"),
+    st.caption("Quelle solution choisissez-vous finalement ?")
     solution_choisie = st.text_input("Je décide de mettre en œuvre :")
 
     st.markdown("### 6. Préparation")
@@ -120,7 +120,7 @@ with st.form("plan_final_form"):
     with c2: ressources = st.text_area("Ressources nécessaires")
 
     st.markdown("### 7. Plan d'action")
-    [cite_start]st.caption("Étapes concrètes et dates. [cite: 199-202]"),
+    st.caption("Étapes concrètes et dates. La 1ère étape doit être facile !")
     plan = st.text_area("Mon plan détaillé :", height=100)
 
     st.markdown("### 8. Évaluation")
