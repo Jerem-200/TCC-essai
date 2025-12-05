@@ -5,16 +5,29 @@ st.set_page_config(page_title="Mon Compagnon TCC", page_icon="🧠", layout="wid
 # --- AUTHENTIFICATION ---
 if "authentifie" not in st.session_state:
     st.session_state.authentifie = False
+if "patient_id" not in st.session_state:
+    st.session_state.patient_id = ""
 
-def verifier_mot_de_passe():
-    if st.session_state.password_input == "TCC2025": 
+def verifier_connexion():
+    # On vérifie le mot de passe ET qu'un nom a été entré
+    if st.session_state.password_input == "TCC2025" and st.session_state.pseudo_input.strip() != "":
         st.session_state.authentifie = True
-    else:
+        st.session_state.patient_id = st.session_state.pseudo_input
+    elif st.session_state.password_input != "TCC2025":
         st.error("Mot de passe incorrect")
+    else:
+        st.warning("Veuillez entrer un identifiant (Prénom ou Code).")
 
 if not st.session_state.authentifie:
     st.title("🔒 Espace Patient Sécurisé")
-    st.text_input("Mot de passe", type="password", key="password_input", on_change=verifier_mot_de_passe)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.text_input("Votre Identifiant (Prénom/Pseudo)", key="pseudo_input")
+    with col2:
+        st.text_input("Mot de passe d'accès", type="password", key="password_input", on_change=verifier_connexion)
+    
+    st.button("Se connecter", on_click=verifier_connexion)
     st.stop()
 
 # --- ACCUEIL ---
