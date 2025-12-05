@@ -60,7 +60,7 @@ if not st.session_state.authentifie:
         with st.expander("S.O.S - Mot de passe oublié ?"):
             st.write("Pour des raisons de sécurité, la réinitialisation se fait via votre thérapeute.")
             # Remplacez par VOTRE email professionnel ici
-            email_therapeute = "votre_email_pro@gmail.com" 
+            email_therapeute = "email_pro_exemple@gmail.com" 
             sujet = "Demande réinitialisation mot de passe TCC"
             corps = "Bonjour, j'ai oublié mon mot de passe. Mon identifiant est : ..."
             lien_mail = f"mailto:{email_therapeute}?subject={sujet}&body={corps}"
