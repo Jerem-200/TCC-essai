@@ -57,27 +57,19 @@ with st.form("activity_form"):
     submitted_act = st.form_submit_button("Ajouter l'activité")
 
     if submitted_act:
-        # On formate l'heure proprement (HH:MM) avec un zéro devant si besoin (ex: 09:05)
         heure_str = f"{heure_h:02d}:{heure_m:02d}"
         
-        new_row = {
-            "Date": str(date_act),
-            "Heure": heure_str,
-            "Activité": activite_desc,
-            "Plaisir (0-10)": plaisir,
-            "Maîtrise (0-10)": maitrise,
-            "Satisfaction (0-10)": satisfaction
-        }
-        st.session_state.data_activites = pd.concat(
-            [st.session_state.data_activites, pd.DataFrame([new_row])],
-            ignore_index=True
-        )
-        
-        # --- MISE À JOUR DE LA MÉMOIRE ---
+        # Local
+        new_row = {"Date": str(date_act), "Heure": heure_str, "Activité": activite_desc, "Plaisir (0-10)": plaisir, "Maîtrise (0-10)": maitrise, "Satisfaction (0-10)": satisfaction}
+        st.session_state.data_activites = pd.concat([st.session_state.data_activites, pd.DataFrame([new_row])], ignore_index=True)
         st.session_state.memoire_h = heure_h
         st.session_state.memoire_m = heure_m
         
-        st.success(f"Activité ajoutée à {heure_str} !")
+        # CLOUD (Envoi vers l'onglet "Activites")
+        from connect_db import save_data
+        save_data("Activites", [str(date_act), heure_str, activite_desc, plaisir, maitrise, satisfaction])
+        
+        st.success(f"Activité ajoutée et sauvegardée ! ☁️")
 
 st.divider()
 
