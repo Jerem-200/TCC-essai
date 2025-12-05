@@ -87,7 +87,7 @@ if len(liste_solutions) > 0:
         st.table(df_display.set_index("Solution"))
         
         best_sol = df_display.loc[df_display["Bilan"].idxmax()]
-        st.success(f"💡 Meilleure solution mathématique : **{best_sol['Solution']}** (Score : {best_sol['Bilan']})")
+        st.success(f"💡 La solution qui semble être la meilleure est : **{best_sol['Solution']}** (Score : {best_sol['Bilan']})")
 
         if st.button("🗑️ Tout effacer"):
             st.session_state.analyse_detaillee = pd.DataFrame(columns=["Solution", "Type", "Terme", "Description", "Note", "Valeur"])
