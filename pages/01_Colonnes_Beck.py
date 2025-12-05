@@ -7,7 +7,6 @@ st.set_page_config(page_title="Colonnes de Beck", page_icon="🧩")
 st.title("🧩 Colonnes de Beck")
 
 # --- 1. S'ASSURER QUE LA MÉMOIRE EXISTE ---
-# On enlève la colonne "Distorsions" de la mémoire
 if "data_beck" not in st.session_state:
     st.session_state.data_beck = pd.DataFrame(columns=[
         "Date", "Situation", "Émotion", "Intensité (Avant)", "Pensée Auto", 
@@ -17,38 +16,58 @@ if "data_beck" not in st.session_state:
 
 # --- 2. LE FORMULAIRE ---
 with st.form("beck_form"):
-    # Situation
+    # --- SITUATION ---
     col1, col2 = st.columns(2)
     with col1:
         date_event = st.date_input("Date", datetime.now())
     with col2:
         lieu = st.text_input("Lieu / Contexte")
     
-    situation = st.text_area("Situation (Fait déclencheur)")
+    # Info-bulle Situation
+    help_situation = """C'est le contexte dans lequel vous vous trouvez (horaire, lieu, personnes autour de toi...). Il est constitué d'éléments factuels, les plus précis possible.\n\nEx : Entretien d'embauche non concluant."""
+    
+    situation = st.text_area("Situation (Fait déclencheur)", help=help_situation)
     
     st.divider()
     
-    # Emotion (MODIFIÉ : Champ libre)
-    emotion = st.text_input("Émotion (Nommez ce que vous ressentez)")
+    # --- EMOTION ---
+    # Info-bulle Emotion
+    help_emotion = """Vous observez l'émotion que vous ressentez dans cette situation. En complément, prenez le temps d'évaluer l'intensité de votre émotion sur une échelle de 0 à 10.\n\nEx : Tristesse avec une intensité de 7/10."""
+    
+    emotion = st.text_input("Émotion (Nommez ce que vous ressentez)", help=help_emotion)
     intensite_avant = st.slider("Intensité de l'émotion (0-10)", 0, 10, 7)
     
     st.divider()
     
-    # Pensées (Simplifié : plus de distorsions)
-    pensee_auto = st.text_area("Pensée Automatique (Ce qui vous traverse l'esprit)")
-    croyance_auto = st.slider("Croyance dans cette pensée (0-10)", 0, 10, 8)
+    # --- PENSÉE AUTOMATIQUE ---
+    # Info-bulle Pensée Auto
+    help_pensee = """Une pensée automatique est comme une petite voix dans votre tête, qui commente tout ce que vous faites.\nIdentifiez-la puis prenez le temps d'évaluer votre niveau de croyance en cette pensée sur une échelle de 0 à 10.\n\nEx: "Je n'arrive jamais à rien." avec un degré de croyance de 7/10."""
+    
+    pensee_auto = st.text_area("Pensée Automatique (Ce qui vous traverse l'esprit)", help=help_pensee)
+    
+    # Changement du titre ici
+    croyance_auto = st.slider("Degré de croyance en la pensée automatique (0-10)", 0, 10, 8)
     
     st.divider()
     
-    # Restructuration
-    pensee_rat = st.text_area("Pensée Alternative / Rationnelle")
+    # --- PENSÉE RATIONNELLE ---
+    # Info-bulle Rationnelle
+    help_rationnel = """Essayez d'observer la situation sous un autre angle. Posez-vous par exemples les questions suivantes :\n• Si un-e proche s'était retrouvé-e dans cette situation, quelle aurait été sa réaction ?\n• Dans une période de ma vie où je me sentais mieux, qu'aurais-je pensé de cette situation ?\n\nÉvaluez le degré de croyance en cette pensée automatique de 0 à 10.\nEx : "J'ai déjà réussi des entretiens d'embauche par le passé." avec un degré de croyance de 8/10."""
+    
+    pensee_rat = st.text_area("Pensée Alternative / Rationnelle", help=help_rationnel)
     croyance_rat = st.slider("Croyance dans la pensée rationnelle (0-10)", 0, 10, 5)
     
     st.divider()
     
-    # Résultat
+    # --- RÉSULTATS ---
+    st.subheader("5. Ré-évaluation")
+    
+    # Info-bulle Résultats
+    help_resultat = """Réévaluez les émotions ressenties et votre degré de croyance vis-à-vis de la pensée automatique.\n\nEx :\nNouveau degré de croyance : 4/10\nNouvelle intensité de mon émotion: 5/10."""
+    
+    # Changement du titre ici
+    croyance_apres = st.slider("Nouveau degré de croyance en la pensée automatique (0-10)", 0, 10, 4, help=help_resultat)
     intensite_apres = st.slider("Nouvelle intensité de l'émotion (0-10)", 0, 10, 4)
-    croyance_apres = st.slider("Nouvelle croyance pensée auto (0-10)", 0, 10, 4)
     
     submitted = st.form_submit_button("Enregistrer l'exercice")
 
