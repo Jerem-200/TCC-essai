@@ -4,16 +4,12 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 def save_data(nom_onglet, donnees_liste):
     try:
-        # --- NOUVELLE MÉTHODE PLUS SIMPLE ---
-        # On regarde si la configuration est au format "TOML" (sans json.loads)
+        # On récupère les secrets directement au format dictionnaire
+        # (Plus besoin de json.loads compliqué)
         if "gcp_service_account" in st.secrets:
             key_dict = st.secrets["gcp_service_account"]
-        # Sinon, on garde l'ancienne méthode au cas où
-        elif "service_account_info" in st.secrets:
-            import json
-            key_dict = json.loads(st.secrets["service_account_info"], strict=False)
         else:
-            st.error("Aucune clé trouvée dans les Secrets.")
+            st.error("Clé 'gcp_service_account' introuvable dans les Secrets.")
             return False
 
         # Connexion
