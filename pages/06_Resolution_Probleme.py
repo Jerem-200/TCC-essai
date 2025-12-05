@@ -3,90 +3,47 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Résolution de Problèmes", page_icon="💡")
+st.title("💡 Résolution de Problèmes")
 
-st.title("💡 Technique de Résolution de Problèmes")
-st.info("Une méthode structurée pour transformer un problème en plan d'action.")
+if "data_problemes" not in st.session_state: st.session_state.data_problemes = pd.DataFrame()
+if "analyse_detaillee" not in st.session_state: st.session_state.analyse_detaillee = pd.DataFrame(columns=["Solution", "Type", "Note", "Valeur"])
 
-# --- INITIALISATION MÉMOIRE ---
-if "data_problemes" not in st.session_state:
-    st.session_state.data_problemes = pd.DataFrame(columns=[
-        "Date", "Problème", "Objectif", "Solution Choisie", "Date Évaluation"
-    ])
-
-# --- LE FORMULAIRE ---
-with st.form("problem_solving_form"):
+with st.form("pb_form"):
+    st.markdown("### 1. Définir")
+    pb = st.text_area("Problème")
+    obj = st.text_area("Objectif")
     
-    # 1. STOP & ATTITUDE
-    st.markdown("### 1. Attitude Constructive")
-    st.write("🛑 **STOP !** Prenez un moment. Voyez ce problème comme un **défi** ou une occasion d'apprendre plutôt que comme une menace.")
+    st.markdown("### 2. Solutions")
+    sols = st.text_area("Idées (une par ligne)")
+    liste_sols = [s.strip() for s in sols.split('\n') if s.strip()]
     
-    st.divider()
-
-    # 2. DÉFINIR
-    st.markdown("### 2. Définir le problème")
-    st.caption("Définissez le problème de façon précise, concrète et délimitée.")
-    probleme = st.text_area("Quel est le problème ? (Quoi ? Qui ? Où ? Quand ?)", help="Évitez le vague. Si plusieurs problèmes, choisissez le plus urgent.")
+    st.markdown("### 3. Analyse")
+    if liste_sols:
+        c1, c2, c3 = st.columns(3)
+        with c1: sel_sol = st.selectbox("Solution", liste_sols)
+        with c2: sel_type = st.selectbox("Type", ["Avantage (+)", "Inconvénient (-)"])
+        with c3: sel_note = st.number_input("Note (0-10)", 0, 10, 5)
+        
+        if st.form_submit_button("Ajouter argument"):
+            val = sel_note if "Avantage" in sel_type else -sel_note
+            st.session_state.analyse_detaillee = pd.concat([st.session_state.analyse_detaillee, pd.DataFrame([{"Solution": sel_sol, "Type": sel_type, "Note": sel_note, "Valeur": val}])], ignore_index=True)
+            st.success("Ajouté !")
+            
+        if not st.session_state.analyse_detaillee.empty:
+            scores = st.session_state.analyse_detaillee.groupby("Solution")["Valeur"].sum().reset_index().sort_values("Valeur", ascending=False)
+            st.dataframe(scores, use_container_width=True)
+            if st.form_submit_button("Effacer analyse"):
+                st.session_state.analyse_detaillee = pd.DataFrame()
+                st.rerun()
     
-    # 3. OBJECTIFS
-    st.markdown("### 3. Objectifs")
-    st.caption("Quels seraient les signes concrets que l'objectif est atteint ?")
-    objectif = st.text_area("Mon objectif réaliste :")
-
-    st.divider()
-
-    # 4. SOLUTIONS (Brainstorming)
-    st.markdown("### 4. Solutions possibles")
-    st.caption("Dressez la liste de TOUTES les solutions possibles. Ne jugez pas encore !")
-    solutions = st.text_area("Toutes mes idées (même les farfelues) :")
-
-    # 5. ANALYSE
-    with st.expander("⚖️ Étape 5 : Analyser Avantages / Inconvénients"):
-        st.write("Pour les meilleures solutions, pesez le pour et le contre (court et long terme).")
-        analyse = st.text_area("Vos notes d'analyse :")
-
-    st.divider()
-
-    # 6. CHOIX
-    st.markdown("### 6. Décision")
-    st.caption("Choisissez une solution. Acceptez qu'elle ne soit pas parfaite (accepter les inconvénients).")
-    solution_choisie = st.text_input("La solution que je retiens :")
-
-    # 7. OBSTACLES & RESSOURCES
-    st.markdown("### 7. Préparation")
-    st.caption("Identifiez ce qui pourrait bloquer et ce qui peut aider.")
-    c1, c2 = st.columns(2)
-    with c1:
-        obstacles = st.text_area("Obstacles possibles")
-    with c2:
-        ressources = st.text_area("Ressources nécessaires")
-
-    st.divider()
-
-    # 8. PLAN D'ACTION
-    st.markdown("### 8. Plan d'action")
-    st.caption("Étapes concrètes et dates. La 1ère étape doit être facile !")
-    plan = st.text_area("Mon plan détaillé (Quoi et Quand) :", height=150, placeholder="1. Faire ceci le...\n2. Appeler untel le...")
-
-    # 9. EVALUATION
-    st.markdown("### 9. Évaluation future")
-    st.caption("Quand évaluerez-vous les résultats ?")
-    date_eval = st.date_input("Date de bilan", datetime.now() + timedelta(days=7))
-
-    submitted = st.form_submit_button("Enregistrer le Plan d'Action")
-
-    if submitted:
-        new_row = {
-            "Date": datetime.now().strftime("%Y-%m-%d"),
-            "Problème": probleme,
-            "Objectif": objectif,
-            "Solution Choisie": solution_choisie,
-            "Date Évaluation": str(date_eval)
-        }
-        st.session_state.data_problemes = pd.concat(
-            [st.session_state.data_problemes, pd.DataFrame([new_row])],
-            ignore_index=True
-        )
-        st.success("Plan enregistré ! Passez à l'action maintenant !")
+    st.markdown("### 4. Décision & Plan")
+    choix = st.text_input("Solution retenue")
+    plan = st.text_area("Plan d'action")
+    date_eval = st.date_input("Date Bilan", datetime.now() + timedelta(days=7))
+    
+    if st.form_submit_button("Enregistrer Plan"):
+        st.session_state.data_problemes = pd.concat([st.session_state.data_problemes, pd.DataFrame([{"Date": str(datetime.now().date()), "Problème": pb, "Solution Choisie": choix}])], ignore_index=True)
+        st.success("Plan Sauvegardé !")
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
