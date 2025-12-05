@@ -3,6 +3,13 @@ import pandas as pd
 import altair as alt
 
 st.set_page_config(page_title="Historique", page_icon="📜", layout="wide")
+
+# --- VÉRIFICATION DE SÉCURITÉ ---
+if "authentifie" not in st.session_state or not st.session_state.authentifie:
+    st.warning("⛔ Veuillez vous connecter sur la page d'accueil pour accéder à cet outil.")
+    st.switch_page("streamlit_app.py") # Renvoie vers le login
+    st.stop() # Arrête le chargement de la page
+
 st.title("📜 Historique de vos progrès")
 
 # --- INITIALISATION ---

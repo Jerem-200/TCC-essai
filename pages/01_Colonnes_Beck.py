@@ -4,6 +4,12 @@ from datetime import datetime
 
 st.set_page_config(page_title="Colonnes de Beck", page_icon="🧩")
 
+# --- VÉRIFICATION DE SÉCURITÉ ---
+if "authentifie" not in st.session_state or not st.session_state.authentifie:
+    st.warning("⛔ Veuillez vous connecter sur la page d'accueil pour accéder à cet outil.")
+    st.switch_page("streamlit_app.py") # Renvoie vers le login
+    st.stop() # Arrête le chargement de la page
+
 st.title("🧩 Colonnes de Beck")
 
 # --- 1. S'ASSURER QUE LA MÉMOIRE EXISTE ---
