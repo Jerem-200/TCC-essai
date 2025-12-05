@@ -92,8 +92,8 @@ with st.form("beck_form"):
         # 2. SAUVEGARDE CLOUD (GOOGLE SHEETS) --- NOUVEAU !
         from connect_db import save_data
         
-        # On récupère l'ID du patient (ou "Anonyme" s'il y a un bug)
-        patient = st.session_state.get("patient_id", "Anonyme")
+        # On récupère l'ID du patient (ou "Inconnu" s'il y a un bug)
+        patient = st.session_state.get("patient_id", "Inconnu")
 
         # On prépare la liste simple pour Excel (l'ordre compte !)
         liste_excel = [
