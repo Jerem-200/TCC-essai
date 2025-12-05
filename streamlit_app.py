@@ -14,7 +14,6 @@ def verifier_mot_de_passe():
 
 if not st.session_state.authentifie:
     st.title("🔒 Espace Patient Sécurisé")
-    st.write("Veuillez entrer votre code d'accès personnel pour continuer.")
     st.text_input("Mot de passe", type="password", key="password_input", on_change=verifier_mot_de_passe)
     st.stop()
 
@@ -23,38 +22,42 @@ st.title("🧠 Mon Compagnon TCC")
 st.subheader("Tableau de bord personnel")
 st.divider()
 
-# --- LIGNE 1 ---
-col1, col2 = st.columns(2)
-
-with col1:
-    st.info("### 🧩 Restructuration (Beck)")
-    st.write("Analysez une situation difficile.")
-    st.page_link("pages/01_Colonnes_Beck.py", label="Lancer l'exercice", icon="➡️")
-
-with col2:
+# --- LIGNE 1 : ANALYSE ---
+c1, c2 = st.columns(2)
+with c1:
+    st.info("### 🧩 Restructuration")
+    st.write("Beck & Pensées alternatives")
+    st.page_link("pages/01_Colonnes_Beck.py", label="Lancer", icon="➡️")
+with c2:
     st.info("### 📊 Échelles (BDI)")
-    st.write("Faites le point sur votre humeur.")
-    st.page_link("pages/02_Echelles_BDI.py", label="Faire le test", icon="➡️")
+    st.write("Auto-évaluation de l'humeur")
+    st.page_link("pages/02_Echelles_BDI.py", label="Tester", icon="➡️")
 
 st.divider()
 
-# --- LIGNE 2 (3 colonnes) ---
-col3, col4, col5 = st.columns(3)
-
-with col3:
+# --- LIGNE 2 : ACTION ---
+c3, c4 = st.columns(2)
+with c3:
     st.warning("### 📝 Registre Activités")
-    st.write("Notez vos activités.")
+    st.write("Quotidien & Plaisir")
     st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="➡️")
-
-with col4:
-    # NOUVEAU BOUTON
+with c4:
     st.error("### 💡 Résolution Problèmes")
-    st.write("Trouver des solutions.")
+    st.write("Trouver des solutions")
     st.page_link("pages/06_Resolution_Probleme.py", label="Lancer", icon="➡️")
 
-with col5:
-    st.success("### 📜 Historique")
-    st.write("Voir mes progrès.")
+st.divider()
+
+# --- LIGNE 3 : BIEN-ÊTRE & SUIVI (NOUVEAU) ---
+c5, c6 = st.columns(2)
+with c5:
+    # NOUVEAU BOUTON RELAXATION
+    st.success("### 🧘 Relaxation")
+    st.write("Respiration & Détente")
+    st.page_link("pages/07_Relaxation.py", label="Se détendre", icon="➡️")
+with c6:
+    st.primary("### 📜 Historique")
+    st.write("Voir mes progrès")
     st.page_link("pages/04_Historique.py", label="Consulter", icon="📅")
 
 st.divider()
@@ -76,4 +79,5 @@ with st.sidebar:
     st.page_link("pages/02_Echelles_BDI.py", label="📊 BDI")
     st.page_link("pages/05_Registre_Activites.py", label="📝 Activités")
     st.page_link("pages/06_Resolution_Probleme.py", label="💡 Problèmes")
+    st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation") # Ajouté au menu
     st.page_link("pages/04_Historique.py", label="📜 Historique")
