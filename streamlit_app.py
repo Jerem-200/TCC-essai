@@ -14,13 +14,16 @@ if "patient_id" not in st.session_state:
 # =========================================================
 if not st.session_state.authentifie:
     st.title("🔒 Espace Patient Sécurisé")
+    
+    # Disclaimer confidentialité
     st.info("""
     ℹ️ **Note de confidentialité :** Cette application est un outil d'accompagnement. 
     Pour garantir votre anonymat, **n'utilisez pas votre nom de famille complet**. 
     Utilisez un prénom ou un pseudonyme convenu avec votre thérapeute.
     Vos données sont strictement réservées à l'usage thérapeutique.
     """)
-    st.info("Bienvenue. Connectez-vous ou créez votre espace personnel pour commencer.")
+    
+    st.write("Bienvenue. Connectez-vous ou créez votre espace personnel pour commencer.")
 
     # On crée deux onglets pour séparer les actions
     tab_login, tab_signup = st.tabs(["🔑 Se connecter", "📝 Créer un compte"])
@@ -36,11 +39,9 @@ if not st.session_state.authentifie:
             from connect_db import charger_utilisateurs
             users_db = charger_utilisateurs() # Récupère la liste depuis Google Sheets
             
-            # Vérification (Est-ce que le couple User/Pass existe ?)
+            # Vérification
             compte_trouve = False
             for u in users_db:
-                # On compare ce qui est écrit avec ce qui est dans le fichier Excel
-                # (On utilise str() pour être sûr de comparer du texte)
                 if str(u["Identifiant"]) == user_login and str(u["MotDePasse"]) == pass_login:
                     compte_trouve = True
                     break
@@ -49,10 +50,22 @@ if not st.session_state.authentifie:
                 st.success("Connexion réussie !")
                 st.session_state.authentifie = True
                 st.session_state.patient_id = user_login
-                time.sleep(1) # Petite pause pour voir le message
-                st.rerun()    # On recharge la page pour entrer
+                time.sleep(1)
+                st.rerun()
             else:
                 st.error("Identifiant ou mot de passe incorrect.")
+                
+        # --- BOUTON MOT DE PASSE OUBLIÉ ---
+        st.write("---")
+        with st.expander("S.O.S - Mot de passe oublié ?"):
+            st.write("Pour des raisons de sécurité, la réinitialisation se fait via votre thérapeute.")
+            # Remplacez par VOTRE email professionnel ici
+            email_therapeute = "votre_email_pro@gmail.com" 
+            sujet = "Demande réinitialisation mot de passe TCC"
+            corps = "Bonjour, j'ai oublié mon mot de passe. Mon identifiant est : ..."
+            lien_mail = f"mailto:{email_therapeute}?subject={sujet}&body={corps}"
+            
+            st.markdown(f"""<a href="{lien_mail}" target="_blank"><button style="background-color:#f0f2f6;border:1px solid #d0d7de;padding:10px;border-radius:5px;cursor:pointer;color:#31333F;">📧 Envoyer une demande</button></a>""", unsafe_allow_html=True)
 
     # --- ONGLET 2 : INSCRIPTION ---
     with tab_signup:
@@ -65,8 +78,7 @@ if not st.session_state.authentifie:
         if submit_signup:
             if new_user and new_pass:
                 from connect_db import charger_utilisateurs, creer_compte
-                
-                # 1. On vérifie si le pseudo est déjà pris
+                # Vérif doublon
                 users_db = charger_utilisateurs()
                 pseudo_pris = False
                 for u in users_db:
@@ -77,14 +89,12 @@ if not st.session_state.authentifie:
                 if pseudo_pris:
                     st.warning("Cet identifiant existe déjà. Choisissez-en un autre.")
                 else:
-                    # 2. On crée le compte
                     if creer_compte(new_user, new_pass):
                         st.success("Compte créé avec succès ! Allez dans l'onglet 'Se connecter'.")
                         st.balloons()
             else:
                 st.warning("Veuillez remplir tous les champs.")
 
-    # On arrête le script ici tant qu'on n'est pas connecté
     st.stop()
 
 
@@ -122,7 +132,7 @@ with col4:
 
 st.divider()
 
-# --- LIGNE 3 : BIEN-ÊTRE & SUIVI ---
+# --- LIGNE 3 ---
 c5, c6, c7 = st.columns(3) # On passe à 3 colonnes
 
 with c5:
@@ -136,8 +146,9 @@ with c6:
     st.page_link("pages/04_Historique.py", label="Voir", icon="📅")
 
 with c7:
-    # NOUVEAU BOUTON EXPORT
-    st.primary("### 📩 Export")
+    # --- CORRECTION DE L'ERREUR ICI ---
+    # st.primary n'existe pas -> On remplace par st.info (bleu) ou st.success (vert)
+    st.info("### 📩 Export PDF")
     st.write("Envoyer rapport")
     st.page_link("pages/08_Export_Rapport.py", label="Générer", icon="📤")
 
@@ -163,3 +174,4 @@ with st.sidebar:
     st.page_link("pages/06_Resolution_Probleme.py", label="💡 Problèmes")
     st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
     st.page_link("pages/04_Historique.py", label="📜 Historique")
+    st.page_link("pages/08_Export_Rapport.py", label="📩 Export PDF")
