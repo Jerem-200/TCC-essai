@@ -1,37 +1,39 @@
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-import json
 
 def save_data(nom_onglet, donnees_liste):
-    """
-    Sauvegarde une ligne de données dans l'onglet spécifié du Google Sheet.
-    """
     try:
-        # 1. Récupération des secrets
-        # On lit le JSON stocké dans les secrets Streamlit
-        key_dict = json.loads(st.secrets["service_account_info"])
-        
-        # 2. Connexion à Google
+        # --- NOUVELLE MÉTHODE PLUS SIMPLE ---
+        # On regarde si la configuration est au format "TOML" (sans json.loads)
+        if "gcp_service_account" in st.secrets:
+            key_dict = st.secrets["gcp_service_account"]
+        # Sinon, on garde l'ancienne méthode au cas où
+        elif "service_account_info" in st.secrets:
+            import json
+            key_dict = json.loads(st.secrets["service_account_info"], strict=False)
+        else:
+            st.error("Aucune clé trouvée dans les Secrets.")
+            return False
+
+        # Connexion
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, scope)
         client = gspread.authorize(creds)
         
-        # 3. Ouverture du fichier Excel
-        # ATTENTION : Remplacez "TCC_Base_Donnees" par le nom EXACT de votre fichier Sheet
+        # Ouverture Sheet
         sheet = client.open("TCC_Base_Donnees")
         
-        # 4. Sélection ou Création de l'onglet
+        # Onglet
         try:
             worksheet = sheet.worksheet(nom_onglet)
         except:
-            # Si l'onglet n'existe pas, on le crée
             worksheet = sheet.add_worksheet(title=nom_onglet, rows=100, cols=20)
             
-        # 5. Ajout de la ligne
+        # Ajout
         worksheet.append_row(donnees_liste)
         return True
         
     except Exception as e:
-        st.error(f"Erreur de sauvegarde Cloud : {e}")
+        st.error(f"Erreur technique : {e}")
         return False
