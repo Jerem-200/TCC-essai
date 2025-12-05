@@ -183,9 +183,13 @@ with st.form("bdi_form"):
         
         # 2. SAUVEGARDE CLOUD (NOUVEAU)
         from connect_db import save_data
+
+        # On récupère l'ID du patient (ou "Anonyme" s'il y a un bug)
+        patient = st.session_state.get("patient_id", "Anonyme")
         
         # On prépare la ligne pour Excel
         ligne_excel = [
+            patient,
             datetime.now().strftime("%Y-%m-%d %H:%M"), 
             "BDI-II", 
             score_total, 
