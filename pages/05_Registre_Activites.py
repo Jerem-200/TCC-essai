@@ -84,15 +84,15 @@ with st.form("humeur_form"):
     submitted_humeur = st.form_submit_button("Enregistrer l'humeur du jour")
     
     if submitted_humeur:
-        new_humeur = {
-            "Date": str(date_humeur),
-            "Humeur Globale (0-10)": humeur_globale
-        }
-        st.session_state.data_humeur_jour = pd.concat(
-            [st.session_state.data_humeur_jour, pd.DataFrame([new_humeur])],
-            ignore_index=True
-        )
-        st.success(f"Humeur du {date_humeur} enregistrée !")
+        # Local
+        new_humeur = {"Date": str(date_humeur), "Humeur Globale (0-10)": humeur_globale}
+        st.session_state.data_humeur_jour = pd.concat([st.session_state.data_humeur_jour, pd.DataFrame([new_humeur])], ignore_index=True)
+        
+        # CLOUD (Envoi vers l'onglet "Humeur")
+        from connect_db import save_data
+        save_data("Humeur", [str(date_humeur), humeur_globale])
+        
+        st.success(f"Humeur sauvegardée ! ☁️")
 
 # --- 4. APERÇU & GESTION ---
 st.divider()
