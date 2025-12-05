@@ -118,24 +118,29 @@ with st.form("plan_final_form"):
 
     submitted_final = st.form_submit_button("💾 ENREGISTRER LE PLAN D'ACTION")
 
-    if submitted_final:
-        # C'EST ICI QU'ON SAUVEGARDE TOUS LES DÉTAILS
+if submitted_final:
+        # Local
         new_row = {
             "Date": datetime.now().strftime("%Y-%m-%d"),
-            "Problème": probleme,
-            "Objectif": objectif,
-            "Solution Choisie": solution_choisie,
-            "Plan Action": plan,          # <-- Ajouté
-            "Obstacles": obstacles,       # <-- Ajouté
-            "Ressources": ressources,     # <-- Ajouté
+            "Problème": probleme, "Objectif": objectif, "Solution Choisie": solution_choisie,
+            "Plan Action": plan, "Obstacles": obstacles, "Ressources": ressources,
             "Date Évaluation": str(date_eval)
         }
-        st.session_state.data_problemes = pd.concat(
-            [st.session_state.data_problemes, pd.DataFrame([new_row])],
-            ignore_index=True
-        )
+        st.session_state.data_problemes = pd.concat([st.session_state.data_problemes, pd.DataFrame([new_row])], ignore_index=True)
         st.session_state.analyse_detaillee = pd.DataFrame(columns=["Solution", "Type", "Terme", "Description", "Note", "Valeur"])
-        st.success("Plan enregistré ! Retrouvez la fiche complète dans l'Historique.")
+        
+        # CLOUD (Envoi vers l'onglet "Plans_Action")
+        from connect_db import save_data
+        ligne_excel = [
+            datetime.now().strftime("%Y-%m-%d"),
+            probleme, objectif, solution_choisie, 
+            plan, obstacles, ressources, str(date_eval)
+        ]
+        
+        if save_data("Plans_Action", ligne_excel):
+            st.success("Plan enregistré dans le Cloud ! ☁️")
+        else:
+            st.warning("Sauvegarde locale uniquement.")
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")

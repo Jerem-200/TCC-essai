@@ -111,3 +111,6 @@ with st.form("beck_form"):
             st.success("✅ Exercice enregistré dans le Cloud et l'Historique !")
         else:
             st.warning("⚠️ Enregistré en local seulement (Erreur connexion).")
+
+st.divider()
+st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")

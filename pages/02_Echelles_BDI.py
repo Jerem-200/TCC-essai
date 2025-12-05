@@ -197,3 +197,6 @@ with st.form("bdi_form"):
             st.success(f"Score ({score_total}) sauvegardé dans le Cloud ! ☁️")
         else:
             st.warning("Sauvegardé en local uniquement (Erreur Cloud).")
+
+st.divider()
+st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
