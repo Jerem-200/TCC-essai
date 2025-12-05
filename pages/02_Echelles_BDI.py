@@ -166,35 +166,34 @@ with st.form("bdi_form"):
     # Le bouton est bien à l'intérieur du form, tout à la fin
     submitted = st.form_submit_button("Calculer et Enregistrer le Score")
 
-    if submitted:
-        # Interprétation (Indicative)
+ if submitted:
+        # Interprétation
         interpretation = ""
-        if score_total <= 13:
-            interpretation = "Dépression minimale"
-            st.success(f"Score : {score_total} / 63 ({interpretation})")
-        elif score_total <= 19:
-            interpretation = "Dépression légère"
-            st.info(f"Score : {score_total} / 63 ({interpretation})")
-        elif score_total <= 28:
-            interpretation = "Dépression modérée"
-            st.warning(f"Score : {score_total} / 63 ({interpretation})")
-        else:
-            interpretation = "Dépression sévère"
-            st.error(f"Score : {score_total} / 63 ({interpretation})")
+        if score_total <= 13: interpretation = "Dépression minimale"
+        elif score_total <= 19: interpretation = "Dépression légère"
+        elif score_total <= 28: interpretation = "Dépression modérée"
+        else: interpretation = "Dépression sévère"
 
-        # Sauvegarde
+        # 1. Sauvegarde Locale (Session)
         new_row = {
             "Date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "Type": "BDI-II",
-            "Score": score_total,
-            "Commentaire": interpretation
+            "Type": "BDI-II", "Score": score_total, "Commentaire": interpretation
         }
+        st.session_state.data_echelles = pd.concat([st.session_state.data_echelles, pd.DataFrame([new_row])], ignore_index=True)
         
-        st.session_state.data_echelles = pd.concat(
-            [st.session_state.data_echelles, pd.DataFrame([new_row])],
-            ignore_index=True
-        )
-        st.success("Résultat enregistré dans l'Historique.")
-
-st.divider()
-st.page_link("streamlit_app.py", label="Retour au Tableau de bord", icon="🏠")
+        # 2. SAUVEGARDE CLOUD (NOUVEAU)
+        from connect_db import save_data
+        
+        # On prépare la ligne pour Excel
+        ligne_excel = [
+            datetime.now().strftime("%Y-%m-%d %H:%M"), 
+            "BDI-II", 
+            score_total, 
+            interpretation
+        ]
+        
+        # On envoie vers l'onglet "Scores"
+        if save_data("Scores", ligne_excel):
+            st.success(f"Score ({score_total}) sauvegardé dans le Cloud ! ☁️")
+        else:
+            st.warning("Sauvegardé en local uniquement (Erreur Cloud).")
