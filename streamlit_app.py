@@ -122,16 +122,24 @@ with col4:
 
 st.divider()
 
-# --- LIGNE 3 ---
-c5, c6 = st.columns(2)
+# --- LIGNE 3 : BIEN-ÊTRE & SUIVI ---
+c5, c6, c7 = st.columns(3) # On passe à 3 colonnes
+
 with c5:
     st.success("### 🧘 Relaxation")
-    st.write("Respiration & Détente")
-    st.page_link("pages/07_Relaxation.py", label="Se détendre", icon="➡️")
+    st.write("Détente")
+    st.page_link("pages/07_Relaxation.py", label="Lancer", icon="➡️")
+
 with c6:
     st.success("### 📜 Historique")
-    st.write("Voir mes progrès")
-    st.page_link("pages/04_Historique.py", label="Consulter", icon="📅")
+    st.write("Mes progrès")
+    st.page_link("pages/04_Historique.py", label="Voir", icon="📅")
+
+with c7:
+    # NOUVEAU BOUTON EXPORT
+    st.primary("### 📩 Export")
+    st.write("Envoyer rapport")
+    st.page_link("pages/08_Export_Rapport.py", label="Générer", icon="📤")
 
 st.divider()
 
