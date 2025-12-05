@@ -71,8 +71,10 @@ with st.form("beck_form"):
     
     submitted = st.form_submit_button("Enregistrer l'exercice")
 
+# ... (le code d'avant reste pareil)
+
     if submitted:
-        # --- 3. SAUVEGARDE ---
+        # 1. Sauvegarde Locale (Session) - On garde pour l'affichage immédiat
         new_row = {
             "Date": str(date_event),
             "Situation": f"{lieu} - {situation}",
@@ -85,13 +87,27 @@ with st.form("beck_form"):
             "Intensité (Après)": intensite_apres,
             "Croyance (Après)": croyance_apres
         }
+        st.session_state.data_beck = pd.concat([st.session_state.data_beck, pd.DataFrame([new_row])], ignore_index=True)
         
-        st.session_state.data_beck = pd.concat(
-            [st.session_state.data_beck, pd.DataFrame([new_row])], 
-            ignore_index=True
-        )
+        # 2. SAUVEGARDE CLOUD (GOOGLE SHEETS) --- NOUVEAU !
+        from connect_db import save_data
         
-        st.success("Exercice enregistré ! Vous pouvez le voir dans l'Historique.")
-
-st.divider()
-st.page_link("streamlit_app.py", label="Retour au Tableau de bord", icon="🏠")
+        # On prépare la liste simple pour Excel (l'ordre compte !)
+        liste_excel = [
+            str(date_event), 
+            f"{lieu} - {situation}", 
+            emotion, 
+            intensite_avant, 
+            pensee_auto, 
+            croyance_auto, 
+            pensee_rat, 
+            croyance_rat, 
+            intensite_apres, 
+            croyance_apres
+        ]
+        
+        # On envoie vers l'onglet "Beck"
+        if save_data("Beck", liste_excel):
+            st.success("✅ Exercice enregistré dans le Cloud et l'Historique !")
+        else:
+            st.warning("⚠️ Enregistré en local seulement (Erreur connexion).")
