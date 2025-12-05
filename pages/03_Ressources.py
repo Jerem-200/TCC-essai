@@ -6,69 +6,68 @@ st.set_page_config(page_title="Fiches & Ressources", page_icon="📚")
 st.title("📚 Ressources Psycho-éducatives")
 st.write("Consultez les fiches directement ci-dessous ou téléchargez-les pour les imprimer.")
 
-# --- FONCTION D'AFFICHAGE INTELLIGENTE ---
+# --- FONCTION D'AFFICHAGE ---
 def afficher_ressource(titre_pdf, nom_fichier_pdf, liste_images):
-    """
-    Affiche le bouton de téléchargement du PDF + les images en dessous
-    """
-    # 1. BOUTON DE TÉLÉCHARGEMENT (Si le PDF existe)
+    # 1. BOUTON DE TÉLÉCHARGEMENT
     if os.path.exists(nom_fichier_pdf):
         with open(nom_fichier_pdf, "rb") as f:
             st.download_button(
                 label=f"📥 Télécharger la fiche '{titre_pdf}' (PDF)",
                 data=f,
-                file_name=nom_fichier_pdf,
+                file_name=os.path.basename(nom_fichier_pdf), # Astuce pour garder un nom propre au téléchargement
                 mime="application/pdf",
-                help="Idéal pour l'impression ou la lecture sur grand écran."
+                help="Idéal pour l'impression."
             )
     else:
-        st.warning(f"Le fichier PDF '{nom_fichier_pdf}' est introuvable sur le serveur.")
+        st.warning(f"Fichier '{nom_fichier_pdf}' introuvable (Vérifiez le dossier assets).")
 
     st.divider()
 
-    # 2. GALERIE D'IMAGES (Pour le mobile)
+    # 2. GALERIE D'IMAGES
     for image_name in liste_images:
         if os.path.exists(image_name):
-            # use_container_width=True permet à l'image de s'adapter parfaitement à l'écran du téléphone
             st.image(image_name, use_container_width=True)
         else:
-            st.info(f"Image '{image_name}' non chargée. (Faites une capture d'écran du PDF et nommez-la ainsi).")
+            st.info(f"Image '{image_name}' introuvable.")
 
 
-# --- LES ONGLETS ---
+# --- LES ONGLETS (C'EST ICI QU'ON CHANGE LES CHEMINS) ---
 tab1, tab2, tab3 = st.tabs(["Fonctions des Émotions", "Roue des Émotions", "Distorsions Cognitives"])
 
-# ONGLET 1
+# On ajoute "assets/" devant tous les noms de fichiers
+
 with tab1:
     st.header("À quoi servent nos émotions ?")
     st.caption("Comprendre le message caché derrière chaque émotion.")
     
     afficher_ressource(
         titre_pdf="Fonctions des émotions",
-        nom_fichier_pdf="Les fonctions des émotions.pdf",  # Nom exact de votre PDF actuel
-        liste_images=["fonctions.jpg"]                      # Nom de votre nouvelle image
+        nom_fichier_pdf="assets/Les fonctions des émotions.pdf",  # <--- CHANGEMENT ICI
+        liste_images=["assets/fonctions.jpg"]                     # <--- ET ICI
     )
 
-# ONGLET 2
 with tab2:
     st.header("La Roue de Plutchik")
     st.caption("Un outil pour identifier précisément ce que vous ressentez.")
     
     afficher_ressource(
         titre_pdf="Roue des sentiments",
-        nom_fichier_pdf="Roue des sentiments de Plutchik.pdf",
-        liste_images=["roue.jpg"]
+        nom_fichier_pdf="assets/Roue des sentiments de Plutchik.pdf", # <--- ET LÀ
+        liste_images=["assets/roue.jpg"]
     )
 
-# ONGLET 3
 with tab3:
     st.header("Les Distorsions Cognitives")
     st.caption("Les pièges de pensée les plus courants.")
     
     afficher_ressource(
         titre_pdf="Liste des Distorsions",
-        nom_fichier_pdf="Distorsions cognitives.pdf",
-        liste_images=["disto_1.jpg", "disto_2.jpg", "disto_3.jpg"] # Les 3 pages
+        nom_fichier_pdf="assets/Distorsions cognitives.pdf",          # <--- ET LÀ
+        liste_images=[
+            "assets/disto_1.jpg", 
+            "assets/disto_2.jpg", 
+            "assets/disto_3.jpg"
+        ]
     )
 
 st.divider()
