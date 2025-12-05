@@ -48,15 +48,16 @@ with c4:
 
 st.divider()
 
-# --- LIGNE 3 : BIEN-ÊTRE & SUIVI (NOUVEAU) ---
+# --- LIGNE 3 : BIEN-ÊTRE & SUIVI ---
 c5, c6 = st.columns(2)
 with c5:
-    # NOUVEAU BOUTON RELAXATION
+    # Bouton Relaxation (Vert succès pour le calme)
     st.success("### 🧘 Relaxation")
     st.write("Respiration & Détente")
     st.page_link("pages/07_Relaxation.py", label="Se détendre", icon="➡️")
 with c6:
-    st.primary("### 📜 Historique")
+    # Bouton Historique (CORRIGÉ ICI : st.success au lieu de st.primary)
+    st.success("### 📜 Historique")
     st.write("Voir mes progrès")
     st.page_link("pages/04_Historique.py", label="Consulter", icon="📅")
 
@@ -79,5 +80,5 @@ with st.sidebar:
     st.page_link("pages/02_Echelles_BDI.py", label="📊 BDI")
     st.page_link("pages/05_Registre_Activites.py", label="📝 Activités")
     st.page_link("pages/06_Resolution_Probleme.py", label="💡 Problèmes")
-    st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation") # Ajouté au menu
+    st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
     st.page_link("pages/04_Historique.py", label="📜 Historique")
