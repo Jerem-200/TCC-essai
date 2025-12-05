@@ -16,10 +16,10 @@ if "data_activites" not in st.session_state:
 if "data_humeur_jour" not in st.session_state:
     st.session_state.data_humeur_jour = pd.DataFrame(columns=["Date", "Humeur Globale (0-10)"])
 
-# --- ONGLETS ---
+# --- LES ONGLETS ---
 tab1, tab2, tab3 = st.tabs(["🧩 Colonnes de Beck", "📊 Échelles & Scores", "📝 Registre & Activités"])
 
-# ONGLET 1
+# ONGLET 1 : BECK
 with tab1:
     st.header("Restructuration")
     if not st.session_state.data_beck.empty:
@@ -27,7 +27,7 @@ with tab1:
     else:
         st.info("Pas de données.")
 
-# ONGLET 2
+# ONGLET 2 : BDI
 with tab2:
     st.header("Suivi des scores (BDI)")
     if not st.session_state.data_echelles.empty:
@@ -59,6 +59,7 @@ with tab3:
         
         df_act = st.session_state.data_activites.copy()
         cols_to_mean = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
+        
         for col in cols_to_mean:
             df_act[col] = pd.to_numeric(df_act[col], errors='coerce')
         
@@ -77,20 +78,18 @@ with tab3:
 
         st.divider()
 
-        # -------------------------------------------------------------
-        # GRAPHIQUE 3 : ÉVOLUTION CHRONOLOGIQUE (MAGNÉTIQUE & MOBILE)
-        # -------------------------------------------------------------
+        # GRAPHIQUE 3 : ÉVOLUTION CHRONOLOGIQUE PRÉCISE
         st.subheader("3. Fluctuations au fil du temps")
-        st.write("Passez la souris (ou le doigt) sur le graphique pour voir les détails.")
+        st.write("Chronologie précise des activités.")
         
-        # Préparation des données
+        # Préparation des données avec date précise
         df_line = st.session_state.data_activites.copy()
-        try:
-            df_line['Full_Date'] = pd.to_datetime(df_line['Date'].astype(str) + ' ' + df_line['Heure'].astype(str), errors='coerce')
-        except:
-            df_line['Full_Date'] = pd.to_datetime(df_line['Date'])
+        
+        # On combine Date + Heure (HH:MM) proprement
+        # Ex: "2023-12-05" + "14:30" -> Timestamp complet
+        df_line['Full_Date'] = pd.to_datetime(df_line['Date'].astype(str) + ' ' + df_line['Heure'].astype(str), errors='coerce')
 
-        # Format long
+        # Format long pour Altair
         df_line_long = df_line.melt(
             id_vars=['Full_Date', 'Activité'], 
             value_vars=["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"],
@@ -98,61 +97,23 @@ with tab3:
             value_name="Score"
         )
 
-        # --- CONSTRUCTION DU GRAPHIQUE INTERACTIF ---
-        
-        # 1. Base commune
-        base = alt.Chart(df_line_long).encode(
-            x=alt.X('Full_Date:T', title='Heure', axis=alt.Axis(format='%H:%M')),
+        # Graphique
+        line_chart = alt.Chart(df_line_long).mark_line(point=True).encode(
+            x=alt.X('Full_Date:T', title='Temps', axis=alt.Axis(format='%d/%m %H:%M')), # Format jour/mois heure:minute
             y=alt.Y('Score:Q', title='Note (0-10)'),
-            color=alt.Color('Indicateur:N', legend=alt.Legend(title="Indicateur"))
-        )
-
-        # 2. Sélecteur intelligent (Le secret du magnétisme)
-        # Il détecte la souris n'importe où sur la hauteur (nearest=True)
-        nearest = alt.selection_point(nearest=True, on='mouseover', fields=['Full_Date'], empty=False)
-
-        # 3. Les Lignes (Toujours visibles)
-        lines = base.mark_line().encode()
-
-        # 4. Les Points invisibles (Pour capturer la souris facilement)
-        selectors = base.mark_point().encode(
-            opacity=alt.value(0),
-        ).add_params(
-            nearest
-        )
-
-        # 5. Les Points Visibles et Tooltips (Apparaissent quand on survole)
-        points = base.mark_point(filled=True, size=100).encode(
-            opacity=alt.condition(nearest, alt.value(1), alt.value(0)), # Visible seulement si sélectionné
+            color=alt.Color('Indicateur:N'),
             tooltip=[
-                alt.Tooltip('Full_Date', title='Heure', format='%H:%M'),
+                alt.Tooltip('Full_Date', title='Date', format='%d/%m %H:%M'),
                 alt.Tooltip('Activité', title='Activité'),
                 alt.Tooltip('Indicateur', title='Type'),
                 alt.Tooltip('Score', title='Note')
             ]
-        )
-
-        # 6. La Ligne Verticale Grise (Guide visuel)
-        rule = base.mark_rule(color='gray').encode(
-            opacity=alt.condition(nearest, alt.value(0.5), alt.value(0)),
-            tooltip=[
-                alt.Tooltip('Full_Date', title='Heure', format='%H:%M'),
-                alt.Tooltip('Activité', title='Activité')
-            ] 
-        ).transform_filter(
-            nearest
-        )
-
-        # On combine tout ça
-        chart_interactive = alt.layer(
-            lines, selectors, points, rule
-        ).properties(
-            height=400
         ).interactive()
         
-        st.altair_chart(chart_interactive, use_container_width=True)
+        st.altair_chart(line_chart, use_container_width=True)
         
         with st.expander("Voir le tableau détaillé"):
+            # On trie le tableau par date et heure avant de l'afficher
             st.dataframe(df_line.sort_values(by="Full_Date")[["Date", "Heure", "Activité", "Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]], use_container_width=True)
 
     else:
