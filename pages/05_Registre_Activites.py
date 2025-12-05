@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import altair as alt # Pour le beau graphique groupé
+import altair as alt 
 from datetime import datetime
 
 st.set_page_config(page_title="Registre des Activités", page_icon="📝")
@@ -32,15 +32,23 @@ with st.form("activity_form"):
 
     st.write("**Évaluation de l'activité :**")
     
-    # ON REPASSE AUX CURSEURS (SLIDERS) COMME VOUS PRÉFÉREZ
-    # On les met sur 3 colonnes pour que ce soit joli, mais ce sont bien des sliders.
+    # --- LES SLIDERS AVEC INFO-BULLES ---
     c1, c2, c3 = st.columns(3)
     with c1:
-        plaisir = st.slider("🎉 Plaisir (0-10)", 0, 10, 5)
+        plaisir = st.slider(
+            "🎉 Plaisir (0-10)", 0, 10, 5,
+            help="Le sentiment de plaisir fait référence à la joie et/ou au bien-être que procure l'activité."
+        )
     with c2:
-        maitrise = st.slider("💪 Maîtrise (0-10)", 0, 10, 5)
+        maitrise = st.slider(
+            "💪 Maîtrise (0-10)", 0, 10, 5,
+            help="Le sentiment de maîtrise désigne le sentiment de compétence que vous pensez avoir dans la réalisation de l’activité."
+        )
     with c3:
-        satisfaction = st.slider("🏆 Satisfaction (0-10)", 0, 10, 5)
+        satisfaction = st.slider(
+            "🏆 Satisfaction (0-10)", 0, 10, 5,
+            help="Le sentiment de satisfaction est lié à l’accomplissement d’une tâche importante et dont la réalisation vous permet de vous rapprocher d’un but que vous vous êtes fixé."
+        )
 
     submitted_act = st.form_submit_button("Ajouter l'activité")
 
@@ -107,7 +115,7 @@ if not df_today.empty:
         value_name="Score"
     )
 
-    # Graphique Altair (Barres côte à côte)
+    # Graphique Altair
     chart = alt.Chart(df_long).mark_bar().encode(
         x=alt.X('Activité:N', title=None, axis=alt.Axis(labelAngle=0)), 
         y=alt.Y('Score:Q', title='Note (0-10)'),
