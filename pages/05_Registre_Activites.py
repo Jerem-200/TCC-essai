@@ -17,7 +17,6 @@ if "data_activites" not in st.session_state:
 if "data_humeur_jour" not in st.session_state:
     st.session_state.data_humeur_jour = pd.DataFrame(columns=["Date", "Humeur Globale (0-10)"])
 
-# --- MÉMOIRE POUR L'HEURE (Heure et Minute séparées) ---
 if "memoire_h" not in st.session_state:
     st.session_state.memoire_h = datetime.now().hour
 if "memoire_m" not in st.session_state:
@@ -27,32 +26,22 @@ if "memoire_m" not in st.session_state:
 st.subheader("1. Ajouter une activité")
 
 with st.form("activity_form"):
-    # On divise la première ligne en 3 colonnes pour que ce soit joli
-    # Col 1 : Date (Large) | Col 2 : Heure (Petit) | Col 3 : Minute (Petit)
     c_date, c_h, c_m = st.columns([2, 1, 1])
-    
     with c_date:
         date_act = st.date_input("Date", datetime.now())
-    
     with c_h:
-        # Saisie de l'heure (0 à 23)
         heure_h = st.number_input("Heure", min_value=0, max_value=23, value=st.session_state.memoire_h)
-        
     with c_m:
-        # Saisie des minutes (0 à 59)
         heure_m = st.number_input("Minute", min_value=0, max_value=59, value=st.session_state.memoire_m, step=5)
 
-    activite_desc = st.text_input("Qu'avez-vous fait ?", placeholder="Ex: Petit déjeuner, Travail, Marche...")
+    activite_desc = st.text_input("Qu'avez-vous fait ?", placeholder="Ex: Petit déjeuner, Travail...")
 
     st.write("**Évaluation de l'activité :**")
     
     c1, c2, c3 = st.columns(3)
-    with c1:
-        plaisir = st.slider("🎉 Plaisir (0-10)", 0, 10, 5, help="Le sentiment de plaisir fait référence à la joie et/ou au bien-être que procure l'activité.")
-    with c2:
-        maitrise = st.slider("💪 Maîtrise (0-10)", 0, 10, 5, help="Le sentiment de maîtrise désigne le sentiment de compétence que vous pensez avoir dans la réalisation de l’activité.")
-    with c3:
-        satisfaction = st.slider("🏆 Satisfaction (0-10)", 0, 10, 5, help="Le sentiment de satisfaction est lié à l’accomplissement d’une tâche importante.")
+    with c1: plaisir = st.slider("🎉 Plaisir (0-10)", 0, 10, 5, help="Joie / Bien-être")
+    with c2: maitrise = st.slider("💪 Maîtrise (0-10)", 0, 10, 5, help="Compétence")
+    with c3: satisfaction = st.slider("🏆 Satisfaction (0-10)", 0, 10, 5, help="Accomplissement")
 
     submitted_act = st.form_submit_button("Ajouter l'activité")
 
@@ -65,11 +54,18 @@ with st.form("activity_form"):
         st.session_state.memoire_h = heure_h
         st.session_state.memoire_m = heure_m
         
-        # CLOUD (Envoi vers l'onglet "Activites")
+        # --- CLOUD AVEC PATIENT ID ---
         from connect_db import save_data
-        save_data("Activites", [str(date_act), heure_str, activite_desc, plaisir, maitrise, satisfaction])
         
-        st.success(f"Activité ajoutée et sauvegardée ! ☁️")
+        # On récupère le nom du patient (ou "Inconnu" si bug)
+        patient = st.session_state.get("patient_id", "Inconnu")
+        
+        # On l'ajoute en PREMIER dans la liste
+        liste_a_envoyer = [patient, str(date_act), heure_str, activite_desc, plaisir, maitrise, satisfaction]
+        
+        save_data("Activites", liste_a_envoyer)
+        
+        st.success(f"Activité ajoutée à {heure_str} !")
 
 st.divider()
 
@@ -88,13 +84,15 @@ with st.form("humeur_form"):
         new_humeur = {"Date": str(date_humeur), "Humeur Globale (0-10)": humeur_globale}
         st.session_state.data_humeur_jour = pd.concat([st.session_state.data_humeur_jour, pd.DataFrame([new_humeur])], ignore_index=True)
         
-        # CLOUD (Envoi vers l'onglet "Humeur")
+        # --- CLOUD AVEC PATIENT ID ---
         from connect_db import save_data
-        save_data("Humeur", [str(date_humeur), humeur_globale])
+        patient = st.session_state.get("patient_id", "Inconnu")
+        
+        save_data("Humeur", [patient, str(date_humeur), humeur_globale])
         
         st.success(f"Humeur sauvegardée ! ☁️")
 
-# --- 4. APERÇU & GESTION ---
+# --- 4. APERÇU DU JOUR ---
 st.divider()
 st.subheader(f"Résumé du {datetime.now().strftime('%d/%m/%Y')}")
 
@@ -102,30 +100,20 @@ today_str = str(datetime.now().date())
 df_today = st.session_state.data_activites[st.session_state.data_activites["Date"] == today_str]
 
 if not df_today.empty:
-    # Tableau
     st.dataframe(df_today[["Heure", "Activité", "Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]].sort_values("Heure"), use_container_width=True)
     
     st.write("**Visualisation des activités du jour :**")
     
-    # Graphique
     df_chart = df_today.copy()
     cols_score = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
-    for col in cols_score:
-        df_chart[col] = pd.to_numeric(df_chart[col], errors='coerce')
+    for col in cols_score: df_chart[col] = pd.to_numeric(df_chart[col], errors='coerce')
 
-    # Groupement pour moyenne
     df_grouped = df_chart.groupby("Activité")[cols_score].mean().reset_index()
-
-    df_long = df_grouped.melt(
-        id_vars=["Activité"], 
-        value_vars=cols_score, 
-        var_name="Indicateur", 
-        value_name="Score"
-    )
+    df_long = df_grouped.melt(id_vars=["Activité"], value_vars=cols_score, var_name="Indicateur", value_name="Score")
 
     chart = alt.Chart(df_long).mark_bar().encode(
         x=alt.X('Activité:N', title=None, axis=alt.Axis(labelAngle=0)), 
-        y=alt.Y('Score:Q', title='Note Moyenne (0-10)'),
+        y=alt.Y('Score:Q', title='Note Moyenne'),
         color=alt.Color('Indicateur:N', legend=alt.Legend(title="Type")),
         xOffset='Indicateur:N',
         tooltip=['Activité', 'Indicateur', alt.Tooltip('Score', format='.1f')]
@@ -133,18 +121,14 @@ if not df_today.empty:
     
     st.altair_chart(chart, use_container_width=True)
 
-    # Suppression
     st.divider()
-    with st.expander("🗑️ Supprimer une activité (En cas d'erreur)"):
-        st.write("Sélectionnez l'activité à supprimer ci-dessous :")
+    with st.expander("🗑️ Supprimer une activité"):
         options_dict = {f"{row['Heure']} - {row['Activité']} (ID:{i})": i for i, row in df_today.iterrows()}
         selected_option = st.selectbox("Choisir l'activité", list(options_dict.keys()))
-        
         if st.button("Supprimer définitivement"):
             index_to_delete = options_dict[selected_option]
             st.session_state.data_activites = st.session_state.data_activites.drop(index_to_delete).reset_index(drop=True)
             st.rerun()
-
 else:
     st.info("Aucune activité notée pour aujourd'hui.")
 
