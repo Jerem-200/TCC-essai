@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import altair as alt 
-from datetime import datetime, time
+from datetime import datetime
 
 st.set_page_config(page_title="Registre des Activités", page_icon="📝")
 
@@ -17,20 +17,30 @@ if "data_activites" not in st.session_state:
 if "data_humeur_jour" not in st.session_state:
     st.session_state.data_humeur_jour = pd.DataFrame(columns=["Date", "Humeur Globale (0-10)"])
 
-# Mémoire pour l'heure par défaut
-if "memoire_heure" not in st.session_state:
-    st.session_state.memoire_heure = datetime.now().time()
+# --- MÉMOIRE POUR L'HEURE (Heure et Minute séparées) ---
+if "memoire_h" not in st.session_state:
+    st.session_state.memoire_h = datetime.now().hour
+if "memoire_m" not in st.session_state:
+    st.session_state.memoire_m = datetime.now().minute
 
 # --- 2. FORMULAIRE A : AJOUTER UNE ACTIVITÉ ---
 st.subheader("1. Ajouter une activité")
 
 with st.form("activity_form"):
-    col_date, col_heure = st.columns([1, 1])
-    with col_date:
+    # On divise la première ligne en 3 colonnes pour que ce soit joli
+    # Col 1 : Date (Large) | Col 2 : Heure (Petit) | Col 3 : Minute (Petit)
+    c_date, c_h, c_m = st.columns([2, 1, 1])
+    
+    with c_date:
         date_act = st.date_input("Date", datetime.now())
-    with col_heure:
-        # CHANGEMENT : step=60 permet de choisir à la minute près (ex: 14:12)
-        heure_act = st.time_input("Heure de début (hh:mm)", value=st.session_state.memoire_heure, step=60)
+    
+    with c_h:
+        # Saisie de l'heure (0 à 23)
+        heure_h = st.number_input("Heure", min_value=0, max_value=23, value=st.session_state.memoire_h)
+        
+    with c_m:
+        # Saisie des minutes (0 à 59)
+        heure_m = st.number_input("Minute", min_value=0, max_value=59, value=st.session_state.memoire_m, step=5)
 
     activite_desc = st.text_input("Qu'avez-vous fait ?", placeholder="Ex: Petit déjeuner, Travail, Marche...")
 
@@ -47,7 +57,8 @@ with st.form("activity_form"):
     submitted_act = st.form_submit_button("Ajouter l'activité")
 
     if submitted_act:
-        heure_str = heure_act.strftime("%H:%M")
+        # On formate l'heure proprement (HH:MM) avec un zéro devant si besoin (ex: 09:05)
+        heure_str = f"{heure_h:02d}:{heure_m:02d}"
         
         new_row = {
             "Date": str(date_act),
@@ -62,8 +73,9 @@ with st.form("activity_form"):
             ignore_index=True
         )
         
-        # Mise à jour de la mémoire pour la prochaine fois
-        st.session_state.memoire_heure = heure_act
+        # --- MISE À JOUR DE LA MÉMOIRE ---
+        st.session_state.memoire_h = heure_h
+        st.session_state.memoire_m = heure_m
         
         st.success(f"Activité ajoutée à {heure_str} !")
 
@@ -90,7 +102,7 @@ with st.form("humeur_form"):
         )
         st.success(f"Humeur du {date_humeur} enregistrée !")
 
-# --- 4. APERÇU & GESTION (MODIFICATION/SUPPRESSION) ---
+# --- 4. APERÇU & GESTION ---
 st.divider()
 st.subheader(f"Résumé du {datetime.now().strftime('%d/%m/%Y')}")
 
@@ -98,18 +110,18 @@ today_str = str(datetime.now().date())
 df_today = st.session_state.data_activites[st.session_state.data_activites["Date"] == today_str]
 
 if not df_today.empty:
-    # 1. Le Tableau visuel
+    # Tableau
     st.dataframe(df_today[["Heure", "Activité", "Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]].sort_values("Heure"), use_container_width=True)
     
-    # 2. Le Graphique
     st.write("**Visualisation des activités du jour :**")
     
+    # Graphique
     df_chart = df_today.copy()
     cols_score = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
     for col in cols_score:
         df_chart[col] = pd.to_numeric(df_chart[col], errors='coerce')
 
-    # Groupement pour moyenne si activités identiques
+    # Groupement pour moyenne
     df_grouped = df_chart.groupby("Activité")[cols_score].mean().reset_index()
 
     df_long = df_grouped.melt(
@@ -129,22 +141,17 @@ if not df_today.empty:
     
     st.altair_chart(chart, use_container_width=True)
 
-    # 3. ZONE DE SUPPRESSION (NOUVEAU)
+    # Suppression
     st.divider()
     with st.expander("🗑️ Supprimer une activité (En cas d'erreur)"):
         st.write("Sélectionnez l'activité à supprimer ci-dessous :")
-        
-        # On crée une liste lisible pour le menu déroulant : "14:00 - Manger"
-        # On garde l'index original pour savoir quelle ligne supprimer
         options_dict = {f"{row['Heure']} - {row['Activité']} (ID:{i})": i for i, row in df_today.iterrows()}
-        
         selected_option = st.selectbox("Choisir l'activité", list(options_dict.keys()))
         
         if st.button("Supprimer définitivement"):
             index_to_delete = options_dict[selected_option]
-            # Suppression de la ligne par son index
             st.session_state.data_activites = st.session_state.data_activites.drop(index_to_delete).reset_index(drop=True)
-            st.rerun() # On recharge la page pour voir le changement
+            st.rerun()
 
 else:
     st.info("Aucune activité notée pour aujourd'hui.")
