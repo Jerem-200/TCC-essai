@@ -122,7 +122,7 @@ if len(liste_solutions) > 0:
         
         # Suggestion automatique
         best_sol = df_display.loc[df_display["Bilan"].idxmax()]
-        st.success(f"💡 La solution mathématiquement la plus favorable est : **{best_sol['Solution']}** (Score : {best_sol['Bilan']})")
+        st.success(f"💡 La solution qui semble la plus favorable est : **{best_sol['Solution']}** (Score : {best_sol['Bilan']})")
 
         if st.button("🗑️ Tout effacer"):
             st.session_state.analyse_detaillee = pd.DataFrame(columns=["Solution", "Type", "Terme", "Description", "Note", "Valeur"])
