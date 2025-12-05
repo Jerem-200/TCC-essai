@@ -166,7 +166,7 @@ with st.form("bdi_form"):
     # Le bouton est bien à l'intérieur du form, tout à la fin
     submitted = st.form_submit_button("Calculer et Enregistrer le Score")
 
- if submitted:
+    if submitted:
         # Interprétation
         interpretation = ""
         if score_total <= 13: interpretation = "Dépression minimale"
