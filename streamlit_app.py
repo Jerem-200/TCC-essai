@@ -14,6 +14,12 @@ if "patient_id" not in st.session_state:
 # =========================================================
 if not st.session_state.authentifie:
     st.title("🔒 Espace Patient Sécurisé")
+    st.info("""
+    ℹ️ **Note de confidentialité :** Cette application est un outil d'accompagnement. 
+    Pour garantir votre anonymat, **n'utilisez pas votre nom de famille complet**. 
+    Utilisez un prénom ou un pseudonyme convenu avec votre thérapeute.
+    Vos données sont strictement réservées à l'usage thérapeutique.
+    """)
     st.info("Bienvenue. Connectez-vous ou créez votre espace personnel pour commencer.")
 
     # On crée deux onglets pour séparer les actions
