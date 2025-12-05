@@ -2,18 +2,18 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 
-st.set_page_config(page_title="Résolution de Problèmes", page_icon="💡", layout="wide")
+st.set_page_config(page_title="Résolution de Problèmes", page_icon="💡")
 
 st.title("💡 Technique de Résolution de Problèmes")
 st.info("Une méthode structurée pour transformer un problème en plan d'action.")
 
-# --- 0. INITIALISATION DES MÉMOIRES ---
+# --- 0. INITIALISATION DES MÉMOIRES (AVEC LES NOUVELLES COLONNES) ---
 if "data_problemes" not in st.session_state:
     st.session_state.data_problemes = pd.DataFrame(columns=[
-        "Date", "Problème", "Objectif", "Solution Choisie", "Date Évaluation"
+        "Date", "Problème", "Objectif", "Solution Choisie", 
+        "Plan Action", "Obstacles", "Ressources", "Date Évaluation"
     ])
 
-# Mémoire pour l'analyse (Tableau Avantages/Inconvénients)
 if "analyse_detaillee" not in st.session_state:
     st.session_state.analyse_detaillee = pd.DataFrame(columns=[
         "Solution", "Type", "Terme", "Description", "Note", "Valeur"
@@ -34,101 +34,66 @@ st.divider()
 
 st.markdown("### 3. Recherche de solutions")
 st.caption("Listez vos solutions une par ligne.")
-
-solutions_text = st.text_area("Vos idées (Une par ligne) :", height=100, help="Écrivez une idée, appuyez sur Entrée, écrivez la suivante...")
+solutions_text = st.text_area("Vos idées (Une par ligne) :", height=100)
 liste_solutions = [s.strip() for s in solutions_text.split('\n') if s.strip()]
 
 st.divider()
 
 # ==============================================================================
-# BLOC 2 : ANALYSE (LE CALCULATEUR AVANCÉ)
+# BLOC 2 : ANALYSE (CALCULATEUR)
 # ==============================================================================
 st.markdown("### 4. Analyse Avantages / Inconvénients")
 
 if len(liste_solutions) > 0:
     st.write("Ajoutez des arguments pour construire le tableau comparatif.")
     
-    # --- Formulaire d'ajout ---
     with st.form("ajout_argument_form", clear_on_submit=True):
         c_sol, c_type, c_term = st.columns(3)
-        with c_sol:
-            sol_selected = st.selectbox("Solution", liste_solutions)
-        with c_type:
-            type_point = st.selectbox("Type", ["Avantage (+)", "Inconvénient (-)"])
-        with c_term:
-            terme = st.selectbox("Échéance", ["Court terme", "Moyen terme", "Long terme"])
+        with c_sol: sol_selected = st.selectbox("Solution", liste_solutions)
+        with c_type: type_point = st.selectbox("Type", ["Avantage (+)", "Inconvénient (-)"])
+        with c_term: terme = st.selectbox("Échéance", ["Court terme", "Moyen terme", "Long terme"])
         
         c_desc, c_note = st.columns([3, 1])
-        with c_desc:
-            desc_point = st.text_input("Description (Ex: Coûte cher...)")
-        with c_note:
-            note_point = st.number_input("Importance (0-10)", 0, 10, 5)
+        with c_desc: desc_point = st.text_input("Description")
+        with c_note: note_point = st.number_input("Importance (0-10)", 0, 10, 5)
 
-        submit_arg = st.form_submit_button("➕ Ajouter l'argument")
-        
-        if submit_arg:
+        if st.form_submit_button("➕ Ajouter l'argument"):
             valeur = note_point if "Avantage" in type_point else -note_point
-            new_entry = {
-                "Solution": sol_selected, "Type": type_point, "Terme": terme,
-                "Description": desc_point, "Note": note_point, "Valeur": valeur
-            }
-            st.session_state.analyse_detaillee = pd.concat(
-                [st.session_state.analyse_detaillee, pd.DataFrame([new_entry])], 
-                ignore_index=True
-            )
+            new_entry = {"Solution": sol_selected, "Type": type_point, "Terme": terme, "Description": desc_point, "Note": note_point, "Valeur": valeur}
+            st.session_state.analyse_detaillee = pd.concat([st.session_state.analyse_detaillee, pd.DataFrame([new_entry])], ignore_index=True)
             st.success("Ajouté !")
 
-    # --- TABLEAU COMPARATIF À DOUBLE ENTRÉE ---
     if not st.session_state.analyse_detaillee.empty:
         st.divider()
-        st.markdown("#### 📊 Tableau Comparatif")
-        
         df = st.session_state.analyse_detaillee
         
-        # On va construire un nouveau tableau propre ligne par ligne
+        # Construction du tableau comparatif
         rows_display = []
-        
-        # Pour chaque solution unique citée dans le tableau...
         for sol in df["Solution"].unique():
-            # On récupère tous les avantages de cette solution
             pros = df[(df["Solution"] == sol) & (df["Type"].str.contains("Avantage"))]
-            # On crée une belle liste texte : "- Argument (Note/10)"
             pros_text = "\n".join([f"- {row['Description']} ({row['Note']}/10)" for i, row in pros.iterrows()])
             pros_score = pros["Note"].sum()
             
-            # On récupère tous les inconvénients
             cons = df[(df["Solution"] == sol) & (df["Type"].str.contains("Inconvénient"))]
             cons_text = "\n".join([f"- {row['Description']} ({row['Note']}/10)" for i, row in cons.iterrows()])
             cons_score = cons["Note"].sum()
             
-            # On calcule le score total
-            score_final = pros_score - cons_score
-            
-            # On ajoute la ligne au tableau final
             rows_display.append({
-                "Solution": sol,
-                "Avantages": pros_text,
-                "Total (+)": pros_score,
-                "Inconvénients": cons_text,
-                "Total (-)": cons_score,
-                "Bilan": score_final
+                "Solution": sol, "Avantages": pros_text, "Total (+)": pros_score,
+                "Inconvénients": cons_text, "Total (-)": cons_score, "Bilan": pros_score - cons_score
             })
             
-        # Création du DataFrame final
         df_display = pd.DataFrame(rows_display)
-        
-        # Affichage du tableau (st.table force l'affichage de tout le texte, pratique pour les listes)
         st.table(df_display.set_index("Solution"))
         
-        # Suggestion automatique
         best_sol = df_display.loc[df_display["Bilan"].idxmax()]
-        st.success(f"💡 La solution qui semble la plus favorable est : **{best_sol['Solution']}** (Score : {best_sol['Bilan']})")
+        st.success(f"💡 Meilleure solution mathématique : **{best_sol['Solution']}** (Score : {best_sol['Bilan']})")
 
         if st.button("🗑️ Tout effacer"):
             st.session_state.analyse_detaillee = pd.DataFrame(columns=["Solution", "Type", "Terme", "Description", "Note", "Valeur"])
             st.rerun()
 else:
-    st.info("👆 Remplissez la case 'Vos idées' à l'étape 3 pour activer l'analyse.")
+    st.info("👆 Remplissez la case 'Vos idées' à l'étape 3.")
 
 st.divider()
 
@@ -137,7 +102,6 @@ st.divider()
 # ==============================================================================
 with st.form("plan_final_form"):
     st.markdown("### 5. Décision finale")
-    st.caption("Quelle solution choisissez-vous finalement ?")
     solution_choisie = st.text_input("Je décide de mettre en œuvre :")
 
     st.markdown("### 6. Préparation")
@@ -147,7 +111,7 @@ with st.form("plan_final_form"):
 
     st.markdown("### 7. Plan d'action")
     st.caption("Étapes concrètes et dates.")
-    plan = st.text_area("Mon plan détaillé :", height=100)
+    plan = st.text_area("Mon plan détaillé :", height=150)
 
     st.markdown("### 8. Évaluation")
     date_eval = st.date_input("Date de bilan", datetime.now() + timedelta(days=7))
@@ -155,11 +119,15 @@ with st.form("plan_final_form"):
     submitted_final = st.form_submit_button("💾 ENREGISTRER LE PLAN D'ACTION")
 
     if submitted_final:
+        # C'EST ICI QU'ON SAUVEGARDE TOUS LES DÉTAILS
         new_row = {
             "Date": datetime.now().strftime("%Y-%m-%d"),
             "Problème": probleme,
             "Objectif": objectif,
             "Solution Choisie": solution_choisie,
+            "Plan Action": plan,          # <-- Ajouté
+            "Obstacles": obstacles,       # <-- Ajouté
+            "Ressources": ressources,     # <-- Ajouté
             "Date Évaluation": str(date_eval)
         }
         st.session_state.data_problemes = pd.concat(
@@ -167,7 +135,7 @@ with st.form("plan_final_form"):
             ignore_index=True
         )
         st.session_state.analyse_detaillee = pd.DataFrame(columns=["Solution", "Type", "Terme", "Description", "Note", "Valeur"])
-        st.success("Plan enregistré ! Retrouvez-le dans l'Historique.")
+        st.success("Plan enregistré ! Retrouvez la fiche complète dans l'Historique.")
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
