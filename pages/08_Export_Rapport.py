@@ -1,27 +1,26 @@
 import streamlit as st
 import pandas as pd
-from utils_pdf import generer_pdf # On importe notre moteur PDF
+from utils_pdf import generer_pdf # Assurez-vous d'avoir créé le fichier utils_pdf.py
 
 st.set_page_config(page_title="Export Rapport", page_icon="📩")
 
-# --- VIGILE ---
+# --- VIGILE DE SÉCURITÉ ---
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
-    st.warning("⛔ Connectez-vous d'abord.")
+    st.warning("⛔ Veuillez vous connecter sur la page d'accueil.")
     st.switch_page("streamlit_app.py")
     st.stop()
 
 st.title("📩 Envoyer mon rapport")
-st.write("Générez un document PDF récapitulatif de votre travail pour l'envoyer à votre thérapeute.")
+st.info("Générez un PDF de vos progrès pour l'envoyer à votre thérapeute.")
 
-# --- RÉCUPÉRATION DES DONNÉES ---
-# On prend ce qui est en mémoire (ce que le patient a fait dans cette session ou ce qui a été chargé)
+# --- 1. RÉCUPÉRATION DES DONNÉES ---
 df_beck = st.session_state.get("data_beck", pd.DataFrame())
 df_bdi = st.session_state.get("data_echelles", pd.DataFrame())
 df_act = st.session_state.get("data_activites", pd.DataFrame())
 df_prob = st.session_state.get("data_problemes", pd.DataFrame())
 patient = st.session_state.get("patient_id", "Patient")
 
-# Stats rapides
+# Petit résumé visuel
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Fiches Beck", len(df_beck))
 c2.metric("Scores BDI", len(df_bdi))
@@ -30,42 +29,59 @@ c4.metric("Problèmes", len(df_prob))
 
 st.divider()
 
-# --- GÉNÉRATION DU PDF ---
+# --- 2. GÉNÉRATION DU PDF ---
 if st.button("📄 Générer le Rapport PDF"):
     try:
-        # On appelle notre moteur
+        # On fabrique le PDF
         pdf_bytes = generer_pdf(df_beck, df_bdi, df_act, df_prob, patient)
         
-        # On affiche le bouton de téléchargement
-        st.download_button(
-            label="📥 Télécharger le Rapport (PDF)",
-            data=pdf_bytes,
-            file_name=f"Rapport_TCC_{patient}.pdf",
-            mime="application/pdf"
-        )
+        # Zone de succès
+        st.success("Le PDF est prêt ! Suivez les deux étapes ci-dessous :")
         
-        st.success("Le PDF est prêt ! Téléchargez-le ci-dessus.")
+        col_gauche, col_droite = st.columns(2)
         
-        # --- PRÉPARATION DE L'EMAIL ---
-        st.write("---")
-        st.subheader("Envoyer par mail")
-        email_psy = st.text_input("Email du thérapeute", placeholder="psy@exemple.com")
-        
-        if email_psy:
-            # Lien mailto intelligent
-            sujet = f"Rapport TCC - {patient}"
-            corps = "Bonjour,\n\nVoici mon rapport d'exercices TCC de la période.\n\nCordialement."
-            mailto_link = f"mailto:{email_psy}?subject={sujet}&body={corps}"
+        # ÉTAPE A : TÉLÉCHARGEMENT
+        with col_gauche:
+            st.markdown("#### Étape 1 : Télécharger")
+            st.download_button(
+                label="📥 Télécharger le PDF sur mon appareil",
+                data=pdf_bytes,
+                file_name=f"Rapport_TCC_{patient}.pdf",
+                mime="application/pdf"
+            )
+
+        # ÉTAPE B : ENVOI MAIL
+        with col_droite:
+            st.markdown("#### Étape 2 : Envoyer")
+            email_psy = st.text_input("Adresse email du thérapeute :", placeholder="psy@cabinet.com")
             
-            st.markdown(f"""
-            <a href="{mailto_link}" target="_blank" style="text-decoration:none;">
-                <button style="background-color:#FF4B4B;color:white;padding:10px;border:none;border-radius:5px;cursor:pointer;">
-                    📧 Ouvrir ma messagerie pour envoyer le PDF
-                </button>
-            </a>
-            """, unsafe_allow_html=True)
-            st.caption("1. Téléchargez le PDF (bouton blanc). 2. Cliquez sur le bouton rouge. 3. Ajoutez le PDF en pièce jointe.")
-            
+            if email_psy:
+                # Création du lien mailto
+                sujet = f"Suivi TCC - {patient}"
+                corps = "Bonjour,\n\nVoici mon rapport d'exercices TCC de la période (voir pièce jointe).\n\nCordialement."
+                mailto_link = f"mailto:{email_psy}?subject={sujet}&body={corps}"
+                
+                # Le Bouton Rouge en HTML pour ouvrir la messagerie
+                st.markdown(f"""
+                <a href="{mailto_link}" target="_blank" style="text-decoration:none;">
+                    <button style="
+                        background-color: #FF4B4B;
+                        color: white;
+                        padding: 10px 20px;
+                        border: none;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        font-weight: bold;
+                        width: 100%;">
+                        📧 Ouvrir ma messagerie avec le mail prêt
+                    </button>
+                </a>
+                """, unsafe_allow_html=True)
+                
+                st.caption("⚠️ N'oubliez pas d'ajouter le fichier PDF en pièce jointe avant d'envoyer !")
+            else:
+                st.info("👆 Entrez l'email pour voir le bouton d'envoi.")
+
     except Exception as e:
         st.error(f"Erreur lors de la création du PDF : {e}")
 
