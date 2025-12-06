@@ -39,7 +39,7 @@ st.markdown("### 1. Stop & Attitude Constructive")
 with st.expander("🛑 Lire les consignes de départ (Important)", expanded=True):
     st.markdown("""
     **1. Stop :**
-    [cite_start]On doit d’abord réaliser que l’on a un problème qui n’est pas facile à résoudre et mérite qu’on prenne un peu de temps pour bien y réfléchir. [cite: 24]
+    On doit d’abord réaliser que l’on a un problème qui n’est pas facile à résoudre et mérite qu’on prenne un peu de temps pour bien y réfléchir. [cite: 24]
     
     **2. Attitude constructive :**
     Il est important d’adopter une orientation constructive face au problème. [cite_start]Il s’agit de voir le problème comme une **occasion ou un défi** plutôt que comme une menace. [cite: 26-27]
