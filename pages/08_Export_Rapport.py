@@ -58,28 +58,37 @@ if st.session_state.pdf_bytes:
             mime="application/pdf"
         )
 
-    # ÉTAPE B : ENVOI MAIL
+    # ÉTAPE B : ENVOI MAIL (MODIFIÉ AVEC VALIDATION)
     with col_droite:
         st.markdown("#### Étape 2 : Envoyer")
-        email_psy = st.text_input("Email du thérapeute :", placeholder="psy@cabinet.com")
         
-        if email_psy:
+        # --- NOUVEAU : FORMULAIRE DE VALIDATION ---
+        with st.form("email_form"):
+            email_psy = st.text_input("Adresse email du thérapeute :", placeholder="psy@cabinet.com")
+            # Ce bouton sert uniquement à valider la saisie
+            submit_email = st.form_submit_button("Valider l'adresse")
+        
+        # Si le bouton du formulaire a été cliqué ET qu'il y a un email
+        if submit_email and email_psy:
             sujet = f"Suivi TCC - {patient}"
             corps = "Bonjour,\n\nVoici mon rapport d'exercices TCC de la période (voir pièce jointe).\n\nCordialement."
-            # On remplace les espaces par %20 pour que le lien soit valide
+            # On remplace les sauts de ligne pour le lien mailto
             mailto_link = f"mailto:{email_psy}?subject={sujet}&body={corps}".replace("\n", "%0D%0A")
             
-            # --- NOUVELLE MÉTHODE (Bouton Natif) ---
-            st.link_button("📧 Ouvrir ma messagerie", mailto_link, type="primary")
+            st.success(f"Adresse validée : {email_psy}")
             
-            st.caption("⚠️ N'oubliez pas d'ajouter le fichier PDF en pièce jointe !")
+            # Le bouton final qui ouvre la messagerie
+            st.link_button("📧 Ouvrir ma messagerie maintenant", mailto_link, type="primary")
             
-            # --- SOLUTION DE SECOURS ---
+            st.caption("⚠️ N'oubliez pas d'ajouter le fichier PDF en pièce jointe dans votre mail !")
+            
+            # Solution de secours
             with st.expander("Le bouton ne marche pas ?"):
-                st.write("Copiez-collez l'adresse :")
+                st.write("Copiez l'adresse :")
                 st.code(email_psy)
-        else:
-            st.info("👆 Entrez l'email pour voir le bouton d'envoi.")
+        
+        elif submit_email and not email_psy:
+            st.warning("Veuillez entrer une adresse email avant de valider.")
             
     st.divider()
     if st.button("🔄 Effacer et recommencer"):
