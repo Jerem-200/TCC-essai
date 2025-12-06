@@ -282,7 +282,7 @@ with tab4:
             st.write("**Est-ce que la catastrophe redoutée s'est produite ?**")
             resultat_reel = st.radio("", ["Oui, exactement comme prévu", "Oui, mais moins grave", "Non, pas du tout"], label_visibility="collapsed")
             
-            q1 = st.text_area("Comment je sais que ma plus grande crainte ne s'est pas réalisée ?", height=70)
+            q1 = st.text_area("Comment je sais que ma crainte ne s'est pas réalisée ?", height=70)
             q2 = st.text_area("À quoi je m'attendais suite à cette expérience ?", height=70)
             q3 = st.text_area("Que s'est-il passé ? Cela m'a-t-il surpris ?", height=70)
             q4 = st.text_area("Qu'en ai-je appris ?", height=70)
