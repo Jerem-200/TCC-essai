@@ -41,7 +41,7 @@ tab1, tab2, tab3, tab4 = st.tabs(["1. Analyse Crainte", "2. Hiérarchie", "3. Pl
 # ==============================================================================
 with tab1:
     st.header("A. La Crainte Centrale")
-    help_crainte = "Il faut identifier la conséquence ultime crainte (ex: 'Je vais faire une crise cardiaque'), et non juste la sensation de peur."
+    help_crainte = "Il faut identifier la conséquence ultime crainte (ex: 'Je vais faire une crise cardiaque'), et non juste la sensation de peur. Cela doit être testable objectivement."
     with st.expander("ℹ️ Aide : Comment définir sa crainte ?", expanded=False):
         st.info(help_crainte)
     
