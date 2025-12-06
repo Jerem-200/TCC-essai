@@ -128,7 +128,7 @@ with tab2:
         # Double curseur (Attente + Anxiété)
         c1, c2 = st.columns(2)
         with c1:
-            attente = st.slider("Probabilité que la catastrophe arrive (0% : Pas du tout, 25% : possible, 50% : 50/50, 75% : probable, 100% : c'est certain)"), 0, 100, 60, step=5, key="h_attente")
+            attente = st.slider("Probabilité que la catastrophe arrive (0% : Pas du tout, 25% : possible, 50% : 50/50, 75% : probable, 100% : c'est certain)", 0, 100, 60, step=5, key="h_attente")
         with c2:
             anxiete = st.slider("Niveau d'Anxiété (0-100)", 0, 100, 60, step=5, key="h_anxiete")
         
