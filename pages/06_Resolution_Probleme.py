@@ -19,13 +19,11 @@ if "data_problemes" not in st.session_state:
         "Date", "Problème", "Objectif", "Solution Choisie", "Date Évaluation"
     ])
 
-# Mémoire pour l'analyse (Tableau Avantages/Inconvénients)
 if "analyse_detaillee" not in st.session_state:
     st.session_state.analyse_detaillee = pd.DataFrame(columns=[
         "Solution", "Type", "Terme", "Description", "Note", "Valeur"
     ])
 
-# NOUVEAU : Mémoire pour la liste des solutions (Brainstorming)
 if "liste_solutions_temp" not in st.session_state:
     st.session_state.liste_solutions_temp = []
 
@@ -43,34 +41,41 @@ objectif = st.text_area("Mon objectif réaliste :")
 st.divider()
 
 # ==============================================================================
-# BLOC 2 : BRAINSTORMING INTERACTIF (NOUVEAU SYSTÈME)
+# BLOC 2 : BRAINSTORMING (AVEC SUPPRESSION INDIVIDUELLE)
 # ==============================================================================
 st.markdown("### 3. Recherche de solutions")
 st.caption("Ajoutez toutes vos idées une par une, sans les juger.")
 
-col_input, col_btn = st.columns([4, 1])
-
-# On utilise un petit formulaire pour que "Entrée" valide l'ajout
+# Formulaire d'ajout
 with st.form("ajout_solution_form", clear_on_submit=True):
-    nouvelle_solution = st.text_input("Nouvelle solution :", placeholder="Ex: Demander de l'aide...")
-    submitted_ajout = st.form_submit_button("Ajouter")
+    col_input, col_btn = st.columns([4, 1])
+    with col_input:
+        nouvelle_solution = st.text_input("Nouvelle solution :", placeholder="Ex: Demander de l'aide...", label_visibility="collapsed")
+    with col_btn:
+        submitted_ajout = st.form_submit_button("Ajouter")
     
     if submitted_ajout and nouvelle_solution:
         st.session_state.liste_solutions_temp.append(nouvelle_solution)
-        st.rerun() # On recharge pour afficher la liste mise à jour
+        st.rerun()
 
-# Affichage de la liste actuelle
+# Affichage de la liste avec boutons de suppression
 if st.session_state.liste_solutions_temp:
     st.write("---")
     st.write("**Vos idées listées :**")
-    for i, sol in enumerate(st.session_state.liste_solutions_temp):
-        st.markdown(f"**{i+1}.** {sol}")
     
-    col_clear, col_valid = st.columns([1, 2])
-    with col_clear:
-        if st.button("🗑️ Tout effacer"):
-            st.session_state.liste_solutions_temp = []
-            st.rerun()
+    # On parcourt la liste avec un index (i) pour savoir laquelle supprimer
+    for i, sol in enumerate(st.session_state.liste_solutions_temp):
+        c_text, c_del = st.columns([5, 1])
+        
+        with c_text:
+            st.markdown(f"**{i+1}.** {sol}")
+        
+        with c_del:
+            # Bouton avec une clé unique (del_0, del_1...)
+            if st.button("🗑️", key=f"del_sol_{i}", help="Supprimer cette solution"):
+                # On retire l'élément à l'index i
+                st.session_state.liste_solutions_temp.pop(i)
+                st.rerun() # On recharge pour mettre à jour l'affichage
 else:
     st.info("Votre liste est vide pour l'instant.")
 
@@ -81,14 +86,12 @@ st.divider()
 # ==============================================================================
 st.markdown("### 4. Analyse Avantages / Inconvénients")
 
-# On vérifie qu'il y a des solutions dans la liste mémoire
 if len(st.session_state.liste_solutions_temp) > 0:
     st.write("Pour chaque solution, ajoutez des arguments 'Pour' ou 'Contre'.")
     
     with st.form("ajout_argument_form", clear_on_submit=True):
         c_sol, c_type, c_term = st.columns(3)
         with c_sol:
-            # On utilise la liste mémoire ici !
             sol_selected = st.selectbox("Solution", st.session_state.liste_solutions_temp)
         with c_type:
             type_point = st.selectbox("Type", ["Avantage (+)", "Inconvénient (-)"])
@@ -135,9 +138,21 @@ if len(st.session_state.liste_solutions_temp) > 0:
         best_sol = df_display.loc[df_display["Bilan"].idxmax()]
         st.success(f"💡 Meilleure solution mathématique : **{best_sol['Solution']}** (Score : {best_sol['Bilan']})")
 
-        if st.button("🗑️ Effacer l'analyse"):
-            st.session_state.analyse_detaillee = pd.DataFrame(columns=["Solution", "Type", "Terme", "Description", "Note", "Valeur"])
-            st.rerun()
+        # J'ai aussi ajouté la suppression individuelle pour les arguments ici, c'est plus cohérent !
+        with st.expander("Gérer / Supprimer des arguments"):
+            # Liste déroulante pour choisir l'argument à supprimer
+            # On crée une étiquette lisible : "Solution - Description (Note)"
+            df["label"] = df["Solution"] + " - " + df["Description"] + " (" + df["Note"].astype(str) + ")"
+            # On crée un dictionnaire {Label: Index}
+            options_arg = {row["label"]: i for i, row in df.iterrows()}
+            
+            sel_arg = st.selectbox("Choisir un argument à supprimer", list(options_arg.keys()))
+            
+            if st.button("Supprimer cet argument"):
+                idx_to_drop = options_arg[sel_arg]
+                st.session_state.analyse_detaillee = st.session_state.analyse_detaillee.drop(idx_to_drop).reset_index(drop=True)
+                st.rerun()
+
 else:
     st.info("👆 Ajoutez des solutions à l'étape 3 ci-dessus.")
 
@@ -180,7 +195,7 @@ with st.form("plan_final_form"):
         
         # Nettoyage
         st.session_state.analyse_detaillee = pd.DataFrame(columns=["Solution", "Type", "Terme", "Description", "Note", "Valeur"])
-        st.session_state.liste_solutions_temp = [] # On vide la liste aussi
+        st.session_state.liste_solutions_temp = [] 
         
         st.success("Plan enregistré ! Retrouvez-le dans l'Historique.")
 
