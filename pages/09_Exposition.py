@@ -160,11 +160,21 @@ with tab2:
 # ==============================================================================
 with tab3:
     st.header("Planifier une activité")
+    st.write("Choisissez une situation et ajustez les conditions (Facteurs).")
+    
+    # Info sur les 4 stratégies
+    with st.expander("💡 Les 4 Stratégies Clés (Pour durcir l'exercice)"):
+        st.markdown("""
+        1. **Jetez-le ("Throw it Out")** : Éliminez les comportements de sécurité.
+        2. **Restez avec ("Stay with It")** : Maintenez l'attention sur le déclencheur.
+        3. **Combinez-le ("Combine It")** : Utilisez l'extinction approfondie (ajoutez des facteurs aggravants).
+        4. **Affrontez-le ("Face It")** : Acceptez un échec réel occasionnel.
+        """)
     
     if st.session_state.data_hierarchie.empty:
-        st.warning("Remplissez la hiérarchie d'abord.")
+        st.warning("Remplissez la hiérarchie en onglet 2 d'abord.")
     else:
-        choix_sit = st.selectbox("Situation à planifier :", st.session_state.data_hierarchie["Situation"].unique())
+        choix_sit = st.selectbox("Quelle situation voulez-vous planifier ?", st.session_state.data_hierarchie["Situation"].unique())
         
         # Récupération des scores initiaux
         row_sit = st.session_state.data_hierarchie[st.session_state.data_hierarchie["Situation"] == choix_sit].iloc[0]
