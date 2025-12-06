@@ -299,7 +299,7 @@ with tab4:
             st.subheader("3. Ré-évaluation (Futur)")
             c3, c4 = st.columns(2)
             with c3:
-                post_attente = st.slider("Si je recommençais maintenant, quelle serait la probabilité que la catastrophe arrive ? (0 : Pas du tout, 25 : possible, 50 : 50/50, 75 : probable, 100 : c'est certain)", 0, 100, 40, step=5, key="c_attente_post")
+                post_attente = st.slider("Si je recommençais maintenant, quelle serait la probabilité que la catastrophe arrive ? (0-100% - 0% : Pas du tout, 25% : possible, 50% : 50/50, 75% : probable, 100% : c'est certain)", 0, 100, 40, step=5, key="c_attente_post")
             with c4:
                 post_anxiete = st.slider("Si je recommençais, Si je recommençais maintenant, quelle serait mon niveau d'anxiété ? (0-100)", 0, 100, 40, step=5, key="c_anxiete_post")
             
