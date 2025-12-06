@@ -152,7 +152,6 @@ with tab2:
     
     st.divider()
     if st.button("✅ Valider l'Étape 2"):
-        st.balloons()
         st.success("Hiérarchie validée !")
 
 # ==============================================================================
@@ -315,7 +314,6 @@ with tab4:
                 save_data("Expositions", [patient, datetime.now().strftime("%Y-%m-%d"), donnees_planif['Situation'], "BILAN", str(duree), texte_bilan])
                 
                 st.success("Bilan enregistré ! Bravo pour cette exposition.")
-                st.balloons()
 
     # Historique Visuel des 3 Temps
     if not st.session_state.data_logs_expo.empty:
