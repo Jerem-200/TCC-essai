@@ -10,8 +10,7 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.switch_page("streamlit_app.py")
     st.stop()
 
-st.title("🧗 L'Exposition (Apprentissage Inhibiteur)")
-st.info("L'objectif est de tester si vos peurs se réalisent vraiment (Maximiser la surprise).")
+st.title("🧗 Exercice d'exposition")
 
 # --- INITIALISATION MÉMOIRE ---
 if "data_crainte_centrale" not in st.session_state:
