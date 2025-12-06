@@ -233,23 +233,23 @@ with tab3:
             # ... (le code d'avant avec st.session_state reste identique) ...
                 
                 # CLOUD : Eclatement des données
-                from connect_db import save_data
-                patient = st.session_state.get("patient_id", "Anonyme")
+            from connect_db import save_data
+            patient = st.session_state.get("patient_id", "Anonyme")
                 
-                # Ordre : [Patient, Date, Situation, TYPE, Contexte, ScoreAttente, ScoreAnxiete, (Vide), Action]
-                save_data("Expositions", [
-                    patient, 
-                    str(date_prevue), 
-                    choix_sit, 
-                    "PLANIFIÉ", 
-                    resume_contexte,    # Colonne E (Détails)
-                    nouvelle_attente,   # Colonne F (Attente Pré)
-                    nouvelle_anxiete,   # Colonne G (Anxiété Pré)
-                    "",                 # Colonne H (Vide pour l'instant)
-                    affronte_txt        # Colonne I (L'action à faire)
-                ])
+            # Ordre : [Patient, Date, Situation, TYPE, Contexte, ScoreAttente, ScoreAnxiete, (Vide), Action]
+            save_data("Expositions", [
+                patient, 
+                str(date_prevue), 
+                choix_sit, 
+                "PLANIFIÉ", 
+                resume_contexte,    # Colonne E (Détails)
+                nouvelle_attente,   # Colonne F (Attente Pré)
+                nouvelle_anxiete,   # Colonne G (Anxiété Pré)
+                "",                 # Colonne H (Vide pour l'instant)
+                affronte_txt        # Colonne I (L'action à faire)
+            ])
                 
-                st.success(f"Exercice ajouté pour le {date_prevue} à {heure_propre} !")
+            st.success(f"Exercice ajouté pour le {date_prevue} à {heure_propre} !")
             
     if not st.session_state.data_planning_expo.empty:
         st.write("---")
