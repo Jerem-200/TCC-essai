@@ -44,7 +44,6 @@ with st.expander("🛑 Lire les consignes de départ (Important)", expanded=True
     **2. Attitude constructive :**
     Il est important d’adopter une orientation constructive face au problème. Il s’agit de voir le problème comme une **occasion ou un défi** plutôt que comme une menace. 
     
-    [cite_start]*Les changements les plus utiles de notre vie surviennent souvent en réponse à un problème qui nous a permis de progresser.* 
     """)
 
 st.divider()
