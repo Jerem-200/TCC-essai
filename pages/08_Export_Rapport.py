@@ -30,21 +30,18 @@ c4.metric("Problèmes", len(df_prob))
 st.divider()
 
 # --- GESTION DE LA MÉMOIRE DU PDF ---
-# On initialise une case mémoire pour stocker le PDF s'il n'existe pas
 if "pdf_bytes" not in st.session_state:
     st.session_state.pdf_bytes = None
 
 # --- 2. BOUTON DE GÉNÉRATION ---
-# Quand on clique, on fabrique le PDF et on le met en mémoire
 if st.button("📄 Générer le Rapport PDF"):
     try:
         st.session_state.pdf_bytes = generer_pdf(df_beck, df_bdi, df_act, df_prob, patient)
-        st.rerun() # On recharge la page pour afficher le résultat
+        st.rerun()
     except Exception as e:
         st.error(f"Erreur : {e}")
 
-# --- 3. AFFICHAGE (Si le PDF est en mémoire) ---
-# Cette partie s'affiche TANT QUE le PDF est en mémoire, même si on recharge la page
+# --- 3. AFFICHAGE ET ENVOI ---
 if st.session_state.pdf_bytes:
     
     st.success("Le PDF est prêt ! Suivez les étapes :")
@@ -64,28 +61,26 @@ if st.session_state.pdf_bytes:
     # ÉTAPE B : ENVOI MAIL
     with col_droite:
         st.markdown("#### Étape 2 : Envoyer")
-        # Le fait de taper ici ne fermera plus la fenêtre car st.session_state.pdf_bytes existe toujours
         email_psy = st.text_input("Email du thérapeute :", placeholder="psy@cabinet.com")
         
         if email_psy:
             sujet = f"Suivi TCC - {patient}"
             corps = "Bonjour,\n\nVoici mon rapport d'exercices TCC de la période (voir pièce jointe).\n\nCordialement."
-            mailto_link = f"mailto:{email_psy}?subject={sujet}&body={corps}"
+            # On remplace les espaces par %20 pour que le lien soit valide
+            mailto_link = f"mailto:{email_psy}?subject={sujet}&body={corps}".replace("\n", "%0D%0A")
             
-            st.markdown(f"""
-            <a href="{mailto_link}" target="_blank" style="text-decoration:none;">
-                <button style="
-                    background-color: #FF4B4B; color: white; padding: 10px 20px;
-                    border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;">
-                    📧 Ouvrir ma messagerie
-                </button>
-            </a>
-            """, unsafe_allow_html=True)
+            # --- NOUVELLE MÉTHODE (Bouton Natif) ---
+            st.link_button("📧 Ouvrir ma messagerie", mailto_link, type="primary")
+            
             st.caption("⚠️ N'oubliez pas d'ajouter le fichier PDF en pièce jointe !")
+            
+            # --- SOLUTION DE SECOURS ---
+            with st.expander("Le bouton ne marche pas ?"):
+                st.write("Copiez-collez l'adresse :")
+                st.code(email_psy)
         else:
             st.info("👆 Entrez l'email pour voir le bouton d'envoi.")
             
-    # Bouton pour effacer et recommencer
     st.divider()
     if st.button("🔄 Effacer et recommencer"):
         st.session_state.pdf_bytes = None
