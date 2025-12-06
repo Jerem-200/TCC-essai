@@ -217,38 +217,35 @@ with tab3:
             st.success("🔥 Excellent ! C'est une situation à fort potentiel d'apprentissage (maximisation de la surprise).")
 
         if st.button("📅 Valider et Planifier"):
-            # Nettoyage de l'heure (format HH:MM:SS -> HH:MM)
             heure_propre = str(heure_prevue)[:5] 
-            
             resume_contexte = f"Aggravants: {', '.join(sel_agg)} | Sans: {', '.join(sel_prot)}"
+            
             new_plan = {
-                "Date": str(date_prevue),
-                "Heure": heure_propre,
+                "Date": str(date_prevue), 
+                "Heure": heure_propre, 
                 "Situation": choix_sit,
-                "Attente Pré-Expo": nouvelle_attente,
+                "Attente Pré-Expo": nouvelle_attente, 
                 "Anxiété Pré-Expo": nouvelle_anxiete
             }
             st.session_state.data_planning_expo = pd.concat([st.session_state.data_planning_expo, pd.DataFrame([new_plan])], ignore_index=True)
             
-            # ... (le code d'avant avec st.session_state reste identique) ...
-                
-                # CLOUD : Eclatement des données
+            # --- CORRECTION ICI ---
             from connect_db import save_data
             patient = st.session_state.get("patient_id", "Anonyme")
-                
-            # Ordre : [Patient, Date, Situation, TYPE, Contexte, ScoreAttente, ScoreAnxiete, (Vide), Action]
+            
+            # On envoie une chaîne vide "" à la fin car 'affronte_txt' n'existe plus ici
             save_data("Expositions", [
                 patient, 
                 str(date_prevue), 
                 choix_sit, 
                 "PLANIFIÉ", 
-                resume_contexte,    # Colonne E (Détails)
-                nouvelle_attente,   # Colonne F (Attente Pré)
-                nouvelle_anxiete,   # Colonne G (Anxiété Pré)
-                "",                 # Colonne H (Vide pour l'instant)
-                affronte_txt        # Colonne I (L'action à faire)
+                resume_contexte,    # Colonne E
+                nouvelle_attente,   # Colonne F
+                nouvelle_anxiete,   # Colonne G
+                "",                 # Colonne H (Vide)
+                ""                  # Colonne I (Vide, remplace l'erreur)
             ])
-                
+            
             st.success(f"Exercice ajouté pour le {date_prevue} à {heure_propre} !")
             
     if not st.session_state.data_planning_expo.empty:
@@ -323,31 +320,29 @@ with tab4:
             if submit_log:
                 new_log = {
                     "Date": datetime.now().strftime("%Y-%m-%d"),
-                    "Situation": donnees_planif['Situation'],
-                    "Planif-Attente": attente_planif,   # Temps 1 (Planification)
-                    "Avant-Attente": pre_attente,       # Temps 2 (Juste avant)
-                    "Après-Attente": post_attente,      # Temps 3 (Post)
-                    "Apprentissage": q4                 # Leçon principale
+                    "Situation": choix_exo_str, # <--- Variable corrigée
+                    "Planif-Attente": attente_planif,
+                    "Avant-Attente": pre_attente,
+                    "Après-Attente": post_attente,
+                    "Apprentissage": q4
                 }
                 st.session_state.data_logs_expo = pd.concat([st.session_state.data_logs_expo, pd.DataFrame([new_log])], ignore_index=True)
                 
-# ... (le code d'avant avec st.session_state reste identique) ...
-                
-                # CLOUD : Eclatement des données pour le Bilan
+                # SAUVEGARDE CLOUD CORRIGÉE
                 from connect_db import save_data
                 patient = st.session_state.get("patient_id", "Anonyme")
                 
-                # Ordre : [Patient, Date, Situation, TYPE, Durée, AttenteAvant, AttenteApres, Surprise, Apprentissage]
+                # Ordre : [Patient, Date, Situation, TYPE, Durée, AttenteAvant, AttenteApres, Anxiete(H), Apprentissage(I)]
                 save_data("Expositions", [
                     patient, 
                     datetime.now().strftime("%Y-%m-%d"), 
-                    exo_realise, 
+                    choix_exo_str,  # <--- Variable corrigée
                     "BILAN", 
                     f"{duree} min", 
-                    pre_attente,   # Colonne F
-                    post_attente,  # Colonne G
-                    surprise,      # Colonne H (On stocke la surprise ici)
-                    appr_complet   # Colonne I (Le texte d'apprentissage)
+                    pre_attente,    # Colonne F
+                    post_attente,   # Colonne G
+                    pre_anxiete,    # Colonne H (On met l'anxiété ici car 'surprise' n'existe plus)
+                    appr_complet    # Colonne I
                 ])
                 
                 st.success("Bilan enregistré ! Bravo.")
