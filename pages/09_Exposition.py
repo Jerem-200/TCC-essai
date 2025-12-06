@@ -128,7 +128,7 @@ with tab2:
         # Double curseur (Attente + Anxiété)
         c1, c2 = st.columns(2)
         with c1:
-            attente = st.slider("Probabilité que la catastrophe arrive (0-100%)", 0, 100, 60, step=5, key="h_attente")
+            attente = st.slider("Probabilité que la catastrophe arrive (0% : Pas du tout, 25% : possible, 50% : 50/50, 75% : probable, 100% : c'est certain)"), 0, 100, 60, step=5, key="h_attente")
         with c2:
             anxiete = st.slider("Niveau d'Anxiété (0-100)", 0, 100, 60, step=5, key="h_anxiete")
         
@@ -212,7 +212,7 @@ with tab3:
             nouvelle_anxiete = st.slider("Niveau d'Anxiété (0-100)", 0, 100, int(anx_init), step=5, key="p_anxiete")
         
         if nouvelle_attente < score_init:
-            st.warning("⚠️ Attention : Vous devriez essayer de rendre l'exercice PLUS difficile (plus d'attente de catastrophe), pas moins.")
+            st.warning("⚠️ Attention : Vous devriez essayer de rendre l'exercice PLUS difficile (plus d'attente de catastrophe), pour pouvoir créer un apprentissage.")
         elif nouvelle_attente > 80:
             st.success("🔥 Excellent ! C'est une situation à fort potentiel d'apprentissage (maximisation de la surprise).")
 
