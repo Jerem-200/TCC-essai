@@ -43,7 +43,6 @@ with st.expander("🛑 Lire les consignes de départ (Important)", expanded=True
     
     **2. Attitude constructive :**
     Il est important d’adopter une orientation constructive face au problème. Il s’agit de voir le problème comme une **occasion ou un défi** plutôt que comme une menace. 
-    
     """)
 
 st.divider()
@@ -166,7 +165,7 @@ st.divider()
 
 # --- NOUVEAU : PLAN D'ACTION PAR ÉTAPES ---
 st.markdown("### 7. Plan d'action détaillé")
-st.caption("Découpez votre solution en petites étapes réalisables.")
+st.caption("Déterminez les étapes par lesquelles vous devez passer pour appliquer la solution choisie. Faites un plan détaillé, avec un échéancier précis et réaliste. Veillez à ce que la première étape soit assez facile et passez à l’action rapidement et si possible immédiatement. Un premier pas même tout petit vous donnera le sentiment d’avoir « brisé la glace ». ")
 
 # Formulaire d'ajout d'étape
 with st.form("ajout_etape_form", clear_on_submit=True):
