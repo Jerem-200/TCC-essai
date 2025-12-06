@@ -104,7 +104,9 @@ with tab2:
 
 # Texte explicatif demandé
     st.info("Dressez une liste aussi complète que possible de toutes les situations que vous évitez ou que vous redoutez en raison de la crainte qu’elles provoquent. L'objectif est de vous exposer à certaines de ces situations dans le futur.")
-   
+
+    st.caption("Hiérarchisation des situations selon votre croyance que le pire va arriver.")
+    
     with st.expander("📚 Les caractéristiques de bons exercices d’exposition"):
         st.markdown("""
         **3 choses à faire :**
@@ -118,8 +120,6 @@ with tab2:
         * Neutraliser
         """)
 
-   st.caption("Hiérarchisation des situations selon votre croyance que le pire va arriver.")
- 
     with st.form("form_hierarchie"):
         sit = st.text_input("Situation redoutée :")
 
