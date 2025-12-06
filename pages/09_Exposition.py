@@ -274,6 +274,9 @@ with tab4:
             # TEMPS 3 : APRÈS (RÉALITÉ)
             st.subheader("2. Après (Réalité)")
             duree = st.number_input("Durée (minutes)", 0, 240, 20)
+
+            st.write("**Est-ce que la catastrophe redoutée s'est produite ?**")
+            resultat_reel = st.radio("", ["Oui, exactement comme prévu", "Oui, mais moins grave", "Non, pas du tout"], label_visibility="collapsed")
             
             # Nouvelles questions demandées
             st.markdown("**Analyse de l'expérience :**")
