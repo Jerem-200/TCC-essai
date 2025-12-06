@@ -211,7 +211,10 @@ with tab3:
         with col_anx:
             nouvelle_anxiete = st.slider("Niveau d'Anxiété (0-100)", 0, 100, int(anx_init), step=5, key="p_anxiete")
         
-        if nouvelle_attente > 80: st.success("🔥 Excellent ! Situation à fort potentiel d'apprentissage.")
+        if nouvelle_attente < score_init:
+            st.warning("⚠️ Attention : Vous devriez essayer de rendre l'exercice PLUS difficile (plus d'attente de catastrophe), pas moins.")
+        elif nouvelle_attente > 80:
+            st.success("🔥 Excellent ! C'est une situation à fort potentiel d'apprentissage (maximisation de la surprise).")
 
         if st.button("📅 Valider et Planifier"):
             # Nettoyage de l'heure (format HH:MM:SS -> HH:MM)
