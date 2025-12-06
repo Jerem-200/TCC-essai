@@ -123,6 +123,10 @@ with tab2:
 
     with st.form("form_hierarchie"):
         sit = st.text_input("Situation redoutée :")
+
+        # Bulle Info Spécifique demandée
+        help_consequence_specifique = """Pour chacune des situations identifiées, essayez de décrire le plus précisément et concrètement possible ce que vous craignez qu’il survienne si vous l’affrontez. Si possible décrivez votre crainte d’une façon telle qu’il sera possible de savoir clairement si ça s’est produit ou pas.\n\nExemple : au lieu de « J’ai peur que mon anxiété paraisse », dites : « Je vais trembler de façon très apparente, je vais bafouiller à un point tel que les gens ne comprendront pas ce que je dis… »"""
+        
         cons = st.text_area("Conséquence anticipée spécifique :", height=80, help="Décrivez précisément ce que vous craignez (ex: bafouiller, trembler visiblement...)")
         
         # Double curseur (Attente + Anxiété)
