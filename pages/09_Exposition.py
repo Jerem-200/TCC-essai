@@ -230,12 +230,27 @@ with tab3:
             }
             st.session_state.data_planning_expo = pd.concat([st.session_state.data_planning_expo, pd.DataFrame([new_plan])], ignore_index=True)
             
-            from connect_db import save_data
-            patient = st.session_state.get("patient_id", "Anonyme")
-            save_data("Expositions", [patient, str(date_prevue), choix_sit, resume_contexte, f"Attente:{nouvelle_attente}% Anxiété:{nouvelle_anxiete}", "PLANIFIÉ"])
+            # ... (le code d'avant avec st.session_state reste identique) ...
+                
+                # CLOUD : Eclatement des données
+                from connect_db import save_data
+                patient = st.session_state.get("patient_id", "Anonyme")
+                
+                # Ordre : [Patient, Date, Situation, TYPE, Contexte, ScoreAttente, ScoreAnxiete, (Vide), Action]
+                save_data("Expositions", [
+                    patient, 
+                    str(date_prevue), 
+                    choix_sit, 
+                    "PLANIFIÉ", 
+                    resume_contexte,    # Colonne E (Détails)
+                    nouvelle_attente,   # Colonne F (Attente Pré)
+                    nouvelle_anxiete,   # Colonne G (Anxiété Pré)
+                    "",                 # Colonne H (Vide pour l'instant)
+                    affronte_txt        # Colonne I (L'action à faire)
+                ])
+                
+                st.success(f"Exercice ajouté pour le {date_prevue} à {heure_propre} !")
             
-            st.success(f"Exercice ajouté pour le {date_prevue} à {heure_propre} !")
-
     if not st.session_state.data_planning_expo.empty:
         st.write("---")
         st.write("#### 🗓️ Vos exercices à venir")
@@ -316,12 +331,26 @@ with tab4:
                 }
                 st.session_state.data_logs_expo = pd.concat([st.session_state.data_logs_expo, pd.DataFrame([new_log])], ignore_index=True)
                 
+# ... (le code d'avant avec st.session_state reste identique) ...
+                
+                # CLOUD : Eclatement des données pour le Bilan
                 from connect_db import save_data
                 patient = st.session_state.get("patient_id", "Anonyme")
-                texte_bilan = f"PLANIF:{attente_planif}% | AVANT:{pre_attente}% | APRES:{post_attente}% | APPRIS:{appr_complet}"
-                save_data("Expositions", [patient, datetime.now().strftime("%Y-%m-%d"), donnees_planif['Situation'], "BILAN", str(duree), texte_bilan])
                 
-                st.success("Bilan enregistré ! Bravo pour cette exposition.")
+                # Ordre : [Patient, Date, Situation, TYPE, Durée, AttenteAvant, AttenteApres, Surprise, Apprentissage]
+                save_data("Expositions", [
+                    patient, 
+                    datetime.now().strftime("%Y-%m-%d"), 
+                    exo_realise, 
+                    "BILAN", 
+                    f"{duree} min", 
+                    pre_attente,   # Colonne F
+                    post_attente,  # Colonne G
+                    surprise,      # Colonne H (On stocke la surprise ici)
+                    appr_complet   # Colonne I (Le texte d'apprentissage)
+                ])
+                
+                st.success("Bilan enregistré ! Bravo.")
 
     # Historique Visuel des 3 Temps
     if not st.session_state.data_logs_expo.empty:
