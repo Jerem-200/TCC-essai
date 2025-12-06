@@ -192,7 +192,8 @@ with tab3:
                 sel_prot = st.multiselect("❌ Je jette (Protecteurs) :", protecteurs) if protecteurs else []
         
         st.write("---")
-        st.markdown("#### Ré-évaluation DANS CES CONDITIONS")
+        st.markdown("#### Ré-évaluation de l'attente avec ces conditions")
+        st.write(f"Si vous faites l'exercice **{choix_sit}** en ajoutant **{len(sel_agg)} facteurs aggravants** et en retirant **{len(sel_prot)} sécurités**...")
         
         # DOUBLE CURSEUR ICI AUSSI
         col_att, col_anx = st.columns(2)
