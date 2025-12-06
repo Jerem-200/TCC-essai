@@ -104,7 +104,7 @@ with tab2:
     st.header("Liste des situations évitées / redoutées")
 
 # Texte explicatif demandé
-    st.info("Dressez une liste aussi complète que possible de tout ce que vous vous empêchez de faire, des situations que vous évitez, ou que vous redoutez en raison de la crainte qu’elles provoquent.")
+    st.info("Dressez une liste aussi complète que possible de toutes les situations que vous évitez ou que vous redoutez en raison de la crainte qu’elles provoquent. L'objectif est de vous exposer à certaines de ces situations dans le futur.")
 
     st.caption("Hiérarchisation des situations selon votre croyance que le pire va arriver.")
     
