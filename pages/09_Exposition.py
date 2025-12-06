@@ -79,26 +79,46 @@ with tab1:
                     st.rerun()
 
     st.divider()
-    if st.button("✅ Valider l'étape 1"):
+# BOUTON DE VALIDATION DE L'ÉTAPE 1
+    if st.button("✅ Valider l'étape 1 (Analyse terminée)"):
         st.session_state.step1_valide = True
     
+    # APPARITION DE L'INFO "EXPOSITION ULTIME"
     if st.session_state.step1_valide:
         st.success("Étape 1 validée !")
         with st.container(border=True):
             st.markdown("### 🔥 Concept : L'Exposition Ultime")
-            st.markdown("Pour maximiser l'apprentissage : Inclure le déclencheur principal + Ajouter les modulateurs positifs + Supprimer les signaux de sécurité.")
+            st.markdown("""
+            Pour maximiser l'apprentissage (la surprise), l'exposition idéale doit :
+            1. Inclure le **déclencheur principal** (CS).
+            2. Ajouter les **modulateurs positifs** (ce qui rend la chose plus probable).
+            3. Supprimer tous les **signaux de sécurité** (inhibiteurs).
+            
+            *L'objectif : Créer une situation où l'attente que la catastrophe se produise est maximale, afin que sa non-occurrence crée la plus grande "erreur de prédiction" possible.*
+            """)
 
 # ==============================================================================
-# ONGLET 2 : HIÉRARCHIE (AVEC EXPLICATION ET DOUBLE CURSEUR)
+# ONGLET 2 : HIÉRARCHIE (AVEC NOTE D'ATTENTE /100)
 # ==============================================================================
 with tab2:
     st.header("Liste des situations évitées / redoutées")
+    st.caption("Hiérarchisation des situations selon votre croyance que le pire va arriver.")
     
-    # Texte explicatif demandé
+# Texte explicatif demandé
     st.info("Dressez une liste aussi complète que possible de tout ce que vous vous empêchez de faire, des situations que vous évitez, ou que vous redoutez en raison de la crainte qu’elles provoquent.")
 
-    with st.expander("📚 Les caractéristiques de bons exercices"):
-        st.markdown("**À faire :** Prolongés, Répétés, Rapprochés.\n**À ne pas faire :** Éviter, Fuir, Neutraliser.")
+    with st.expander("📚 Les caractéristiques de bons exercices d’exposition"):
+        st.markdown("""
+        **3 choses à faire :**
+        * Exercices prolongés
+        * Répétés
+        * Rapprochés
+        
+        **3 choses à ne pas faire :**
+        * Éviter
+        * Fuir
+        * Neutraliser
+        """)
 
     with st.form("form_hierarchie"):
         sit = st.text_input("Situation redoutée :")
