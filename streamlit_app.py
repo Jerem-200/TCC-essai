@@ -119,17 +119,25 @@ with col2:
 
 st.divider()
 
-# --- LIGNE 2 ---
-col3, col4 = st.columns(2)
-with col3:
+# --- LIGNE 2 : ACTION ---
+c3, c4, c5 = st.columns(3) # On passe à 3 colonnes
+
+with c3:
     st.warning("### 📝 Registre Activités")
     st.write("Quotidien & Plaisir")
     st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="➡️")
-with col4:
+
+with c4:
     st.error("### 💡 Résolution Problèmes")
     st.write("Trouver des solutions")
     st.page_link("pages/06_Resolution_Probleme.py", label="Lancer", icon="➡️")
 
+with c5:
+    # LE NOUVEAU BOUTON
+    st.error("### 🧗 Exposition")
+    st.write("Affronter ses peurs")
+    st.page_link("pages/09_Exposition.py", label="Planifier", icon="➡️")
+    
 st.divider()
 
 # --- LIGNE 3 ---
