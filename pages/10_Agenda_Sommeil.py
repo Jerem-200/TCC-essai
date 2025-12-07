@@ -128,12 +128,26 @@ with tab2:
     st.header("📊 Tableau de bord du sommeil")
     
     if not st.session_state.data_sommeil.empty:
+        # Affichage du tableau brut
         st.dataframe(st.session_state.data_sommeil, use_container_width=True)
         st.divider()
         
-        df = st.session_state.data_sommeil
-        avg_eff = df["Efficacité"].mean()
-        avg_forme = df["Forme"].mean()
+        # --- PRÉPARATION DES DONNÉES POUR LE GRAPHIQUE ---
+        # On crée une copie pour ne pas abîmer l'original
+        df = st.session_state.data_sommeil.copy()
+        
+        # 1. NETTOYAGE : On enlève le '%' et on transforme en nombre
+        # On force la conversion en string d'abord pour éviter les bugs, puis on remplace, puis on convertit en float
+        try:
+            df["Efficacité_Num"] = df["Efficacité"].astype(str).str.replace('%', '').astype(float)
+            df["Forme_Num"] = pd.to_numeric(df["Forme"], errors='coerce')
+        except:
+            st.error("Erreur de conversion des données. Vérifiez le format.")
+            st.stop()
+
+        # 2. CALCUL DES MOYENNES
+        avg_eff = df["Efficacité_Num"].mean()
+        avg_forme = df["Forme_Num"].mean()
         
         c1, c2 = st.columns(2)
         c1.metric("Efficacité Moyenne", f"{avg_eff:.1f} %")
@@ -141,21 +155,17 @@ with tab2:
         
         st.write("### Évolution de l'efficacité du sommeil")
         
-        # --- GRAPHIQUE AVANCÉ (ALTAIR) AVEC GROS POINTS ---
-        df_chart = df.copy()
-        
-        # Le graphique Ligne + Points Rouges bien visibles
-        chart_sommeil = alt.Chart(df_chart).mark_line(
-            # C'EST ICI : size=150 rend les points bien gros et visibles
+        # 3. GRAPHIQUE ALTAIR (Utilise la colonne nettoyée "Efficacité_Num")
+        chart_sommeil = alt.Chart(df).mark_line(
             point=alt.OverlayMarkDef(size=150, filled=True, color="red") 
         ).encode(
             x=alt.X('Date:T', title='Date', axis=alt.Axis(format='%d/%m')),
-            y=alt.Y('Efficacité:Q', title='Efficacité (%)', scale=alt.Scale(domain=[0, 100])),
+            y=alt.Y('Efficacité_Num:Q', title='Efficacité (%)', scale=alt.Scale(domain=[0, 100])),
             tooltip=[
                 alt.Tooltip('Date', title='Date', format='%d/%m/%Y'),
-                alt.Tooltip('Efficacité', title='Efficacité'),
-                alt.Tooltip('Forme', title='Forme (1-5)'),
-                alt.Tooltip('Qualité', title='Qualité (1-5)')
+                alt.Tooltip('Efficacité_Num', title='Efficacité', format='.1f'),
+                alt.Tooltip('Forme', title='Forme'),
+                alt.Tooltip('Qualité', title='Qualité')
             ]
         ).interactive()
         
