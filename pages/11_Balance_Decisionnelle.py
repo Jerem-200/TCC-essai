@@ -54,10 +54,10 @@ with st.form("ajout_argument_balance", clear_on_submit=True):
     if st.form_submit_button("Ajouter à la balance"):
         if argument:
             # Logique TCC pour déterminer le camp
-            if "Avantages du comportement actuel" in quadrant: camp = "MAINTIEN (Statu Quo)"
-            elif "Inconvénients du comportement actuel" in quadrant: camp = "CHANGEMENT (Action)"
-            elif "Avantages du comportement alternatif" in quadrant: camp = "CHANGEMENT (Action)"
-            elif "Inconvénients du comportement alternatif" in quadrant: camp = "MAINTIEN (Statu Quo)"
+            if "Avantages du comportement actuel" in quadrant: camp = "MAINTIEN"
+            elif "Inconvénients du comportement actuel" in quadrant: camp = "CHANGEMENT"
+            elif "Avantages du comportement alternatif" in quadrant: camp = "CHANGEMENT"
+            elif "Inconvénients du comportement alternatif" in quadrant: camp = "MAINTIEN"
             else: camp = "Inconnu"
             
             st.session_state.balance_items.append({
@@ -80,17 +80,17 @@ if st.session_state.balance_items:
     df = pd.DataFrame(st.session_state.balance_items)
     
     # Calcul des scores
-    score_maintien = df[df["Camp"] == "MAINTIEN (Statu Quo)"]["Poids"].sum()
-    score_changement = df[df["Camp"] == "CHANGEMENT (Action)"]["Poids"].sum()
+    score_maintien = df[df["Camp"] == "MAINTIEN"]["Poids"].sum()
+    score_changement = df[df["Camp"] == "CHANGEMENT"]["Poids"].sum()
     
     # Affichage des métriques
     col_m, col_c = st.columns(2)
     with col_m:
-        st.metric("Poids du Statu Quo", f"{score_maintien} pts")
+        st.metric("Poids du comportement actuel", f"{score_maintien} pts")
         if score_maintien > score_changement:
             st.warning("Le maintien l'emporte.")
     with col_c:
-        st.metric("Poids du Changement", f"{score_changement} pts")
+        st.metric("Poids du comportement alternatif", f"{score_changement} pts")
         if score_changement > score_maintien:
             st.success("Le changement l'emporte !")
             
