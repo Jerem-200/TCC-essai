@@ -14,9 +14,16 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
 st.title("⚖️ Balance Décisionnelle")
 st.info("Un outil pour peser le pour et le contre d'un changement de comportement.")
 
-# --- INITIALISATION MÉMOIRE ---
+# --- INITIALISATION ET NETTOYAGE MÉMOIRE ---
 if "balance_items" not in st.session_state:
-    st.session_state.balance_items = [] 
+    st.session_state.balance_items = []
+
+# Sécurité : Si des anciennes données contiennent encore "Statu Quo", on nettoie
+if st.session_state.balance_items:
+    first_item = st.session_state.balance_items[0]
+    if "Statu Quo" in first_item["Camp"]: 
+        st.session_state.balance_items = [] # On remet à zéro pour éviter les bugs
+        st.rerun()
 
 # ==============================================================================
 # 1. DÉFINITION DU DILEMME
@@ -27,7 +34,7 @@ c1, c2 = st.columns(2)
 with c1:
     actuel = st.text_input("Comportement Actuel", placeholder="Ex: Continuer à fumer")
 with c2:
-    nouveau = st.text_input("Comportement alternatif", placeholder="Ex: Arrêter de fumer")
+    nouveau = st.text_input("Comportement Alternatif", placeholder="Ex: Arrêter de fumer")
 
 st.divider()
 
@@ -38,12 +45,14 @@ st.subheader("2. Peser les arguments")
 st.write("Ajoutez les arguments un par un.")
 
 with st.form("ajout_argument_balance", clear_on_submit=True):
-    quadrant = st.selectbox("Type d'argument :", [
-        f"👍 Avantages du comportement actuel ({actuel})",
-        f"👎 Inconvénients du comportement actuel ({actuel})",
-        f"👍 Avantages du comportement alternatif ({nouveau})",
-        f"👎 Inconvénients du comportement alternatif ({nouveau})"
-    ])
+    # Les options dynamiques
+    options_type = [
+        f"👍 Avantages du comportement actuel ({actuel if actuel else '...' })",
+        f"👎 Inconvénients du comportement actuel ({actuel if actuel else '...' })",
+        f"👍 Avantages du comportement alternatif ({nouveau if nouveau else '...' })",
+        f"👎 Inconvénients du comportement alternatif ({nouveau if nouveau else '...' })"
+    ]
+    quadrant = st.selectbox("Type d'argument :", options_type)
     
     col_arg, col_poids = st.columns([3, 1])
     with col_arg:
@@ -53,25 +62,36 @@ with st.form("ajout_argument_balance", clear_on_submit=True):
 
     if st.form_submit_button("Ajouter à la balance"):
         if argument:
-            # Logique TCC pour déterminer le camp
-            if "Avantages du comportement actuel" in quadrant: camp = "MAINTIEN"
-            elif "Inconvénients du comportement actuel" in quadrant: camp = "CHANGEMENT"
-            elif "Avantages du comportement alternatif" in quadrant: camp = "CHANGEMENT"
-            elif "Inconvénients du comportement alternatif" in quadrant: camp = "MAINTIEN"
-            else: camp = "Inconnu"
+            # Logique TCC pour déterminer le camp (MAINTIEN vs CHANGEMENT)
+            if "Avantages du comportement actuel" in quadrant: 
+                camp = "MAINTIEN"
+                type_court = "Avantage Actuel"
+            elif "Inconvénients du comportement alternatif" in quadrant: 
+                camp = "MAINTIEN"
+                type_court = "Inconvénient Alternatif"
+            elif "Inconvénients du comportement actuel" in quadrant: 
+                camp = "CHANGEMENT"
+                type_court = "Inconvénient Actuel"
+            elif "Avantages du comportement alternatif" in quadrant: 
+                camp = "CHANGEMENT"
+                type_court = "Avantage Alternatif"
+            else: 
+                camp = "Inconnu"
+                type_court = "Autre"
             
             st.session_state.balance_items.append({
-                "Type": quadrant,
+                "Type": type_court,
+                "FullType": quadrant,
                 "Argument": argument,
                 "Poids": poids,
                 "Camp": camp
             })
             st.rerun()
         else:
-            st.warning("Écrivez un argument.")
+            st.warning("Veuillez écrire un argument.")
 
 # ==============================================================================
-# 3. RÉSULTATS VISUELS (CORRIGÉ)
+# 3. RÉSULTATS VISUELS
 # ==============================================================================
 if st.session_state.balance_items:
     st.divider()
@@ -86,47 +106,45 @@ if st.session_state.balance_items:
     # Affichage des métriques
     col_m, col_c = st.columns(2)
     with col_m:
-        st.metric("Poids du comportement actuel", f"{score_maintien} pts")
+        st.metric("Poids du Maintien", f"{score_maintien} pts", help=f"Total pour : {actuel}")
         if score_maintien > score_changement:
-            st.warning("Le maintien l'emporte.")
+            st.warning(f"Le maintien l'emporte ({actuel}).")
     with col_c:
-        st.metric("Poids du comportement alternatif", f"{score_changement} pts")
+        st.metric("Poids du Changement", f"{score_changement} pts", help=f"Total pour : {nouveau}")
         if score_changement > score_maintien:
-            st.success("Le changement l'emporte !")
+            st.success(f"Le changement l'emporte ({nouveau}) !")
             
-    # --- GRAPHIQUE CORRIGÉ ---
-    st.write("") # Petit espace
+    st.write("") 
     
-    # On prépare les données proprement
+    # GRAPHIQUE PROPRE
+    # On utilise les noms définis par l'utilisateur pour le graphique
+    nom_actuel = actuel if actuel else "Comportement Actuel"
+    nom_nouveau = nouveau if nouveau else "Comportement Alternatif"
+
     data_chart = pd.DataFrame({
-        'Option': ['Comportement actuel', 'Comportement alternatif'],
+        'Option': [nom_actuel, nom_nouveau],
         'Score': [score_maintien, score_changement]
     })
     
-    # Base du graphique
     base = alt.Chart(data_chart).encode(
         x=alt.X('Option', axis=alt.Axis(labelAngle=0, title=None)),
         y=alt.Y('Score', title='Poids total'),
         tooltip=['Option', 'Score']
     )
     
-    # Les barres (Couleurs forcées via domain/range pour être sûr que ça ne bouge pas)
     bars = base.mark_bar().encode(
         color=alt.Color('Option', scale=alt.Scale(
-            domain=['Comportement actuel', 'Comportement alternatif'],
-            range=['#FF6B6B', '#4ECDC4']  # Rouge vs Vert
+            domain=[nom_actuel, nom_nouveau],
+            range=['#FF6B6B', '#4ECDC4']  # Rouge (Maintien) vs Vert (Changement)
         ), legend=None)
     )
     
-    # Les chiffres au dessus des barres (Pour bien voir le contenu)
-    text = base.mark_text(dy=-10, fontSize=14, fontWeight='bold').encode(
-        text='Score'
-    )
+    text = base.mark_text(dy=-10, fontSize=14, fontWeight='bold').encode(text='Score')
     
     st.altair_chart(bars + text, use_container_width=True)
     
-    # --- TABLEAU DÉTAILLÉ ---
-    with st.expander("Gérer / Supprimer des arguments"):
+    # TABLEAU DÉTAILLÉ
+    with st.expander("Gérer / Supprimer des arguments", expanded=True):
         if not st.session_state.balance_items:
             st.info("Aucun argument.")
         else:
@@ -134,7 +152,8 @@ if st.session_state.balance_items:
             for i, item in enumerate(st.session_state.balance_items):
                 col_text, col_btn = st.columns([6, 1])
                 with col_text:
-                    icon = "🔴" if "MAINTIEN" in item["Camp"] else "🟢"
+                    # Rouge pour Maintien, Vert pour Changement
+                    icon = "🔴" if item["Camp"] == "MAINTIEN" else "🟢"
                     st.write(f"{icon} **{item['Type']}** : {item['Argument']} (Poids: {item['Poids']})")
                 with col_btn:
                     if st.button("🗑️", key=f"del_bal_{i}"):
@@ -144,7 +163,7 @@ if st.session_state.balance_items:
     st.divider()
     
     # ==============================================================================
-    # 4. SAUVEGARDE
+    # 4. SAUVEGARDE CLOUD
     # ==============================================================================
     if st.button("💾 Enregistrer cette Balance"):
         resume_args = " | ".join([f"{i['Type']}: {i['Argument']} ({i['Poids']})" for i in st.session_state.balance_items])
