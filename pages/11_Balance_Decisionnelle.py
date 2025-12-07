@@ -54,10 +54,10 @@ with st.form("ajout_argument_balance", clear_on_submit=True):
     if st.form_submit_button("Ajouter à la balance"):
         if argument:
             # Logique TCC pour déterminer le camp
-            if "Avantages à rester" in quadrant: camp = "MAINTIEN (Statu Quo)"
-            elif "Inconvénients à rester" in quadrant: camp = "CHANGEMENT (Action)"
-            elif "Avantages à changer" in quadrant: camp = "CHANGEMENT (Action)"
-            elif "Inconvénients à changer" in quadrant: camp = "MAINTIEN (Statu Quo)"
+            if "Avantages du comportement actuel" in quadrant: camp = "MAINTIEN (Statu Quo)"
+            elif "Inconvénients du comportement actuel" in quadrant: camp = "CHANGEMENT (Action)"
+            elif "Avantages du comportement alternatif" in quadrant: camp = "CHANGEMENT (Action)"
+            elif "Inconvénients du comportement alternatif" in quadrant: camp = "MAINTIEN (Statu Quo)"
             else: camp = "Inconnu"
             
             st.session_state.balance_items.append({
