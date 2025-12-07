@@ -144,6 +144,24 @@ with tab1:
                 forme, qualite, f"{efficacite}%"
             ])
 
+            # --- ZONE DE SUPPRESSION (NOUVEAU) ---
+    st.divider()
+    if not st.session_state.data_sommeil.empty:
+        with st.expander("🗑️ Supprimer une entrée (En cas d'erreur)"):
+            st.write("Sélectionnez la ligne à supprimer :")
+            
+            df_to_del = st.session_state.data_sommeil
+            # On crée une liste lisible
+            options = {f"{row['Date']} (Eff: {row['Efficacité']}%)": i for i, row in df_to_del.iterrows()}
+            
+            selection = st.selectbox("Choisir la date", list(options.keys()))
+            
+            if st.button("Supprimer définitivement"):
+                index_to_drop = options[selection]
+                st.session_state.data_sommeil = st.session_state.data_sommeil.drop(index_to_drop).reset_index(drop=True)
+                st.success("Ligne supprimée ! (Pensez à ressaisir si besoin)")
+                st.rerun()
+
 # --- ONGLET 2 : ANALYSE ---
 with tab2:
     st.header("📊 Tableau de bord du sommeil")
