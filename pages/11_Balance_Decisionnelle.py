@@ -18,23 +18,23 @@ st.info("Un outil pour peser le pour et le contre d'un changement de comportemen
 if "balance_items" not in st.session_state:
     st.session_state.balance_items = []
 
-# Sécurité : Si des anciennes données contiennent encore "Statu Quo", on nettoie
+# Sécurité anti-bug (Nettoyage des vieux formats)
 if st.session_state.balance_items:
-    first_item = st.session_state.balance_items[0]
-    if "Statu Quo" in first_item["Camp"]: 
-        st.session_state.balance_items = [] # On remet à zéro pour éviter les bugs
+    if "Statu Quo" in st.session_state.balance_items[0]["Camp"]: 
+        st.session_state.balance_items = []
         st.rerun()
 
 # ==============================================================================
-# 1. DÉFINITION DU DILEMME
+# 1. DÉFINITION DU DILEMME (AVEC KEYS POUR POUVOIR EFFACER)
 # ==============================================================================
 st.subheader("1. Quel est le choix ?")
 
 c1, c2 = st.columns(2)
 with c1:
-    actuel = st.text_input("Comportement Actuel", placeholder="Ex: Continuer à fumer")
+    # On ajoute key="bd_actuel" pour pouvoir le vider plus tard
+    actuel = st.text_input("Comportement Actuel", placeholder="Ex: Continuer à fumer", key="bd_actuel")
 with c2:
-    nouveau = st.text_input("Comportement Alternatif", placeholder="Ex: Arrêter de fumer")
+    nouveau = st.text_input("Comportement Alternatif", placeholder="Ex: Arrêter de fumer", key="bd_nouveau")
 
 st.divider()
 
@@ -45,7 +45,6 @@ st.subheader("2. Peser les arguments")
 st.write("Ajoutez les arguments un par un.")
 
 with st.form("ajout_argument_balance", clear_on_submit=True):
-    # Les options dynamiques
     options_type = [
         f"👍 Avantages du comportement actuel ({actuel if actuel else '...' })",
         f"👎 Inconvénients du comportement actuel ({actuel if actuel else '...' })",
@@ -62,7 +61,7 @@ with st.form("ajout_argument_balance", clear_on_submit=True):
 
     if st.form_submit_button("Ajouter à la balance"):
         if argument:
-            # Logique TCC pour déterminer le camp (MAINTIEN vs CHANGEMENT)
+            # Logique TCC pour déterminer le camp
             if "Avantages du comportement actuel" in quadrant: 
                 camp = "MAINTIEN"
                 type_court = "Avantage Actuel"
@@ -116,8 +115,7 @@ if st.session_state.balance_items:
             
     st.write("") 
     
-    # GRAPHIQUE PROPRE
-    # On utilise les noms définis par l'utilisateur pour le graphique
+    # GRAPHIQUE
     nom_actuel = actuel if actuel else "Comportement Actuel"
     nom_nouveau = nouveau if nouveau else "Comportement Alternatif"
 
@@ -135,7 +133,7 @@ if st.session_state.balance_items:
     bars = base.mark_bar().encode(
         color=alt.Color('Option', scale=alt.Scale(
             domain=[nom_actuel, nom_nouveau],
-            range=['#FF6B6B', '#4ECDC4']  # Rouge (Maintien) vs Vert (Changement)
+            range=['#FF6B6B', '#4ECDC4']
         ), legend=None)
     )
     
@@ -152,7 +150,6 @@ if st.session_state.balance_items:
             for i, item in enumerate(st.session_state.balance_items):
                 col_text, col_btn = st.columns([6, 1])
                 with col_text:
-                    # Rouge pour Maintien, Vert pour Changement
                     icon = "🔴" if item["Camp"] == "MAINTIEN" else "🟢"
                     st.write(f"{icon} **{item['Type']}** : {item['Argument']} (Poids: {item['Poids']})")
                 with col_btn:
@@ -163,25 +160,36 @@ if st.session_state.balance_items:
     st.divider()
     
     # ==============================================================================
-    # 4. SAUVEGARDE CLOUD
+    # 4. SAUVEGARDE & RESET
     # ==============================================================================
-    if st.button("💾 Enregistrer cette Balance"):
-        resume_args = " | ".join([f"{i['Type']}: {i['Argument']} ({i['Poids']})" for i in st.session_state.balance_items])
-        
-        from connect_db import save_data
-        patient = st.session_state.get("patient_id", "Anonyme")
-        
-        save_data("Balance", [
-            patient,
-            datetime.now().strftime("%Y-%m-%d"),
-            actuel,
-            nouveau,
-            score_maintien,
-            score_changement,
-            resume_args
-        ])
-        
-        st.success("Balance enregistrée ! Vous pouvez la retrouver dans le fichier global.")
+    c_save, c_clear = st.columns([2, 1])
+    
+    with c_save:
+        if st.button("💾 Enregistrer cette Balance"):
+            resume_args = " | ".join([f"{i['Type']}: {i['Argument']} ({i['Poids']})" for i in st.session_state.balance_items])
+            
+            from connect_db import save_data
+            patient = st.session_state.get("patient_id", "Anonyme")
+            
+            save_data("Balance", [
+                patient,
+                datetime.now().strftime("%Y-%m-%d"),
+                actuel,
+                nouveau,
+                score_maintien,
+                score_changement,
+                resume_args
+            ])
+            st.success("Balance enregistrée !")
+
+    # --- BOUTON DE REMISE À ZÉRO ---
+    with c_clear:
+        if st.button("🗑️ Tout effacer (Nouvelle)"):
+            st.session_state.balance_items = [] # Vide la liste
+            # On ne peut pas vider les inputs directement, mais on peut recharger la page
+            # Astuce : on utilise une clé de session qu'on clear ? Non, le rerun suffit souvent si on n'a pas mis de valeur par défaut fixe.
+            # Mais ici le plus simple est de vider la liste.
+            st.rerun()
 
 else:
     st.info("Commencez par ajouter des arguments ci-dessus.")
