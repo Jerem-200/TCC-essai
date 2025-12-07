@@ -6,41 +6,52 @@ st.set_page_config(page_title="Exposition", page_icon="🧗")
 
 # --- VIGILE ---
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
-    st.warning("⛔ Veuillez vous connecter sur la page d'accueil.")
     st.switch_page("streamlit_app.py")
-    st.stop()
 
 st.title("🧗 L'Exposition (Apprentissage Inhibiteur)")
 
-# --- 1. GESTION DES CRAINTES (FILTRAGE INTELLIGENT) ---
+# --- 1. GESTION DES CRAINTES (MULTI-CRAINTES) ---
 if "liste_craintes" not in st.session_state:
+    # On stocke une liste de dictionnaires : {"Nom": "Crise cardiaque", "Facteurs": []}
     st.session_state.liste_craintes = []
 
-col_info, col_sel = st.columns([2, 2])
-with col_info:
-    st.info("Sur quelle thématique travaillez-vous ?")
-with col_sel:
+# Sélecteur de crainte active
+st.info("Sur quelle thématique travaillez-vous aujourd'hui ?")
+col_sel, col_new = st.columns([3, 1])
+
+with col_new:
+    # Bouton pour créer une nouvelle crainte
     with st.popover("➕ Nouvelle Crainte"):
-        new_name = st.text_input("Nom (ex: Jugement, Mort...)")
-        if st.button("Créer") and new_name:
-            st.session_state.liste_craintes.append({"Nom": new_name, "Facteurs": []})
-            st.rerun()
+        new_crainte_name = st.text_input("Nom de la peur (ex: Jugement)")
+        if st.button("Créer"):
+            if new_crainte_name:
+                st.session_state.liste_craintes.append({"Nom": new_crainte_name, "Facteurs": []})
+                st.rerun()
 
-    if st.session_state.liste_craintes:
-        options = [c["Nom"] for c in st.session_state.liste_craintes]
-        choix_crainte = st.selectbox("Crainte active :", options, label_visibility="collapsed")
-        crainte_active = next((c for c in st.session_state.liste_craintes if c["Nom"] == choix_crainte), None)
-    else:
-        st.warning("Créez d'abord une crainte ci-dessus pour commencer.")
-        st.stop()
+# Récupération de la crainte active
+if not st.session_state.liste_craintes:
+    st.warning("Commencez par créer une thématique de peur (ex: 'Peur de mourir', 'Peur sociale').")
+    st.stop()
 
-# --- INITIALISATION DATA ---
+options_craintes = [c["Nom"] for c in st.session_state.liste_craintes]
+choix_crainte = col_sel.selectbox("Crainte sélectionnée :", options_craintes, label_visibility="collapsed")
+
+# On retrouve l'objet crainte complet (pour accéder à ses facteurs)
+crainte_active = next((c for c in st.session_state.liste_craintes if c["Nom"] == choix_crainte), None)
+
+# --- INITIALISATION DES DONNÉES ---
 if "data_hierarchie" not in st.session_state:
-    st.session_state.data_hierarchie = pd.DataFrame(columns=["Crainte", "Situation", "Conséquence", "Attente", "Anxiété"])
+    # Ajout colonne Crainte
+    st.session_state.data_hierarchie = pd.DataFrame(columns=["Crainte", "Situation", "Conséquence Anticipée", "Attente (0-100)", "Anxiété (0-100)"])
+
 if "data_planning_expo" not in st.session_state:
-    st.session_state.data_planning_expo = pd.DataFrame(columns=["Crainte", "Date", "Situation", "Attente"])
+    st.session_state.data_planning_expo = pd.DataFrame(columns=["Crainte", "Date", "Heure", "Situation", "Attente Pré-Expo", "Anxiété Pré-Expo"])
+
 if "data_logs_expo" not in st.session_state:
     st.session_state.data_logs_expo = pd.DataFrame(columns=["Crainte", "Date", "Situation", "Planif-Attente", "Avant-Attente", "Après-Attente", "Apprentissage"])
+
+if "step1_valide" not in st.session_state:
+    st.session_state.step1_valide = False
 
 # --- ONGLETS ---
 tab1, tab2, tab3, tab4 = st.tabs(["1. Analyse", "2. Hiérarchie", "3. Planifier", "4. Consolider"])
@@ -50,257 +61,244 @@ tab1, tab2, tab3, tab4 = st.tabs(["1. Analyse", "2. Hiérarchie", "3. Planifier"
 # ==============================================================================
 with tab1:
     st.header(f"Analyse : {crainte_active['Nom']}")
+    st.caption("Définissez les facteurs spécifiques à CETTE peur.")
     
-    # 1.A DEFINITION
-    help_crainte = "Identifiez la conséquence ultime (ex: 'Je vais faire une crise cardiaque'), pas juste la sensation."
     with st.expander("ℹ️ Aide : Définir la conséquence ultime"):
-        st.info(help_crainte)
-    
-    # On stocke la définition dans le dictionnaire de la crainte
-    current_def = crainte_active.get("Definition", "")
-    new_def = st.text_area("Quelle est la catastrophe redoutée ?", value=current_def, help=help_crainte)
-    if st.button("💾 Sauvegarder la définition"):
-        crainte_active["Definition"] = new_def
-        st.success("Définition enregistrée.")
+        st.info("Ex: 'Si je tremble, ils vont me rejeter' (et non juste 'je vais être mal à l'aise').")
 
-    st.divider()
-
-    # 1.B FACTEURS
+    # Gestion des facteurs pour CETTE crainte uniquement
     st.subheader("Facteurs aggravants & protecteurs")
     
-    with st.form("ajout_facteur", clear_on_submit=True):
+    with st.form("ajout_facteur"):
         c1, c2 = st.columns([3, 1])
-        with c1: desc = st.text_input("Description :")
-        with c2: type_f = st.selectbox("Type", ["🔴 Risque (Aggravant)", "🟢 Protecteur (Sécurité)"])
+        with c1: desc_facteur = st.text_input("Description :")
+        with c2: type_facteur = st.selectbox("Type", ["🔴 Risque (Aggravant)", "🟢 Protecteur (Sécurité)"])
         
-        is_main = False
-        if "Risque" in type_f: is_main = st.checkbox("Déclencheur principal ?")
+        is_main_trigger = False
+        if "Risque" in type_facteur: is_main_trigger = st.checkbox("Est-ce le déclencheur principal ?")
             
-        if st.form_submit_button("Ajouter"):
-            crainte_active["Facteurs"].append({"Description": desc, "Type": type_f, "Main": is_main})
+        if st.form_submit_button("Ajouter ce facteur"):
+            nouveau = {"Description": desc_facteur, "Type": type_facteur, "Main": is_main_trigger}
+            crainte_active["Facteurs"].append(nouveau)
             st.rerun()
 
-    # Liste avec suppression
+    # Affichage
     if crainte_active["Facteurs"]:
-        st.write("---")
         for i, f in enumerate(crainte_active["Facteurs"]):
-            c_icon, c_txt, c_del = st.columns([1, 6, 1])
-            with c_icon: st.write("🔥" if f.get("Main") else ("🔴" if "Risque" in f["Type"] else "🟢"))
-            with c_txt: st.write(f"{'**[PRINCIPAL]** ' if f.get('Main') else ''}{f['Description']}")
-            with c_del:
+            col_icon, col_txt, col_del = st.columns([1, 6, 1])
+            with col_icon: st.write("🔥" if f.get("Main") else ("🔴" if "Risque" in f["Type"] else "🟢"))
+            with col_txt: st.write(f"{'**[PRINCIPAL]** ' if f.get('Main') else ''}{f['Description']}")
+            with col_del:
                 if st.button("🗑️", key=f"del_fact_{i}"):
                     crainte_active["Facteurs"].pop(i)
                     st.rerun()
 
     st.divider()
-    if st.button("✅ Valider l'Analyse et passer à l'étape suivante"):
-        st.success("Analyse terminée ! Cliquez sur l'onglet **'2. Hiérarchie'** en haut.")
-        with st.container(border=True):
-            st.markdown("### 🔥 Concept : L'Exposition Ultime")
-            st.markdown("Inclure le déclencheur + Ajouter les modulateurs + Supprimer les sécurités.")
+    if st.button("✅ Valider l'étape 1"):
+        st.session_state.step1_valide = True
+        st.success("Analyse validée !")
 
 # ==============================================================================
-# ONGLET 2 : HIÉRARCHIE (Filtrée)
+# ONGLET 2 : HIÉRARCHIE (Filtrée par crainte)
 # ==============================================================================
 with tab2:
-    st.header(f"Hiérarchie ({crainte_active['Nom']})")
-    st.info("Listez les situations évitées, de la moins pire à la pire.")
-
-    with st.expander("📚 Bonnes pratiques"):
-        st.write("**Faire :** Prolongé, Répété, Rapproché. **Ne pas faire :** Éviter, Fuir.")
-
-    with st.form("form_hierarchie", clear_on_submit=True):
-        sit = st.text_input("Situation :")
-        cons = st.text_area("Crainte précise (Si je le fais, il va arriver...):", height=60)
+    st.header(f"Hiérarchie pour : {crainte_active['Nom']}")
+    
+    with st.form("form_hierarchie"):
+        sit = st.text_input("Situation redoutée :")
+        cons = st.text_area("Conséquence anticipée précise :", height=60, help="Qu'est-ce qui va se passer exactement ?")
         
         c1, c2 = st.columns(2)
-        with c1: att = st.slider("Probabilité catastrophe (Attente 0-100%)", 0, 100, 60, step=5)
-        with c2: anx = st.slider("Niveau Anxiété (0-100)", 0, 100, 60, step=5)
+        with c1: attente = st.slider("Probabilité catastrophe (0-100%)", 0, 100, 60, step=5, key="h_attente")
+        with c2: anxiete = st.slider("Niveau d'Anxiété (0-100)", 0, 100, 60, step=5, key="h_anxiete")
         
-        if st.form_submit_button("Ajouter"):
-            new = {"Crainte": crainte_active['Nom'], "Situation": sit, "Conséquence": cons, "Attente": att, "Anxiété": anx}
-            st.session_state.data_hierarchie = pd.concat([st.session_state.data_hierarchie, pd.DataFrame([new])], ignore_index=True)
+        if st.form_submit_button("Ajouter à la liste"):
+            new_row = {
+                "Crainte": crainte_active['Nom'], # Lien avec la crainte
+                "Situation": sit, 
+                "Conséquence Anticipée": cons, 
+                "Attente (0-100)": attente, 
+                "Anxiété (0-100)": anxiete
+            }
+            st.session_state.data_hierarchie = pd.concat([st.session_state.data_hierarchie, pd.DataFrame([new_row])], ignore_index=True)
             
-            # Cloud
+            # Cloud (Ajout colonne Crainte)
             from connect_db import save_data
             patient = st.session_state.get("patient_id", "Anonyme")
-            save_data("Evitements", [patient, datetime.now().strftime("%Y-%m-%d"), crainte_active['Nom'], sit, att, cons, f"Anx:{anx}"])
+            save_data("Evitements", [patient, datetime.now().strftime("%Y-%m-%d"), crainte_active['Nom'], sit, attente, cons, f"Anx:{anxiete}"])
             st.success("Ajouté !")
 
-    # FILTRAGE INTELLIGENT
-    df = st.session_state.data_hierarchie
-    df_filtre = df[df["Crainte"] == crainte_active['Nom']].sort_values(by="Attente", ascending=False)
+    st.divider()
+    
+    # FILTRAGE : On n'affiche que ceux de la crainte active
+    df_global = st.session_state.data_hierarchie
+    df_filtre = df_global[df_global["Crainte"] == crainte_active['Nom']].sort_values(by="Attente (0-100)", ascending=False)
 
     if not df_filtre.empty:
-        st.divider()
-        st.write("#### 📋 Votre échelle")
-        for idx, row in df_filtre.iterrows():
-            c_sc, c_tx, c_dl = st.columns([2, 5, 1])
-            with c_sc: st.metric("Attente", f"{row['Attente']}%", f"Anx: {row['Anxiété']}")
-            with c_tx: 
-                st.markdown(f"**{row['Situation']}**")
-                st.caption(row['Conséquence'])
-            with c_dl:
-                if st.button("🗑️", key=f"del_h_{idx}"):
-                    st.session_state.data_hierarchie = df.drop(idx).reset_index(drop=True)
-                    st.rerun()
+        st.write("#### 📋 Liste hiérarchisée")
+        st.dataframe(df_filtre[["Situation", "Attente (0-100)", "Anxiété (0-100)"]], use_container_width=True)
+        
+        # SUPPRESSION (Demandé)
+        with st.expander("🗑️ Gérer / Supprimer des situations"):
+            opts = {f"{row['Situation']} ({row['Attente (0-100)']})": i for i, row in df_filtre.iterrows()}
+            sel_del = st.selectbox("Choisir la situation à supprimer", list(opts.keys()))
+            if st.button("Supprimer situation"):
+                idx_to_drop = opts[sel_del]
+                st.session_state.data_hierarchie = st.session_state.data_hierarchie.drop(idx_to_drop).reset_index(drop=True)
+                st.rerun()
     else:
-        st.info("Liste vide pour cette crainte.")
-
-    st.divider()
-    if st.button("✅ Valider la Hiérarchie et passer à la Planification"):
-        st.success("Hiérarchie validée ! Cliquez sur l'onglet **'3. Planifier'**.")
+        st.info("Aucune situation listée pour cette crainte.")
 
 # ==============================================================================
-# ONGLET 3 : PLANIFICATION (Filtrée)
+# ONGLET 3 : PLANIFICATION
 # ==============================================================================
 with tab3:
-    st.header("Planifier un exercice")
+    st.header("Planifier")
     
-    # On ne propose QUE les situations de la crainte active
-    df_source = st.session_state.data_hierarchie
-    situations_dispo = df_source[df_source["Crainte"] == crainte_active['Nom']]["Situation"].unique()
+    # On récupère seulement les situations de la crainte active
+    df_filtre = st.session_state.data_hierarchie[st.session_state.data_hierarchie["Crainte"] == crainte_active['Nom']]
     
-    if len(situations_dispo) == 0:
-        st.warning("Remplissez la hiérarchie (Onglet 2) d'abord.")
+    if df_filtre.empty:
+        st.warning("Remplissez la hiérarchie (Onglet 2) pour cette crainte d'abord.")
     else:
-        choix_sit = st.selectbox("Situation à affronter :", situations_dispo)
+        choix_sit = st.selectbox("Situation à affronter :", df_filtre["Situation"].unique())
         
-        # Récup score initial
-        row_sit = df_source[(df_source["Crainte"] == crainte_active['Nom']) & (df_source["Situation"] == choix_sit)].iloc[0]
-        st.caption(f"Score de base : Attente {row_sit['Attente']}%")
+        # Scores initiaux
+        row_sit = df_filtre[df_filtre["Situation"] == choix_sit].iloc[0]
+        st.caption(f"Score initial : Attente {row_sit['Attente (0-100)']}%")
         
         c1, c2 = st.columns(2)
-        with c1: date_p = st.date_input("Date")
-        with c2: heure_p = st.time_input("Heure")
+        with c1: date_prevue = st.date_input("Date", datetime.now())
+        with c2: heure_prevue = st.time_input("Heure", datetime.now().time())
             
         with st.container(border=True):
-            st.write("**Configuration**")
-            aggs = [f['Description'] for f in crainte_active["Facteurs"] if "Risque" in f['Type']]
-            prots = [f['Description'] for f in crainte_active["Facteurs"] if "Protecteur" in f['Type']]
+            st.write("**Configuration (Modulateurs)**")
+            # Facteurs liés à la crainte active
+            aggravants = [f['Description'] for f in crainte_active["Facteurs"] if "Risque" in f['Type']]
+            protecteurs = [f['Description'] for f in crainte_active["Facteurs"] if "Protecteur" in f['Type']]
             
             c_a, c_b = st.columns(2)
-            with c_a: sel_agg = st.multiselect("➕ Je combine (Aggravants)", aggs)
-            with c_b: sel_prot = st.multiselect("❌ Je jette (Protecteurs)", prots)
+            with c_a: sel_agg = st.multiselect("➕ Je combine (Aggravants)", aggravants)
+            with c_b: sel_prot = st.multiselect("❌ Je jette (Protecteurs)", protecteurs)
         
-        st.markdown("#### Ré-évaluation")
+        st.write("---")
+        st.markdown("#### Ré-évaluation dans ces conditions")
         c3, c4 = st.columns(2)
-        with c3: new_att = st.slider("Probabilité catastrophe ?", 0, 100, int(row_sit['Attente']), step=5, key="new_att")
-        with c4: new_anx = st.slider("Niveau Anxiété ?", 0, 100, int(row_sit['Anxiété']), step=5, key="new_anx")
+        with c3: new_att = st.slider("Probabilité catastrophe (0-100%)", 0, 100, int(row_sit['Attente (0-100)']), step=5, key="new_att")
+        with c4: new_anx = st.slider("Niveau Anxiété (0-100)", 0, 100, int(row_sit['Anxiété (0-100)']), step=5, key="new_anx")
 
-        if st.button("📅 Valider et Planifier"):
+        if st.button("📅 Valider"):
+            heure_propre = str(heure_prevue)[:5] 
             resume = f"Aggravants: {', '.join(sel_agg)} | Sans: {', '.join(sel_prot)}"
+            
             new_plan = {
-                "Crainte": crainte_active['Nom'],
-                "Date": str(date_p), "Heure": str(heure_p)[:5], "Situation": choix_sit,
-                "Attente": new_att
+                "Crainte": crainte_active['Nom'], # Lien
+                "Date": str(date_prevue), "Heure": heure_propre, "Situation": choix_sit,
+                "Attente Pré-Expo": new_att, "Anxiété Pré-Expo": new_anx
             }
             st.session_state.data_planning_expo = pd.concat([st.session_state.data_planning_expo, pd.DataFrame([new_plan])], ignore_index=True)
             
-            # Cloud
             from connect_db import save_data
             patient = st.session_state.get("patient_id", "Anonyme")
-            # [Patient, Date, Crainte, Situation, Type, Details, Score1, Score2, Vide, Vide]
+            # Ordre Cloud : Patient, Date, CRAINTE, Situation, Type, Details, Score1, Score2, Vide, Vide
             save_data("Expositions", [
-                patient, str(date_p), crainte_active['Nom'], choix_sit, 
+                patient, str(date_prevue), crainte_active['Nom'], choix_sit, 
                 "PLANIFIÉ", resume, new_att, new_anx, "", ""
             ])
             st.success("Planifié !")
 
-    # Planning Filtré
-    df_plan = st.session_state.data_planning_expo
-    df_plan_filtre = df_plan[df_plan["Crainte"] == crainte_active['Nom']]
+    # Affichage Planning Filtré + Suppression
+    df_plan_filtre = st.session_state.data_planning_expo[st.session_state.data_planning_expo["Crainte"] == crainte_active['Nom']]
     
     if not df_plan_filtre.empty:
         st.write("---")
-        st.write("#### 🗓️ Vos exercices prévus")
-        for idx, row in df_plan_filtre.iterrows():
-            c_d, c_s, c_x = st.columns([2, 4, 1])
-            with c_d: st.write(f"📅 {row['Date']} {row['Heure']}")
-            with c_s: st.write(f"**{row['Situation']}** (Attente: {row['Attente']}%)")
-            with c_x:
-                if st.button("🗑️", key=f"del_plan_{idx}"):
-                    st.session_state.data_planning_expo = df_plan.drop(idx).reset_index(drop=True)
-                    st.rerun()
+        st.write("#### 🗓️ Exercices prévus (Cette crainte)")
+        st.dataframe(df_plan_filtre[["Date", "Heure", "Situation"]], use_container_width=True)
+        
+        # SUPPRESSION PLAN
+        with st.expander("🗑️ Gérer / Supprimer un exercice planifié"):
+            opts_plan = {f"{r['Date']} - {r['Situation']}": i for i, r in df_plan_filtre.iterrows()}
+            sel_del_plan = st.selectbox("Choisir", list(opts_plan.keys()))
+            if st.button("Supprimer exercice"):
+                st.session_state.data_planning_expo = st.session_state.data_planning_expo.drop(opts_plan[sel_del_plan]).reset_index(drop=True)
+                st.rerun()
 
 # ==============================================================================
-# ONGLET 4 : CONSOLIDATION (Filtrée)
+# ONGLET 4 : CONSOLIDATION
 # ==============================================================================
 with tab4:
-    st.header("Consolidation")
+    st.header("Consolidation (Bilan)")
     
-    # On ne propose que les plans de la crainte active
-    df_plan = st.session_state.data_planning_expo
-    df_plan_filtre = df_plan[df_plan["Crainte"] == crainte_active['Nom']]
+    # On filtre les exos planifiés pour cette crainte
+    df_plan_filtre = st.session_state.data_planning_expo[st.session_state.data_planning_expo["Crainte"] == crainte_active['Nom']]
     
     if df_plan_filtre.empty:
         st.warning("Aucun exercice planifié pour cette crainte.")
     else:
-        opts = [f"{r['Date']} : {r['Situation']}" for i, r in df_plan_filtre.iterrows()]
-        choix_exo = st.selectbox("Exercice réalisé :", opts)
+        liste_prevus = [f"{row['Date']} {row['Heure']} : {row['Situation']}" for i, row in df_plan_filtre.iterrows()]
+        choix_exo_str = st.selectbox("Quel exercice avez-vous fait ?", liste_prevus)
         
-        # Retrouver les infos (Attente Planifiée)
-        idx_match = df_plan_filtre[df_plan_filtre.apply(lambda r: f"{r['Date']} : {r['Situation']}" == choix_exo, axis=1)].index[0]
-        attente_prevue = df_plan_filtre.loc[idx_match, "Attente"]
+        # Retrouver les infos
+        idx_global = df_plan_filtre[df_plan_filtre.apply(lambda r: f"{r['Date']} {r['Heure']} : {r['Situation']}" == choix_exo_str, axis=1)].index[0]
+        donnees_planif = st.session_state.data_planning_expo.iloc[idx_global]
         
         st.divider()
-        with st.form("form_bilan"):
-            st.subheader("1. Juste avant")
+        with st.form("form_consolidation"):
+            st.subheader("1. Juste avant / Pendant")
             c1, c2 = st.columns(2)
-            with c1: pre_att = st.slider("Probabilité catastrophe ?", 0, 100, 80, step=5, key="bilan_att")
-            with c2: pre_anx = st.slider("Anxiété ?", 0, 100, 80, step=5, key="bilan_anx")
+            with c1: pre_att = st.slider("Probabilité catastrophe (0-100%)", 0, 100, 80, step=5, key="c_att_pre")
+            with c2: pre_anx = st.slider("Niveau Anxiété (0-100)", 0, 100, 80, step=5, key="c_anx_pre")
             
             st.subheader("2. Après")
             duree = st.number_input("Durée (min)", 0, 240, 20)
-            q1 = st.text_area("Preuves que la catastrophe n'a pas eu lieu ?", height=70)
-            q2 = st.text_area("Mes attentes vs Réalité ?", height=70)
-            q3 = st.text_area("Surprise ?", height=70)
-            q4 = st.text_area("Apprentissage ?", height=70)
+            st.markdown("**Analyse :**")
+            q1 = st.text_area("Comment je sais que la catastrophe n'a pas eu lieu ?", height=70)
+            q2 = st.text_area("Mes attentes initiales ?", height=70)
+            q3 = st.text_area("La réalité ? (Surprise)", height=70)
+            q4 = st.text_area("Ce que j'ai appris ?", height=70)
             
             st.subheader("3. Futur")
             c3, c4 = st.columns(2)
-            with c3: post_att = st.slider("Si je recommence, probabilité ?", 0, 100, 40, step=5, key="futur_att")
-            with c4: post_anx = st.slider("Si je recommence, anxiété ?", 0, 100, 40, step=5, key="futur_anx")
+            with c3: post_att = st.slider("Si je recommence, probabilité catastrophe ?", 0, 100, 40, step=5, key="c_att_post")
+            with c4: post_anx = st.slider("Si je recommence, niveau anxiété ?", 0, 100, 40, step=5, key="c_anx_post")
             
             if st.form_submit_button("Enregistrer Bilan"):
                 new_log = {
                     "Crainte": crainte_active['Nom'],
                     "Date": datetime.now().strftime("%Y-%m-%d"),
-                    "Situation": choix_exo.split(" : ")[1],
-                    "Planif-Attente": attente_prevue,
+                    "Situation": donnees_planif['Situation'],
+                    "Planif-Attente": donnees_planif['Attente Pré-Expo'],
                     "Avant-Attente": pre_att,
                     "Après-Attente": post_att,
                     "Apprentissage": q4
                 }
                 st.session_state.data_logs_expo = pd.concat([st.session_state.data_logs_expo, pd.DataFrame([new_log])], ignore_index=True)
                 
-                # Cloud
                 from connect_db import save_data
                 patient = st.session_state.get("patient_id", "Anonyme")
-                full_txt = f"Preuves:{q1}|Attente:{q2}|Surprise:{q3}|Leçon:{q4}"
-                # [Patient, Date, Crainte, Situation, Type, Details, Score1, Score2, Score3, Texte]
+                # Sauvegarde avec colonne Crainte
                 save_data("Expositions", [
                     patient, datetime.now().strftime("%Y-%m-%d"), 
-                    crainte_active['Nom'], 
-                    choix_exo.split(" : ")[1], 
-                    "BILAN", f"{duree} min", pre_att, post_att, pre_anx, full_txt
+                    crainte_active['Nom'], # Crainte
+                    donnees_planif['Situation'], 
+                    "BILAN", f"{duree} min", pre_att, post_att, pre_anx, 
+                    f"Preuves:{q1}|Attentes:{q2}|Réel:{q3}|Leçon:{q4}"
                 ])
-                st.success("Bilan enregistré !")
+                st.success("Enregistré !")
 
-    # Historique Filtré
-    df_logs = st.session_state.data_logs_expo
-    df_logs_filtre = df_logs[df_logs["Crainte"] == crainte_active['Nom']]
+    # Historique FILTRÉ
+    df_logs_filtre = st.session_state.data_logs_expo[st.session_state.data_logs_expo["Crainte"] == crainte_active['Nom']]
     
     if not df_logs_filtre.empty:
         st.divider()
-        st.write("#### 🧠 Apprentissages (Cette crainte)")
-        for idx, row in df_logs_filtre.iterrows():
+        st.write(f"#### 🧠 Évolution Croyances ({crainte_active['Nom']})")
+        for i, row in df_logs_filtre.iterrows():
             with st.expander(f"{row['Date']} - {row['Situation']}"):
                 k1, k2, k3 = st.columns(3)
-                with k1: st.metric("Planif", f"{row['Planif-Attente']}%")
+                with k1: st.metric("Planification", f"{row['Planif-Attente']}%")
                 with k2: st.metric("Avant", f"{row['Avant-Attente']}%")
                 with k3: st.metric("Après", f"{row['Après-Attente']}%", delta=f"{int(row['Après-Attente']) - int(row['Avant-Attente'])}%")
                 st.info(row['Apprentissage'])
 
 st.divider()
-st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
+st.page_link("streamlit_app.py", label="Retour Accueil", icon="🏠")
