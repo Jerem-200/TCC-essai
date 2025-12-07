@@ -117,16 +117,28 @@ if st.session_state.balance_items:
     
     st.altair_chart(chart, use_container_width=True)
     
-    # TABLEAU DÉTAILLÉ
-    with st.expander("Voir le détail des arguments"):
-        st.dataframe(df, use_container_width=True)
-        
-        # Suppression individuelle
-        options_del = {f"{row['Argument']} ({row['Poids']})": i for i, row in df.iterrows()}
-        to_del = st.selectbox("Supprimer un argument", list(options_del.keys()))
-        if st.button("🗑️ Supprimer"):
-            st.session_state.balance_items.pop(options_del[to_del])
-            st.rerun()
+    # TABLEAU DÉTAILLÉ AVEC SUPPRESSION DIRECTE
+    with st.expander("Gérer / Supprimer des arguments"):
+        if not st.session_state.balance_items:
+            st.info("Aucun argument.")
+        else:
+            st.write("Liste des arguments enregistrés :")
+            
+            # On parcourt la liste un par un
+            for i, item in enumerate(st.session_state.balance_items):
+                col_text, col_btn = st.columns([6, 1])
+                
+                with col_text:
+                    # Affichage propre : Type - Argument (Note)
+                    # On met une icône selon le camp pour la lisibilité
+                    icon = "🟢" if "MAINTIEN" in item["Camp"] else "🔵"
+                    st.write(f"{icon} **{item['Type']}** : {item['Argument']} (Poids: {item['Poids']}/10)")
+                
+                with col_btn:
+                    # Le bouton poubelle unique pour cette ligne
+                    if st.button("🗑️", key=f"del_balance_{i}"):
+                        st.session_state.balance_items.pop(i)
+                        st.rerun()
 
     st.divider()
     
