@@ -18,11 +18,12 @@ st.info("Comparez les deux options en soustrayant les inconvénients aux avantag
 if "balance_items" not in st.session_state:
     st.session_state.balance_items = []
 
-# Nettoyage préventif
+# Nettoyage préventif des vieux formats
 if st.session_state.balance_items:
-    if "Statu Quo" in st.session_state.balance_items[0]["Camp"]: 
-        st.session_state.balance_items = []
-        st.rerun()
+    if "Camp" in st.session_state.balance_items[0]:
+        if "Statu Quo" in st.session_state.balance_items[0]["Camp"]: 
+            st.session_state.balance_items = []
+            st.rerun()
 
 # ==============================================================================
 # 1. DÉFINITION
@@ -45,10 +46,10 @@ st.write("Notez l'importance de chaque argument sur 10.")
 
 with st.form("ajout_argument_balance", clear_on_submit=True):
     options_type = [
-        f"👍 Avantages : {actuel if actuel else 'Actuel'}",
-        f"👎 Inconvénients : {actuel if actuel else 'Actuel'}",
-        f"👍 Avantages : {nouveau if nouveau else 'Alternatif'}",
-        f"👎 Inconvénients : {nouveau if nouveau else 'Alternatif'}"
+        f"👍 Avantages : {actuel if actuel else 'Option Actuelle'}",
+        f"👎 Inconvénients : {actuel if actuel else 'Option Actuelle'}",
+        f"👍 Avantages : {nouveau if nouveau else 'Option Nouvelle'}",
+        f"👎 Inconvénients : {nouveau if nouveau else 'Option Nouvelle'}"
     ]
     quadrant = st.selectbox("Type d'argument :", options_type)
     
@@ -60,72 +61,73 @@ with st.form("ajout_argument_balance", clear_on_submit=True):
 
     if st.form_submit_button("Ajouter"):
         if argument:
-            # On stocke le type brut pour le tri plus tard
-            # On simplifie le stockage du "Camp" pour l'affichage couleur
-            if "Actuel" in quadrant: camp_visuel = "ACTUEL"
-            else: camp_visuel = "NOUVEAU"
+            # On identifie le Camp (ACTUEL ou NOUVEAU)
+            if f": {actuel if actuel else 'Option Actuelle'}" in quadrant:
+                camp_code = "ACTUEL"
+            else:
+                camp_code = "NOUVEAU"
+            
+            # On identifie le Sens (POSITIF ou NEGATIF)
+            if "👍" in quadrant:
+                sens_code = "AVANTAGE"
+            else:
+                sens_code = "INCONVENIENT"
             
             st.session_state.balance_items.append({
-                "FullType": quadrant, # Sert à identifier avantages/inconvénients
+                "FullType": quadrant, # Texte complet pour affichage
+                "Camp": camp_code,    # ACTUEL / NOUVEAU
+                "Sens": sens_code,    # AVANTAGE / INCONVENIENT
                 "Argument": argument,
-                "Poids": poids,
-                "Camp": camp_visuel
+                "Poids": poids
             })
             st.rerun()
         else:
             st.warning("Veuillez écrire un argument.")
 
 # ==============================================================================
-# 3. CALCULS & RÉSULTATS (LOGIQUE MODIFIÉE : AVANTAGES - INCONVÉNIENTS)
+# 3. CALCULS & RÉSULTATS (CORRIGÉS)
 # ==============================================================================
 if st.session_state.balance_items:
     st.divider()
     st.subheader("3. Bilan (Score Net)")
     
-    df = pd.DataFrame(st.session_state.balance_items)
+    # --- CALCUL SCORES NETS (Méthode Robuste) ---
+    score_net_actuel = 0
+    score_net_nouveau = 0
     
-    # --- CALCUL SCORES NETS ---
-    # 1. Option Actuelle
-    plus_actuel = 0
-    moins_actuel = 0
-    for i in st.session_state.balance_items:
-        if "Avantages" in i["FullType"] and "Actuel" in i["FullType"]:
-            plus_actuel += i["Poids"]
-        elif "Inconvénients" in i["FullType"] and "Actuel" in i["FullType"]:
-            moins_actuel += i["Poids"]
+    # On recalcule tout proprement à chaque fois
+    for item in st.session_state.balance_items:
+        valeur = item["Poids"]
+        
+        # Si c'est un inconvénient, on soustrait
+        if item["Sens"] == "INCONVENIENT":
+            valeur = -valeur
             
-    score_net_actuel = plus_actuel - moins_actuel
+        # On attribue au bon camp
+        if item["Camp"] == "ACTUEL":
+            score_net_actuel += valeur
+        elif item["Camp"] == "NOUVEAU":
+            score_net_nouveau += valeur
 
-    # 2. Option Nouvelle
-    plus_nouveau = 0
-    moins_nouveau = 0
-    for i in st.session_state.balance_items:
-        if "Avantages" in i["FullType"] and "Alternatif" in i["FullType"]:
-            plus_nouveau += i["Poids"]
-        elif "Inconvénients" in i["FullType"] and "Alternatif" in i["FullType"]:
-            moins_nouveau += i["Poids"]
-            
-    score_net_nouveau = plus_nouveau - moins_nouveau
-    
-    # --- AFFICHAGE MÉTRIQUES ---
+    # --- AFFICHAGE ---
     col_m, col_c = st.columns(2)
     
     nom_actuel = actuel if actuel else "Option Actuelle"
     nom_nouveau = nouveau if nouveau else "Option Nouvelle"
     
     with col_m:
-        st.metric(f"Bilan : {nom_actuel}", f"{score_net_actuel} pts", help=f"(+{plus_actuel}) - ({moins_actuel})")
-        
+        st.metric(f"Bilan : {nom_actuel}", f"{score_net_actuel} pts")
     with col_c:
-        st.metric(f"Bilan : {nom_nouveau}", f"{score_net_nouveau} pts", help=f"(+{plus_nouveau}) - ({moins_nouveau})")
+        st.metric(f"Bilan : {nom_nouveau}", f"{score_net_nouveau} pts")
     
     # Message de conclusion
-    if score_net_nouveau > score_net_actuel:
-        st.success(f"👉 Le changement semble plus bénéfique (Différence : {score_net_nouveau - score_net_actuel} pts)")
-    elif score_net_actuel > score_net_nouveau:
-        st.warning(f"👉 Le statu quo reste plus confortable pour l'instant (Différence : {score_net_actuel - score_net_nouveau} pts)")
+    diff = score_net_nouveau - score_net_actuel
+    if diff > 0:
+        st.success(f"👉 Le changement est plus favorable (+{diff} pts)")
+    elif diff < 0:
+        st.warning(f"👉 Le statu quo reste plus favorable pour l'instant (+{abs(diff)} pts)")
     else:
-        st.info("⚖️ Égalité parfaite entre les deux options.")
+        st.info("⚖️ Égalité parfaite.")
 
     # --- GRAPHIQUE ---
     st.write("")
@@ -134,15 +136,14 @@ if st.session_state.balance_items:
         'Score Net': [score_net_actuel, score_net_nouveau]
     })
     
-    # Barres verticales
     chart = alt.Chart(data_chart).mark_bar().encode(
         x=alt.X('Option', axis=alt.Axis(labelAngle=0, title=None)),
-        y=alt.Y('Score Net', title='Score Net (Avantages - Inconvénients)'),
+        y=alt.Y('Score Net', title='Score Net'),
         color=alt.Color('Option', scale=alt.Scale(range=['#FF6B6B', '#4ECDC4']), legend=None),
         tooltip=['Option', 'Score Net']
     ).properties(height=300)
     
-    # Ajout ligne zéro pour bien voir le positif/négatif
+    # Ligne zéro
     rule = alt.Chart(pd.DataFrame({'y': [0]})).mark_rule(color='black').encode(y='y')
     
     st.altair_chart(chart + rule, use_container_width=True)
@@ -155,15 +156,11 @@ if st.session_state.balance_items:
             for i, item in enumerate(st.session_state.balance_items):
                 col_text, col_btn = st.columns([6, 1])
                 with col_text:
-                    # Icône selon Avantage/Inconvénient
-                    if "Avantages" in item["FullType"]:
-                        icon = "🟢 (+)"
-                    else:
-                        icon = "🔴 (-)"
-                        
-                    # On affiche proprement : 🟢 (+) Avantages Actuel : Argument (Note)
-                    short_type = item["FullType"].split('(')[0].strip() # Garde juste le début du texte
-                    st.write(f"{icon} **{short_type}** : {item['Argument']} (Poids: {item['Poids']})")
+                    # Icône
+                    icon = "🟢 (+)" if item["Sens"] == "AVANTAGE" else "🔴 (-)"
+                    camp_str = "Actuel" if item["Camp"] == "ACTUEL" else "Nouveau"
+                    
+                    st.write(f"{icon} **[{camp_str}]** {item['Argument']} (Poids: {item['Poids']})")
                 with col_btn:
                     if st.button("🗑️", key=f"del_bal_{i}"):
                         st.session_state.balance_items.pop(i)
@@ -178,19 +175,14 @@ if st.session_state.balance_items:
     
     with c_save:
         if st.button("💾 Enregistrer ce Bilan"):
-            resume_args = " | ".join([f"{i['FullType']}: {i['Argument']} ({i['Poids']})" for i in st.session_state.balance_items])
+            resume_args = " | ".join([f"{i['Camp']} {i['Sens']}: {i['Argument']} ({i['Poids']})" for i in st.session_state.balance_items])
             
             from connect_db import save_data
             patient = st.session_state.get("patient_id", "Anonyme")
             
             save_data("Balance", [
-                patient,
-                datetime.now().strftime("%Y-%m-%d"),
-                actuel,
-                nouveau,
-                score_net_actuel,   # On sauve le score net
-                score_net_nouveau,  # On sauve le score net
-                resume_args
+                patient, datetime.now().strftime("%Y-%m-%d"),
+                actuel, nouveau, score_net_actuel, score_net_nouveau, resume_args
             ])
             st.success("Enregistré !")
 
