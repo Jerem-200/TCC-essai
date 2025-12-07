@@ -61,11 +61,26 @@ tab1, tab2, tab3, tab4 = st.tabs(["1. Analyse", "2. Hiérarchie", "3. Planifier"
 # ==============================================================================
 with tab1:
     st.header(f"Analyse : {crainte_active['Nom']}")
+    
     st.caption("Définissez les facteurs spécifiques à CETTE peur.")
     
-    with st.expander("ℹ️ Aide : Définir la conséquence ultime"):
-        st.info("Ex: 'Si je tremble, ils vont me rejeter' (et non juste 'je vais être mal à l'aise').")
+# --- BLOC AJOUTÉ : DÉFINITION DE LA CRAINTE ULTIME ---
+    help_crainte = "Il faut identifier la conséquence ultime crainte (ex: 'Je vais faire une crise cardiaque'), et non juste la sensation de peur. Cela doit être testable objectivement."
+    with st.expander("ℹ️ Aide : Comment définir sa crainte ?", expanded=False):
+        st.info(help_crainte)
+    
+    # On récupère la définition existante (si elle a déjà été sauvée) ou vide
+    current_def = crainte_active.get("Definition", "")
+    
+    new_def = st.text_area("Quelle est la conséquence terrible qui pourrait arriver ?", value=current_def, help=help_crainte)
+    
+    if st.button("💾 Sauvegarder la définition"):
+        # On sauvegarde DANS l'objet crainte spécifique
+        crainte_active["Definition"] = new_def
+        st.success("Définition enregistrée pour cette peur.")
 
+    st.divider()
+    
     # Gestion des facteurs pour CETTE crainte uniquement
     st.subheader("Facteurs aggravants & protecteurs")
     
