@@ -140,23 +140,32 @@ with c5:
     
 st.divider()
 
-# --- LIGNE 3 ---
-c5, c6, c7 = st.columns(3) # On passe à 3 colonnes
+# --- LIGNE 3 : SANTÉ & BIEN-ÊTRE ---
+c5, c6 = st.columns(2)
 
 with c5:
-    st.success("### 🧘 Relaxation")
-    st.write("Détente")
-    st.page_link("pages/07_Relaxation.py", label="Lancer", icon="➡️")
+    # NOUVEAU BOUTON SOMMEIL
+    st.info("### 🌙 Sommeil")
+    st.write("Agenda du sommeil")
+    st.page_link("pages/10_Agenda_Sommeil.py", label="Ouvrir", icon="➡️")
 
 with c6:
-    st.success("### 📜 Historique")
-    st.write("Mes progrès")
-    st.page_link("pages/04_Historique.py", label="Voir", icon="📅")
+    st.success("### 🧘 Relaxation")
+    st.write("Respiration & Détente")
+    st.page_link("pages/07_Relaxation.py", label="Lancer", icon="➡️")
+
+st.divider()
+
+# --- LIGNE 4 : SUIVI & EXPORT ---
+c7, c8 = st.columns(2)
 
 with c7:
-    # --- CORRECTION DE L'ERREUR ICI ---
-    # st.primary n'existe pas -> On remplace par st.info (bleu) ou st.success (vert)
-    st.info("### 📩 Export PDF")
+    st.success("### 📜 Historique")
+    st.write("Mes progrès")
+    st.page_link("pages/04_Historique.py", label="Consulter", icon="📅")
+
+with c8:
+    st.warning("### 📩 Export PDF")
     st.write("Envoyer rapport")
     st.page_link("pages/08_Export_Rapport.py", label="Générer", icon="📤")
 
@@ -171,7 +180,6 @@ with st.sidebar:
     st.write(f"Utilisateur : **{st.session_state.patient_id}**")
     if st.button("Se déconnecter"):
         st.session_state.authentifie = False
-        st.session_state.patient_id = ""
         st.rerun()
     st.divider()
     st.title("Navigation")
@@ -180,6 +188,7 @@ with st.sidebar:
     st.page_link("pages/02_Echelles_BDI.py", label="📊 BDI")
     st.page_link("pages/05_Registre_Activites.py", label="📝 Activités")
     st.page_link("pages/06_Resolution_Probleme.py", label="💡 Problèmes")
+    st.page_link("pages/10_Agenda_Sommeil.py", label="🌙 Sommeil")
     st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
     st.page_link("pages/04_Historique.py", label="📜 Historique")
     st.page_link("pages/08_Export_Rapport.py", label="📩 Export PDF")
