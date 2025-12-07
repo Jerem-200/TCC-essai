@@ -12,12 +12,11 @@ st.title("🧗 L'Exposition (Apprentissage Inhibiteur)")
 
 # --- 1. GESTION DES CRAINTES (MULTI-CRAINTES) ---
 if "liste_craintes" not in st.session_state:
-    # On stocke une liste de dictionnaires : {"Nom": "Crise cardiaque", "Facteurs": []}
     st.session_state.liste_craintes = []
 
-# Sélecteur de crainte active
-st.info("Sur quelle thématique travaillez-vous aujourd'hui ?")
-col_sel, col_new = st.columns([3, 1])
+col_info, col_new = st.columns([3, 1])
+with col_info:
+    st.info("Sur quelle thématique travaillez-vous aujourd'hui ?")
 
 with col_new:
     # Bouton pour créer une nouvelle crainte
@@ -28,17 +27,30 @@ with col_new:
                 st.session_state.liste_craintes.append({"Nom": new_crainte_name, "Facteurs": []})
                 st.rerun()
 
-# Récupération de la crainte active
-if not st.session_state.liste_craintes:
+# --- SÉLECTEUR AVEC SUPPRESSION ---
+if st.session_state.liste_craintes:
+    c_sel, c_del = st.columns([5, 1])
+    
+    with c_sel:
+        options_craintes = [c["Nom"] for c in st.session_state.liste_craintes]
+        choix_crainte = st.selectbox("Crainte active :", options_craintes, label_visibility="collapsed")
+    
+    with c_del:
+        if st.button("🗑️", help="Supprimer cette thématique"):
+            # On supprime la crainte de la liste
+            st.session_state.liste_craintes = [c for c in st.session_state.liste_craintes if c["Nom"] != choix_crainte]
+            st.rerun()
+            
+    # On récupère l'objet crainte complet (s'il existe encore après suppression)
+    crainte_active = next((c for c in st.session_state.liste_craintes if c["Nom"] == choix_crainte), None)
+    
+    if not crainte_active:
+        st.stop() # Sécurité si on vient de tout supprimer
+else:
     st.warning("Commencez par créer une thématique de peur (ex: 'Peur de mourir', 'Peur sociale').")
     st.stop()
 
-options_craintes = [c["Nom"] for c in st.session_state.liste_craintes]
-choix_crainte = col_sel.selectbox("Crainte sélectionnée :", options_craintes, label_visibility="collapsed")
-
-# On retrouve l'objet crainte complet (pour accéder à ses facteurs)
-crainte_active = next((c for c in st.session_state.liste_craintes if c["Nom"] == choix_crainte), None)
-
+    
 # --- INITIALISATION DES DONNÉES ---
 if "data_hierarchie" not in st.session_state:
     # Ajout colonne Crainte
