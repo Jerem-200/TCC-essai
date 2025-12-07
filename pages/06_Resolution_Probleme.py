@@ -215,38 +215,84 @@ else:
 st.divider()
 
 # ==============================================================================
-# BLOC FINAL : VALIDATION
+# BLOC FINAL : VALIDATION & SAUVEGARDE
 # ==============================================================================
-st.markdown("### 8. Évaluation")
+st.markdown("### 9. Évaluation")
+st.caption("Évaluez les résultats après un délai raisonnable.")
+
 with st.form("validation_finale"):
     date_eval = st.date_input("Date de bilan des résultats", datetime.now() + timedelta(days=7))
     
     submitted_final = st.form_submit_button("💾 ENREGISTRER LE PLAN D'ACTION")
 
     if submitted_final:
-        # On transforme la liste des étapes en un seul texte pour la sauvegarde
+        # Compilation de la liste en texte
         plan_texte_complet = "\n".join(st.session_state.plan_etapes_temp)
         
         new_row = {
             "Date": datetime.now().strftime("%Y-%m-%d"),
             "Problème": probleme, "Objectif": objectif, "Solution Choisie": solution_choisie,
-            "Plan Action": plan_texte_complet, # On sauve la liste compilée
+            "Plan Action": plan_texte_complet,
             "Obstacles": obstacles, "Ressources": ressources, "Date Évaluation": str(date_eval)
         }
         
+        # Mise à jour locale
         st.session_state.data_problemes = pd.concat([st.session_state.data_problemes, pd.DataFrame([new_row])], ignore_index=True)
         
-        # Cloud
+        # Sauvegarde Cloud
         from connect_db import save_data
-        patient = st.session_state.get("patient_id", "Inconnu")
+        patient = st.session_state.get("patient_id", "Anonyme")
         save_data("Plans_Action", [patient, datetime.now().strftime("%Y-%m-%d"), probleme, objectif, solution_choisie, plan_texte_complet, obstacles, ressources, str(date_eval)])
         
-        # Nettoyage de toutes les mémoires temporaires
+        # On vide les mémoires pour repartir à zéro (sauf si on veut modifier, voir plus bas)
         st.session_state.analyse_detaillee = pd.DataFrame(columns=["Solution", "Type", "Terme", "Description", "Note", "Valeur"])
         st.session_state.liste_solutions_temp = [] 
         st.session_state.plan_etapes_temp = [] 
         
         st.success("Plan enregistré avec succès ! Retrouvez-le dans l'Historique.")
+
+st.divider()
+
+# ==============================================================================
+# ZONE DE MODIFICATION (NOUVEAU)
+# ==============================================================================
+with st.expander("✏️ Modifier un plan précédent (En cas d'erreur)"):
+    st.write("Sélectionnez un plan pour le recharger dans le formulaire, le modifier, et le ré-enregistrer.")
+    
+    df_saved = st.session_state.data_problemes
+    
+    if not df_saved.empty:
+        # Liste déroulante des plans
+        options_plans = {f"{row['Date']} - {row['Problème'][:30]}...": i for i, row in df_saved.iterrows()}
+        selected_plan_label = st.selectbox("Choisir le plan à modifier", list(options_plans.keys()))
+        
+        col_load, col_del = st.columns([1, 1])
+        
+        # BOUTON CHARGER
+        if col_load.button("📥 Charger les données"):
+            index = options_plans[selected_plan_label]
+            data = df_saved.iloc[index]
+            
+            # On tente de remettre les données dans les champs (Attention: Streamlit ne permet pas de forcer facilement les text_area standard sans rerun, mais on peut remplir les listes)
+            
+            # 1. On remplit la liste des étapes
+            raw_plan = data["Plan Action"]
+            if isinstance(raw_plan, str):
+                st.session_state.plan_etapes_temp = raw_plan.split("\n")
+            
+            # 2. Pour les autres champs (Problème, Objectif...), comme ils ne sont pas en session_state persistante, 
+            # l'astuce est d'afficher les données à copier-coller ou de juste permettre la modification du plan d'action
+            st.info("Les étapes du plan d'action ont été rechargées dans la liste ci-dessus (étape 7). Vous pouvez maintenant les modifier (ajouter/supprimer) et cliquer sur Enregistrer à nouveau.")
+            st.rerun()
+
+        # BOUTON SUPPRIMER (Pour enlever la version erronée)
+        if col_del.button("🗑️ Supprimer ce plan (Doublon)"):
+            index = options_plans[selected_plan_label]
+            st.session_state.data_problemes = st.session_state.data_problemes.drop(index).reset_index(drop=True)
+            st.success("Ancienne version supprimée.")
+            st.rerun()
+    else:
+        st.caption("Aucun plan enregistré pour l'instant.")
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
