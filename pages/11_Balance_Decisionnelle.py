@@ -84,47 +84,87 @@ with st.form("ajout_argument_balance", clear_on_submit=True):
             st.warning("Veuillez écrire un argument.")
 
 # ==============================================================================
-# 3. CALCULS & RÉSULTATS
+# 3. CALCULS & RÉSULTATS (TABLEAU MATRICIEL + GRAPHIQUE)
 # ==============================================================================
 if st.session_state.balance_items:
     st.divider()
     st.subheader("3. Bilan (Score Net)")
     
-    # --- CALCUL DES SCORES NETS ---
+    # --- A. CALCULS ---
     score_net_actuel = 0
     score_net_nouveau = 0
     
+    # On prépare les contenus pour le tableau
+    # Structure : { "ACTUEL": {"AVANTAGE": [], "INCONVENIENT": []}, ... }
+    contenu = {
+        "ACTUEL": {"AVANTAGE": [], "INCONVENIENT": [], "Total": 0},
+        "NOUVEAU": {"AVANTAGE": [], "INCONVENIENT": [], "Total": 0}
+    }
+
     for item in st.session_state.balance_items:
+        # 1. Calcul du score net
         valeur = item["Poids"]
         if item["Sens"] == "INCONVENIENT":
             valeur = -valeur
-            
+        
         if item["Camp"] == "ACTUEL":
             score_net_actuel += valeur
-        elif item["Camp"] == "NOUVEAU":
+            contenu["ACTUEL"]["Total"] += valeur
+        else:
             score_net_nouveau += valeur
+            contenu["NOUVEAU"]["Total"] += valeur
+            
+        # 2. Préparation du texte pour le tableau (Ex: "• Ça détend (8)")
+        texte_arg = f"• {item['Argument']} (<b>{item['Poids']}</b>)"
+        contenu[item["Camp"]][item["Sens"]].append(texte_arg)
 
-    # --- AFFICHAGE MÉTRIQUES ---
-    col_m, col_c = st.columns(2)
+    # --- B. TABLEAU À DOUBLE ENTRÉE (HTML) ---
+    st.write("#### 📊 Tableau de synthèse")
+    
     nom_actuel = actuel if actuel else "Option Actuelle"
     nom_nouveau = nouveau if nouveau else "Option Nouvelle"
+
+    # Fonction pour formater une cellule (Liste + Total)
+    def format_cell(liste_args):
+        if not liste_args: return "-"
+        return "<br>".join(liste_args)
+
+    # Création des données pour le tableau
+    data_matrix = [
+        {
+            "Option": f"<b>{nom_actuel}</b><br>(Statu Quo)",
+            "👍 Avantages": format_cell(contenu["ACTUEL"]["AVANTAGE"]),
+            "👎 Inconvénients": format_cell(contenu["ACTUEL"]["INCONVENIENT"]),
+            "Bilan": f"<b>{score_net_actuel}</b>"
+        },
+        {
+            "Option": f"<b>{nom_nouveau}</b><br>(Changement)",
+            "👍 Avantages": format_cell(contenu["NOUVEAU"]["AVANTAGE"]),
+            "👎 Inconvénients": format_cell(contenu["NOUVEAU"]["INCONVENIENT"]),
+            "Bilan": f"<b>{score_net_nouveau}</b>"
+        }
+    ]
     
-    with col_m:
-        st.metric(f"Bilan : {nom_actuel}", f"{score_net_actuel} pts")
-    with col_c:
-        st.metric(f"Bilan : {nom_nouveau}", f"{score_net_nouveau} pts")
+    df_matrix = pd.DataFrame(data_matrix)
     
-    # Message de conclusion automatique
+    # Affichage du tableau en HTML pour gérer les retours à la ligne <br> et le gras <b>
+    # On cache l'index (colonne 0, 1) pour que ce soit propre
+    html_table = df_matrix.to_html(escape=False, index=False, justify='center', border=0)
+    st.markdown(html_table, unsafe_allow_html=True)
+    
+    st.write("") # Espace
+    
+    # --- C. CONCLUSION AUTOMATIQUE ---
     diff = score_net_nouveau - score_net_actuel
     if diff > 0:
-        st.success(f"👉 Le changement est plus favorable (+{diff} pts)")
+        st.success(f"👉 **Le Changement l'emporte** (Différence : +{diff} pts)")
     elif diff < 0:
-        st.warning(f"👉 Le statu quo reste plus favorable pour l'instant (+{abs(diff)} pts)")
+        st.warning(f"👉 **Le Statu Quo reste plus favorable** (Différence : +{abs(diff)} pts)")
     else:
-        st.info("⚖️ Égalité parfaite.")
+        st.info("⚖️ **Égalité parfaite.**")
 
-    # --- GRAPHIQUE ---
-    st.write("")
+    # --- D. GRAPHIQUE VISUEL ---
+    st.write("#### 📉 Comparaison visuelle")
     data_chart = pd.DataFrame({
         'Option': [nom_actuel, nom_nouveau],
         'Score Net': [score_net_actuel, score_net_nouveau]
@@ -135,25 +175,23 @@ if st.session_state.balance_items:
         y=alt.Y('Score Net', title='Score Net'),
         color=alt.Color('Option', scale=alt.Scale(range=['#FF6B6B', '#4ECDC4']), legend=None),
         tooltip=['Option', 'Score Net']
-    ).properties(height=300)
+    ).properties(height=250)
     
     rule = alt.Chart(pd.DataFrame({'y': [0]})).mark_rule(color='black').encode(y='y')
     st.altair_chart(chart + rule, use_container_width=True)
-    
-    # --- DÉTAIL ---
-    with st.expander("Gérer / Supprimer des arguments", expanded=False):
+
+    # --- DÉTAIL / GESTION ---
+    with st.expander("🗑️ Supprimer des arguments"):
         for i, item in enumerate(st.session_state.balance_items):
-            col_text, col_btn = st.columns([6, 1])
-            with col_text:
-                icon = "🟢 (+)" if item["Sens"] == "AVANTAGE" else "🔴 (-)"
-                camp_str = "Actuel" if item["Camp"] == "ACTUEL" else "Nouveau"
-                st.write(f"{icon} **[{camp_str}]** {item['Argument']} (Poids: {item['Poids']})")
-            with col_btn:
-                if st.button("🗑️", key=f"del_bal_{i}"):
+            c1, c2 = st.columns([6, 1])
+            with c1:
+                icon = "🟢" if item["Sens"] == "AVANTAGE" else "🔴"
+                camp = "Actuel" if item["Camp"] == "ACTUEL" else "Nouveau"
+                st.write(f"{icon} [{camp}] {item['Argument']} ({item['Poids']})")
+            with c2:
+                if st.button("🗑️", key=f"del_{i}"):
                     st.session_state.balance_items.pop(i)
                     st.rerun()
-
-    st.divider()
     
     # ==============================================================================
     # 4. DÉCISION FINALE & SAUVEGARDE AUTOMATIQUE
