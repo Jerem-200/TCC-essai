@@ -25,9 +25,9 @@ st.subheader("1. Quel est le choix ?")
 
 c1, c2 = st.columns(2)
 with c1:
-    actuel = st.text_input("Comportement Actuel (Statu Quo)", placeholder="Ex: Continuer à fumer")
+    actuel = st.text_input("Comportement Actuel", placeholder="Ex: Continuer à fumer")
 with c2:
-    nouveau = st.text_input("Nouveau Comportement (Changement)", placeholder="Ex: Arrêter de fumer")
+    nouveau = st.text_input("Comportement alternatif", placeholder="Ex: Arrêter de fumer")
 
 st.divider()
 
@@ -39,10 +39,10 @@ st.write("Ajoutez les arguments un par un.")
 
 with st.form("ajout_argument_balance", clear_on_submit=True):
     quadrant = st.selectbox("Type d'argument :", [
-        f"👍 Avantages à rester comme ça ({actuel})",
-        f"👎 Inconvénients à rester comme ça ({actuel})",
-        f"👍 Avantages à changer ({nouveau})",
-        f"👎 Inconvénients à changer ({nouveau})"
+        f"👍 Avantages du comportement actuel ({actuel})",
+        f"👎 Inconvénients du comportement actuel ({actuel})",
+        f"👍 Avantages du comportement alternatif ({nouveau})",
+        f"👎 Inconvénients du comportement alternatif ({nouveau})"
     ])
     
     col_arg, col_poids = st.columns([3, 1])
