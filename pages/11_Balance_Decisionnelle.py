@@ -27,7 +27,7 @@ c1, c2 = st.columns(2)
 with c1:
     actuel = st.text_input("Comportement Actuel (Statu Quo)", placeholder="Ex: Continuer à fumer")
 with c2:
-    nouveau = st.text_input("Nouveau Comportement (Changement)", placeholder="Ex: Arrêter de fumer")
+    nouveau = st.text_input("Comportement alternatif (Changement)", placeholder="Ex: Arrêter de fumer")
 
 st.divider()
 
