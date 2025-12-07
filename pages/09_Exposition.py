@@ -343,7 +343,7 @@ with tab4:
                     post_attente,   # Colonne G
                     pre_anxiete,    # Colonne H (On met l'anxiété ici car 'surprise' n'existe plus)
                     post_anxiete,   # Colonne I
-                    appr_complet    
+                    appr_complet    # Colonne J
                 ])
                 
                 st.success("Bilan enregistré ! Bravo.")

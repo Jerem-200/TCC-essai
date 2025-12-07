@@ -151,10 +151,22 @@ else:
 st.divider()
 
 # ==============================================================================
-# BLOC 4 : DÉCISION & PLAN D'ACTION (NOUVEAU SYSTÈME ÉTAPE PAR ÉTAPE)
+# BLOC 4 : DÉCISION & PLAN D'ACTION
 # ==============================================================================
 st.markdown("### 5. Décision finale")
-solution_choisie = st.text_input("Je décide de mettre en œuvre :", placeholder="La solution que vous avez choisie...")
+st.caption("Quelle(s) solution(s) choisissez-vous finalement ? [cite: 22-23]")
+
+# --- SÉLECTION DES SOLUTIONS (MULTI-SELECT) ---
+if st.session_state.liste_solutions_temp:
+    solutions_retenues = st.multiselect(
+        "Je décide de mettre en œuvre la ou les solutions suivantes :", 
+        st.session_state.liste_solutions_temp
+    )
+    # On transforme la liste en une seule chaîne de texte pour la sauvegarde
+    solution_choisie = ", ".join(solutions_retenues)
+else:
+    # Cas de secours si la liste est vide (champ libre)
+    solution_choisie = st.text_input("Je décide de mettre en œuvre :")
 
 st.markdown("### 6. Préparation")
 c1, c2 = st.columns(2)
@@ -167,17 +179,23 @@ st.divider()
 st.markdown("### 7. Plan d'action détaillé")
 st.caption("Déterminez les étapes par lesquelles vous devez passer pour appliquer la solution choisie. Faites un plan détaillé, avec un échéancier précis et réaliste. Veillez à ce que la première étape soit assez facile et passez à l’action rapidement et si possible immédiatement. Un premier pas même tout petit vous donnera le sentiment d’avoir « brisé la glace ». ")
 
-# Formulaire d'ajout d'étape
+# Formulaire d'ajout d'étape (AVEC HEURE)
 with st.form("ajout_etape_form", clear_on_submit=True):
-    c_step, c_date = st.columns([3, 1])
+    # On divise en 3 colonnes : Description (large) | Date (moyen) | Heure (petit)
+    c_step, c_date, c_heure = st.columns([3, 1, 1])
+    
     with c_step:
         desc_etape = st.text_input("Description de l'étape", placeholder="Ex: Appeler M. Dupont")
     with c_date:
         date_etape = st.date_input("Date prévue", datetime.now())
+    with c_heure:
+        # CHANGEMENT ICI : Ajout de l'heure
+        heure_etape = st.time_input("Heure", datetime.now().time())
     
     if st.form_submit_button("Ajouter cette étape"):
-        # On ajoute l'étape à la liste en mémoire
-        etape_str = f"• {date_etape.strftime('%d/%m')} : {desc_etape}"
+        # On formate l'étape avec la date ET l'heure
+        # Format : "• 05/12 à 14:30 : Faire ceci"
+        etape_str = f"• {date_etape.strftime('%d/%m')} à {heure_etape.strftime('%H:%M')} : {desc_etape}"
         st.session_state.plan_etapes_temp.append(etape_str)
         st.rerun()
 
