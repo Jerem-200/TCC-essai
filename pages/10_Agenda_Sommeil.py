@@ -54,7 +54,7 @@ with tab1:
         st.write("---")
         
         # 1 & 2 : Comportements
-        st.write("**1. & 2. Habitudes**")
+        st.write("**Habitudes**")
         c1, c2 = st.columns(2)
         with c1:
             sieste = st.text_input("1. Siestes hier (ex: 13h30 à 14h00)", placeholder="Non ou heures")
@@ -64,7 +64,7 @@ with tab1:
         st.write("---")
         
         # 3 & 4 & 5 & 6 : Les Heures
-        st.write("**3. à 6. Horaires**")
+        st.write("**Profil de sommeil**")
         
         col_coucher, col_lever = st.columns(2)
         with col_coucher:
@@ -78,7 +78,7 @@ with tab1:
         st.write("---")
         
         # 10 & 11 : Ressenti
-        st.write("**10. & 11. Ressenti**")
+        st.write("**Ressenti**")
         c_forme, c_qualite = st.columns(2)
         with c_forme:
             forme = st.slider("10. Forme au lever (1=Épuisé, 5=Reposé)", 1, 5, 3)
