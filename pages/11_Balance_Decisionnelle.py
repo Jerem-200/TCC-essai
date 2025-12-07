@@ -16,7 +16,7 @@ st.info("Un outil pour peser le pour et le contre d'un changement de comportemen
 
 # --- INITIALISATION MÉMOIRE ---
 if "balance_items" not in st.session_state:
-    st.session_state.balance_items = [] # Liste pour stocker les arguments en cours
+    st.session_state.balance_items = [] 
 
 # ==============================================================================
 # 1. DÉFINITION DU DILEMME
@@ -27,7 +27,7 @@ c1, c2 = st.columns(2)
 with c1:
     actuel = st.text_input("Comportement Actuel (Statu Quo)", placeholder="Ex: Continuer à fumer")
 with c2:
-    nouveau = st.text_input("Comportement alternatif (Changement)", placeholder="Ex: Arrêter de fumer")
+    nouveau = st.text_input("Nouveau Comportement (Changement)", placeholder="Ex: Arrêter de fumer")
 
 st.divider()
 
@@ -35,37 +35,30 @@ st.divider()
 # 2. LA BALANCE (AJOUT DES ARGUMENTS)
 # ==============================================================================
 st.subheader("2. Peser les arguments")
-st.write("Ajoutez les arguments un par un et donnez-leur un poids (importance).")
+st.write("Ajoutez les arguments un par un.")
 
 with st.form("ajout_argument_balance", clear_on_submit=True):
-    # Choix du quadrant
     quadrant = st.selectbox("Type d'argument :", [
-        f"👍 Avantages du comportement actuel",
-        f"👎 Inconvénients du comportement actuel",
-        f"👍 Avantages du comportement alternatif",
-        f"👎 Inconvénients du comportement alternatif"
+        f"👍 Avantages à rester comme ça ({actuel})",
+        f"👎 Inconvénients à rester comme ça ({actuel})",
+        f"👍 Avantages à changer ({nouveau})",
+        f"👎 Inconvénients à changer ({nouveau})"
     ])
     
     col_arg, col_poids = st.columns([3, 1])
     with col_arg:
-        argument = st.text_input("Argument :", placeholder="Ex: Ça me détend / C'est mauvais pour la santé")
+        argument = st.text_input("Argument :", placeholder="Ex: Ça me détend...")
     with col_poids:
         poids = st.slider("Importance (0-10)", 0, 10, 5)
 
     if st.form_submit_button("Ajouter à la balance"):
-        if actuel and nouveau and argument:
-            # On détermine le "Camp" (Pour le Changement ou Pour le Maintien ?)
-            # LOGIQUE TCC : 
-            # - Avantages Actuel = Maintien
-            # - Inconvénients Actuel = Changement
-            # - Avantages Nouveau = Changement
-            # - Inconvénients Nouveau = Maintien
-            
-            camp = "Inconnu"
+        if argument:
+            # Logique TCC pour déterminer le camp
             if "Avantages à rester" in quadrant: camp = "MAINTIEN (Statu Quo)"
             elif "Inconvénients à rester" in quadrant: camp = "CHANGEMENT (Action)"
             elif "Avantages à changer" in quadrant: camp = "CHANGEMENT (Action)"
             elif "Inconvénients à changer" in quadrant: camp = "MAINTIEN (Statu Quo)"
+            else: camp = "Inconnu"
             
             st.session_state.balance_items.append({
                 "Type": quadrant,
@@ -75,10 +68,10 @@ with st.form("ajout_argument_balance", clear_on_submit=True):
             })
             st.rerun()
         else:
-            st.warning("Veuillez définir les comportements et l'argument.")
+            st.warning("Écrivez un argument.")
 
 # ==============================================================================
-# 3. RÉSULTATS VISUELS
+# 3. RÉSULTATS VISUELS (CORRIGÉ)
 # ==============================================================================
 if st.session_state.balance_items:
     st.divider()
@@ -86,57 +79,65 @@ if st.session_state.balance_items:
     
     df = pd.DataFrame(st.session_state.balance_items)
     
-    # Calcul des scores totaux
+    # Calcul des scores
     score_maintien = df[df["Camp"] == "MAINTIEN (Statu Quo)"]["Poids"].sum()
     score_changement = df[df["Camp"] == "CHANGEMENT (Action)"]["Poids"].sum()
     
-    # Affichage des scores
+    # Affichage des métriques
     col_m, col_c = st.columns(2)
     with col_m:
         st.metric("Poids du Statu Quo", f"{score_maintien} pts")
         if score_maintien > score_changement:
-            st.warning("Le maintien l'emporte pour l'instant.")
+            st.warning("Le maintien l'emporte.")
     with col_c:
         st.metric("Poids du Changement", f"{score_changement} pts")
         if score_changement > score_maintien:
             st.success("Le changement l'emporte !")
             
-    # GRAPHIQUE COMPARATIF (Barres simples)
+    # --- GRAPHIQUE CORRIGÉ ---
+    st.write("") # Petit espace
+    
+    # On prépare les données proprement
     data_chart = pd.DataFrame({
         'Option': ['Rester (Statu Quo)', 'Changer (Action)'],
-        'Score Total': [score_maintien, score_changement],
-        'Couleur': ['#FF6B6B', '#4ECDC4'] # Rouge / Vert
+        'Score': [score_maintien, score_changement]
     })
     
-    chart = alt.Chart(data_chart).mark_bar().encode(
-        x=alt.X('Option', title=None),
-        y='Score Total',
-        color=alt.Color('Option', scale=alt.Scale(range=['#4ECDC4', '#FF6B6B']), legend=None),
-        tooltip=['Option', 'Score Total']
-    ).properties(height=300)
+    # Base du graphique
+    base = alt.Chart(data_chart).encode(
+        x=alt.X('Option', axis=alt.Axis(labelAngle=0, title=None)),
+        y=alt.Y('Score', title='Poids total'),
+        tooltip=['Option', 'Score']
+    )
     
-    st.altair_chart(chart, use_container_width=True)
+    # Les barres (Couleurs forcées via domain/range pour être sûr que ça ne bouge pas)
+    bars = base.mark_bar().encode(
+        color=alt.Color('Option', scale=alt.Scale(
+            domain=['Rester (Statu Quo)', 'Changer (Action)'],
+            range=['#FF6B6B', '#4ECDC4']  # Rouge vs Vert
+        ), legend=None)
+    )
     
-    # TABLEAU DÉTAILLÉ AVEC SUPPRESSION DIRECTE
+    # Les chiffres au dessus des barres (Pour bien voir le contenu)
+    text = base.mark_text(dy=-10, fontSize=14, fontWeight='bold').encode(
+        text='Score'
+    )
+    
+    st.altair_chart(bars + text, use_container_width=True)
+    
+    # --- TABLEAU DÉTAILLÉ ---
     with st.expander("Gérer / Supprimer des arguments"):
         if not st.session_state.balance_items:
             st.info("Aucun argument.")
         else:
-            st.write("Liste des arguments enregistrés :")
-            
-            # On parcourt la liste un par un
+            st.write("Liste des arguments :")
             for i, item in enumerate(st.session_state.balance_items):
                 col_text, col_btn = st.columns([6, 1])
-                
                 with col_text:
-                    # Affichage propre : Type - Argument (Note)
-                    # On met une icône selon le camp pour la lisibilité
-                    icon = "🟢" if "MAINTIEN" in item["Camp"] else "🔵"
-                    st.write(f"{icon} **{item['Type']}** : {item['Argument']} (Poids: {item['Poids']}/10)")
-                
+                    icon = "🔴" if "MAINTIEN" in item["Camp"] else "🟢"
+                    st.write(f"{icon} **{item['Type']}** : {item['Argument']} (Poids: {item['Poids']})")
                 with col_btn:
-                    # Le bouton poubelle unique pour cette ligne
-                    if st.button("🗑️", key=f"del_balance_{i}"):
+                    if st.button("🗑️", key=f"del_bal_{i}"):
                         st.session_state.balance_items.pop(i)
                         st.rerun()
 
@@ -146,13 +147,11 @@ if st.session_state.balance_items:
     # 4. SAUVEGARDE
     # ==============================================================================
     if st.button("💾 Enregistrer cette Balance"):
-        # On compile le texte pour qu'il tienne dans une cellule Excel
         resume_args = " | ".join([f"{i['Type']}: {i['Argument']} ({i['Poids']})" for i in st.session_state.balance_items])
         
         from connect_db import save_data
         patient = st.session_state.get("patient_id", "Anonyme")
         
-        # Ordre : Patient, Date, Actuel, Nouveau, ScoreMaintien, ScoreChange, Details
         save_data("Balance", [
             patient,
             datetime.now().strftime("%Y-%m-%d"),
@@ -164,7 +163,6 @@ if st.session_state.balance_items:
         ])
         
         st.success("Balance enregistrée ! Vous pouvez la retrouver dans le fichier global.")
-        # On ne vide pas la liste pour laisser l'utilisateur voir son résultat
 
 else:
     st.info("Commencez par ajouter des arguments ci-dessus.")
