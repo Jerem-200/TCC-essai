@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import altair as alt # NOUVEAU : Nécessaire pour les points
 from datetime import datetime, timedelta, time
 
 st.set_page_config(page_title="Agenda du Sommeil", page_icon="🌙")
@@ -20,19 +21,17 @@ if "data_sommeil" not in st.session_state:
         "Heure Lever", "TTE", "TAL", "TTS", "Forme", "Qualité", "Efficacité"
     ])
 
-# --- FONCTIONS DE CALCUL (Le cerveau mathématique) ---
+# --- FONCTIONS DE CALCUL ---
 def calculer_duree_minutes(heure_debut, heure_fin):
-    """Calcule la différence en minutes entre deux heures, en gérant le passage à minuit"""
     h_deb = heure_debut.hour * 60 + heure_debut.minute
     h_fin = heure_fin.hour * 60 + heure_fin.minute
     
-    if h_fin < h_deb: # Si on se lève le lendemain (ex: couché 23h, levé 7h)
+    if h_fin < h_deb:
         return (24 * 60 - h_deb) + h_fin
     else:
         return h_fin - h_deb
 
 def format_minutes_en_h_m(minutes):
-    """Transforme 90 minutes en '1h30'"""
     h = int(minutes // 60)
     m = int(minutes % 60)
     return f"{h}h{m:02d}"
@@ -54,70 +53,51 @@ with tab1:
         st.write("---")
         
         # 1 & 2 : Comportements
-        st.write("**Habitudes**")
+        st.write("**1. & 2. Habitudes**")
         c1, c2 = st.columns(2)
-        with c1:
-            sieste = st.text_input("1. Siestes hier (ex: 13h30 à 14h00)", placeholder="Non ou heures")
-        with c2:
-            medics = st.text_input("2. Médicaments / Alcool (mg/verres)", placeholder="Non ou détails")
+        with c1: sieste = st.text_input("1. Siestes hier", placeholder="Non ou heures")
+        with c2: medics = st.text_input("2. Médicaments / Alcool", placeholder="Non ou détails")
 
         st.write("---")
         
-        # 3 & 4 & 5 & 6 : Les Heures
-        st.write("**Profil de sommeil**")
-        
+        # 3 à 6 : Horaires
+        st.write("**3. à 6. Horaires**")
         col_coucher, col_lever = st.columns(2)
         with col_coucher:
-            h_coucher = st.time_input("3. Heure de coucher (au lit)", time(23, 0))
-            latence = st.number_input("4. Temps pour s'endormir (Latence) en minutes", 0, 300, 15, step=5, help="Combien de temps avez-vous mis à dormir après avoir éteint ?")
+            h_coucher = st.time_input("3. Heure de coucher", time(23, 0))
+            latence = st.number_input("4. Latence (min)", 0, 300, 15, step=5)
         
         with col_lever:
-            h_lever = st.time_input("6. Heure de lever (sortie du lit)", time(7, 0))
-            eveil_nocturne = st.number_input("5. Temps d'éveil au milieu de la nuit (Minutes totales)", 0, 300, 0, step=5, help="Si vous vous êtes réveillé, combien de temps au total ?")
+            h_lever = st.time_input("6. Heure de lever", time(7, 0))
+            eveil_nocturne = st.number_input("5. Éveils nocturnes (min)", 0, 300, 0, step=5)
 
         st.write("---")
         
         # 10 & 11 : Ressenti
-        st.write("**Ressenti**")
+        st.write("**10. & 11. Ressenti**")
         c_forme, c_qualite = st.columns(2)
-        with c_forme:
-            forme = st.slider("10. Forme au lever (1=Épuisé, 5=Reposé)", 1, 5, 3)
-        with c_qualite:
-            qualite = st.slider("11. Qualité du sommeil (1=Agité, 5=Profond)", 1, 5, 3)
+        with c_forme: forme = st.slider("10. Forme (1=Épuisé, 5=Reposé)", 1, 5, 3)
+        with c_qualite: qualite = st.slider("11. Qualité (1=Agité, 5=Profond)", 1, 5, 3)
 
-        # BOUTON CALCUL & ENREGISTREMENT
         submitted = st.form_submit_button("Calculer et Enregistrer")
 
         if submitted:
-            # --- CALCULS AUTOMATIQUES ---
-            
-            # 8. Temps au Lit (TAL) = Lever - Coucher
+            # Calculs
             tal_minutes = calculer_duree_minutes(h_coucher, h_lever)
-            
-            # 7. Temps Total Éveil (TTE) = Latence + Éveils nocturnes
             tte_minutes = latence + eveil_nocturne
-            
-            # 9. Temps Total Sommeil (TTS) = Au lit - Éveil
             tts_minutes = tal_minutes - tte_minutes
-            
-            # 12. Efficacité (ES) = (Sommeil / Lit) * 100
-            if tal_minutes > 0:
-                efficacite = round((tts_minutes / tal_minutes) * 100, 1)
-            else:
-                efficacite = 0
+            if tal_minutes > 0: efficacite = round((tts_minutes / tal_minutes) * 100, 1)
+            else: efficacite = 0
 
-            # Affichage immédiat des résultats pour le patient
             st.success("✅ Données enregistrées !")
             
-            res1, res2, res3, res4 = st.columns(4)
-            res1.metric("Temps au lit", format_minutes_en_h_m(tal_minutes))
-            res2.metric("Temps Sommeil", format_minutes_en_h_m(tts_minutes))
-            res3.metric("Temps Éveil", format_minutes_en_h_m(tte_minutes))
-            res4.metric("Efficacité", f"{efficacite} %", delta_color="normal" if efficacite > 85 else "inverse")
+            r1, r2, r3, r4 = st.columns(4)
+            r1.metric("Au lit", format_minutes_en_h_m(tal_minutes))
+            r2.metric("Sommeil", format_minutes_en_h_m(tts_minutes))
+            r3.metric("Éveil", format_minutes_en_h_m(tte_minutes))
+            r4.metric("Efficacité", f"{efficacite} %", delta_color="normal" if efficacite > 85 else "inverse")
 
-            # --- SAUVEGARDE ---
-            
-            # Local
+            # Sauvegarde Locale
             new_row = {
                 "Date": str(date_nuit),
                 "Sieste": sieste, "Medicaments": medics,
@@ -130,11 +110,10 @@ with tab1:
             }
             st.session_state.data_sommeil = pd.concat([st.session_state.data_sommeil, pd.DataFrame([new_row])], ignore_index=True)
             
-            # Cloud
+            # Sauvegarde Cloud
             from connect_db import save_data
             patient = st.session_state.get("patient_id", "Anonyme")
             
-            # Ordre pour Excel : Patient, Date, Sieste, Meds, Coucher, Latence, EveilNoc, Lever, TTE, TAL, TTS, Forme, Qualite, Efficacite
             save_data("Sommeil", [
                 patient, str(date_nuit), sieste, medics, 
                 str(h_coucher)[:5], latence, eveil_nocturne, str(h_lever)[:5],
@@ -149,17 +128,10 @@ with tab2:
     st.header("📊 Tableau de bord du sommeil")
     
     if not st.session_state.data_sommeil.empty:
-        # Affichage du tableau complet
         st.dataframe(st.session_state.data_sommeil, use_container_width=True)
-        
         st.divider()
         
-        # Calcul des Moyennes (Sur les colonnes numériques)
         df = st.session_state.data_sommeil
-        
-        # On doit convertir les colonnes TTE/TAL/TTS (qui sont en texte "7h30") en minutes pour faire la moyenne
-        # Astuce : On ne peut pas faire la moyenne du texte, on se base sur les colonnes sources si possible ou on affiche juste les scores
-        
         avg_eff = df["Efficacité"].mean()
         avg_forme = df["Forme"].mean()
         
@@ -168,7 +140,28 @@ with tab2:
         c2.metric("Forme Moyenne", f"{avg_forme:.1f} / 5")
         
         st.write("### Évolution de l'efficacité du sommeil")
-        st.line_chart(df.set_index("Date")["Efficacité"])
+        
+        # --- GRAPHIQUE AVANCÉ (ALTAIR) AVEC GROS POINTS ---
+        df_chart = df.copy()
+        
+        # Le graphique Ligne + Points Rouges bien visibles
+        chart_sommeil = alt.Chart(df_chart).mark_line(
+            # C'EST ICI : size=150 rend les points bien gros et visibles
+            point=alt.OverlayMarkDef(size=150, filled=True, color="red") 
+        ).encode(
+            x=alt.X('Date:T', title='Date', axis=alt.Axis(format='%d/%m')),
+            y=alt.Y('Efficacité:Q', title='Efficacité (%)', scale=alt.Scale(domain=[0, 100])),
+            tooltip=[
+                alt.Tooltip('Date', title='Date', format='%d/%m/%Y'),
+                alt.Tooltip('Efficacité', title='Efficacité'),
+                alt.Tooltip('Forme', title='Forme (1-5)'),
+                alt.Tooltip('Qualité', title='Qualité (1-5)')
+            ]
+        ).interactive()
+        
+        st.altair_chart(chart_sommeil, use_container_width=True)
+        
+        st.caption("ℹ️ Une efficacité > 85% est considérée comme normale.")
         
     else:
         st.info("Remplissez l'agenda pour voir vos statistiques.")
