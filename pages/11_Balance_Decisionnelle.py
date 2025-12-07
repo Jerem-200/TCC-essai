@@ -114,6 +114,15 @@ if st.session_state.balance_items:
     with col_c:
         st.metric(f"Bilan : {nom_nouveau}", f"{score_net_nouveau} pts")
     
+    # Message de conclusion automatique
+    diff = score_net_nouveau - score_net_actuel
+    if diff > 0:
+        st.success(f"👉 Le changement est plus favorable (+{diff} pts)")
+    elif diff < 0:
+        st.warning(f"👉 Le statu quo reste plus favorable pour l'instant (+{abs(diff)} pts)")
+    else:
+        st.info("⚖️ Égalité parfaite.")
+
     # --- GRAPHIQUE ---
     st.write("")
     data_chart = pd.DataFrame({
@@ -147,30 +156,26 @@ if st.session_state.balance_items:
     st.divider()
     
     # ==============================================================================
-    # 4. CONCLUSION & SAUVEGARDE (CORRIGÉ AVEC LES BONS NOMS DE VARIABLES)
+    # 4. DÉCISION FINALE & SAUVEGARDE AUTOMATIQUE
     # ==============================================================================
-    st.subheader("4. Conclusion")
+    st.subheader("4. Ma Décision")
+    st.write("Au vu de ce bilan, quelle est votre conclusion ?")
 
-    diff = score_net_nouveau - score_net_actuel
-    
-    if diff > 0:
-        st.success(f"✅ **Conclusion : Le CHANGEMENT est plus favorable** (+{diff} pts).\n\nLes avantages à changer dépassent le coût de rester dans la situation actuelle.")
-    elif diff < 0:
-        st.warning(f"🛑 **Conclusion : Le MAINTIEN est plus favorable** (+{abs(diff)} pts).\n\nPour l'instant, le coût du changement semble trop élevé par rapport aux bénéfices actuels.")
-    else:
-        st.info("⚖️ **Conclusion : Ambivalence parfaite.** (0 pts de différence).")
+    with st.form("decision_form"):
+        decision = st.text_area("Je décide de...", placeholder="Ex: Essayer le changement sur une semaine...")
+        
+        # C'est ce bouton qui déclenche la sauvegarde Cloud
+        submitted_decision = st.form_submit_button("✅ Valider la décision et Enregistrer")
 
-    # Zone des boutons
-    c_save, c_clear = st.columns([2, 1])
-    
-    with c_save:
-        if st.button("☁️ Enregistrer ce résultat dans le Cloud"):
+        if submitted_decision:
+            # On compile les arguments
             resume_args = " | ".join([f"{i['Camp']} ({i['Sens']}): {i['Argument']} [{i['Poids']}]" for i in st.session_state.balance_items])
             
             from connect_db import save_data
             patient = st.session_state.get("patient_id", "Anonyme")
             
-            # On utilise bien les variables score_net_...
+            # SAUVEGARDE CLOUD
+            # Ordre : Patient, Date, Option A, Option B, Score A, Score B, Arguments, Décision
             save_data("Balance", [
                 patient,
                 datetime.now().strftime("%Y-%m-%d"),
@@ -178,14 +183,16 @@ if st.session_state.balance_items:
                 nouveau,
                 score_net_actuel,
                 score_net_nouveau,
-                resume_args
+                resume_args,
+                decision
             ])
-            st.success("Sauvegarde réussie ! ☁️")
+            st.balloons()
+            st.success("Votre balance et votre décision ont été enregistrées dans le Cloud ! ☁️")
 
-    with c_clear:
-        if st.button("🗑️ Tout effacer"):
-            st.session_state.balance_items = []
-            st.rerun()
+    # Bouton de nettoyage
+    if st.button("🗑️ Tout effacer pour recommencer"):
+        st.session_state.balance_items = []
+        st.rerun()
 
 else:
     st.info("Commencez par ajouter des arguments ci-dessus.")
