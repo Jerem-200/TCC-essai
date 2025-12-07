@@ -40,10 +40,10 @@ st.write("Ajoutez les arguments un par un et donnez-leur un poids (importance)."
 with st.form("ajout_argument_balance", clear_on_submit=True):
     # Choix du quadrant
     quadrant = st.selectbox("Type d'argument :", [
-        f"👍 Avantages à rester comme ça ({actuel})",
-        f"👎 Inconvénients à rester comme ça ({actuel})",
-        f"👍 Avantages à changer ({nouveau})",
-        f"👎 Inconvénients à changer ({nouveau})"
+        f"👍 Avantages du comportement actuel",
+        f"👎 Inconvénients du comportement actuel",
+        f"👍 Avantages du comportement alternatif",
+        f"👎 Inconvénients du comportement alternatif"
     ])
     
     col_arg, col_poids = st.columns([3, 1])
