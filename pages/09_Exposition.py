@@ -72,7 +72,7 @@ with tab1:
     # On récupère la définition existante (si elle a déjà été sauvée) ou vide
     current_def = crainte_active.get("Definition", "")
     
-    new_def = st.text_area("Quelle est la conséquence terrible qui pourrait arriver ?", value=current_def, help=help_crainte)
+    new_def = st.text_area("Quelle est la conséquence ultime qui pourrait arriver ?", value=current_def, help=help_crainte)
     
     if st.button("💾 Sauvegarder la définition"):
         # On sauvegarde DANS l'objet crainte spécifique
@@ -80,7 +80,7 @@ with tab1:
         st.success("Définition enregistrée pour cette peur.")
 
     st.divider()
-    
+
     # Gestion des facteurs pour CETTE crainte uniquement
     st.subheader("Facteurs aggravants & protecteurs")
     
