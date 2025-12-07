@@ -168,7 +168,18 @@ with tab2:
         c2.metric("Forme Moyenne", f"{avg_forme:.1f} / 5")
         
         st.write("### Évolution de l'efficacité du sommeil")
-        st.line_chart(df.set_index("Date")["Efficacité"])
+        
+        # --- GRAPHIQUE AVEC POINTS ---
+        import altair as alt
+        
+        # Le graphique simple mais avec des points (mark_point) sur la ligne (mark_line)
+        chart = alt.Chart(df).mark_line(point=True).encode(
+            x='Date',
+            y='Efficacité',
+            tooltip=['Date', 'Efficacité', 'Forme']
+        ).interactive()
+        
+        st.altair_chart(chart, use_container_width=True)
         
     else:
         st.info("Remplissez l'agenda pour voir vos statistiques.")
