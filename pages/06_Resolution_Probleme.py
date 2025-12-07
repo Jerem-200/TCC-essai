@@ -1,304 +1,298 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 
-st.set_page_config(page_title="Exposition", page_icon="🧗")
+st.set_page_config(page_title="Résolution de Problèmes", page_icon="💡")
 
-# --- VIGILE ---
+# --- VIGILE DE SÉCURITÉ ---
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
+    st.warning("⛔ Veuillez vous connecter sur la page d'accueil.")
     st.switch_page("streamlit_app.py")
-
-st.title("🧗 L'Exposition (Apprentissage Inhibiteur)")
-
-# --- 1. GESTION DES CRAINTES (MULTI-CRAINTES) ---
-if "liste_craintes" not in st.session_state:
-    # On stocke une liste de dictionnaires : {"Nom": "Crise cardiaque", "Facteurs": []}
-    st.session_state.liste_craintes = []
-
-# Sélecteur de crainte active
-st.info("Sur quelle thématique travaillez-vous aujourd'hui ?")
-col_sel, col_new = st.columns([3, 1])
-
-with col_new:
-    # Bouton pour créer une nouvelle crainte
-    with st.popover("➕ Nouvelle Crainte"):
-        new_crainte_name = st.text_input("Nom de la peur (ex: Jugement)")
-        if st.button("Créer"):
-            if new_crainte_name:
-                st.session_state.liste_craintes.append({"Nom": new_crainte_name, "Facteurs": []})
-                st.rerun()
-
-# Récupération de la crainte active
-if not st.session_state.liste_craintes:
-    st.warning("Commencez par créer une thématique de peur (ex: 'Peur de mourir', 'Peur sociale').")
     st.stop()
 
-options_craintes = [c["Nom"] for c in st.session_state.liste_craintes]
-choix_crainte = col_sel.selectbox("Crainte sélectionnée :", options_craintes, label_visibility="collapsed")
+st.title("💡 Technique de Résolution de Problèmes")
+st.info("Une méthode structurée pour transformer un problème en plan d'action.")
 
-# On retrouve l'objet crainte complet (pour accéder à ses facteurs)
-crainte_active = next((c for c in st.session_state.liste_craintes if c["Nom"] == choix_crainte), None)
+# --- 0. INITIALISATION DES MÉMOIRES ---
+if "data_problemes" not in st.session_state:
+    st.session_state.data_problemes = pd.DataFrame(columns=[
+        "Date", "Problème", "Objectif", "Solution Choisie", "Date Évaluation"
+    ])
 
-# --- INITIALISATION DES DONNÉES ---
-if "data_hierarchie" not in st.session_state:
-    # Ajout colonne Crainte
-    st.session_state.data_hierarchie = pd.DataFrame(columns=["Crainte", "Situation", "Conséquence Anticipée", "Attente (0-100)", "Anxiété (0-100)"])
+if "analyse_detaillee" not in st.session_state:
+    st.session_state.analyse_detaillee = pd.DataFrame(columns=[
+        "Solution", "Type", "Terme", "Description", "Note", "Valeur"
+    ])
 
-if "data_planning_expo" not in st.session_state:
-    st.session_state.data_planning_expo = pd.DataFrame(columns=["Crainte", "Date", "Heure", "Situation", "Attente Pré-Expo", "Anxiété Pré-Expo"])
+if "liste_solutions_temp" not in st.session_state:
+    st.session_state.liste_solutions_temp = []
 
-if "data_logs_expo" not in st.session_state:
-    st.session_state.data_logs_expo = pd.DataFrame(columns=["Crainte", "Date", "Situation", "Planif-Attente", "Avant-Attente", "Après-Attente", "Apprentissage"])
-
-if "step1_valide" not in st.session_state:
-    st.session_state.step1_valide = False
-
-# --- ONGLETS ---
-tab1, tab2, tab3, tab4 = st.tabs(["1. Analyse", "2. Hiérarchie", "3. Planifier", "4. Consolider"])
+# NOUVEAU : Mémoire pour les étapes du plan d'action
+if "plan_etapes_temp" not in st.session_state:
+    st.session_state.plan_etapes_temp = []
 
 # ==============================================================================
-# ONGLET 1 : ANALYSE (Liée à la crainte active)
+# BLOC 0 : STOP & ATTITUDE (AJOUTÉ)
 # ==============================================================================
-with tab1:
-    st.header(f"Analyse : {crainte_active['Nom']}")
-    st.caption("Définissez les facteurs spécifiques à CETTE peur.")
+st.markdown("### 1. Stop & Attitude Constructive")
+
+with st.expander("🛑 Lire les consignes de départ (Important)", expanded=True):
+    st.markdown("""
+    **1. Stop :**
+    On doit d’abord réaliser que l’on a un problème qui n’est pas facile à résoudre et mérite qu’on prenne un peu de temps pour bien y réfléchir. 
     
-    with st.expander("ℹ️ Aide : Définir la conséquence ultime"):
-        st.info("Ex: 'Si je tremble, ils vont me rejeter' (et non juste 'je vais être mal à l'aise').")
-
-    # Gestion des facteurs pour CETTE crainte uniquement
-    st.subheader("Facteurs aggravants & protecteurs")
-    
-    with st.form("ajout_facteur"):
-        c1, c2 = st.columns([3, 1])
-        with c1: desc_facteur = st.text_input("Description :")
-        with c2: type_facteur = st.selectbox("Type", ["🔴 Risque (Aggravant)", "🟢 Protecteur (Sécurité)"])
-        
-        is_main_trigger = False
-        if "Risque" in type_facteur: is_main_trigger = st.checkbox("Est-ce le déclencheur principal ?")
-            
-        if st.form_submit_button("Ajouter ce facteur"):
-            nouveau = {"Description": desc_facteur, "Type": type_facteur, "Main": is_main_trigger}
-            crainte_active["Facteurs"].append(nouveau)
-            st.rerun()
-
-    # Affichage
-    if crainte_active["Facteurs"]:
-        for i, f in enumerate(crainte_active["Facteurs"]):
-            col_icon, col_txt, col_del = st.columns([1, 6, 1])
-            with col_icon: st.write("🔥" if f.get("Main") else ("🔴" if "Risque" in f["Type"] else "🟢"))
-            with col_txt: st.write(f"{'**[PRINCIPAL]** ' if f.get('Main') else ''}{f['Description']}")
-            with col_del:
-                if st.button("🗑️", key=f"del_fact_{i}"):
-                    crainte_active["Facteurs"].pop(i)
-                    st.rerun()
-
-    st.divider()
-    if st.button("✅ Valider l'étape 1"):
-        st.session_state.step1_valide = True
-        st.success("Analyse validée !")
-
-# ==============================================================================
-# ONGLET 2 : HIÉRARCHIE (Filtrée par crainte)
-# ==============================================================================
-with tab2:
-    st.header(f"Hiérarchie pour : {crainte_active['Nom']}")
-    
-    with st.form("form_hierarchie"):
-        sit = st.text_input("Situation redoutée :")
-        cons = st.text_area("Conséquence anticipée précise :", height=60, help="Qu'est-ce qui va se passer exactement ?")
-        
-        c1, c2 = st.columns(2)
-        with c1: attente = st.slider("Probabilité catastrophe (0-100%)", 0, 100, 60, step=5, key="h_attente")
-        with c2: anxiete = st.slider("Niveau d'Anxiété (0-100)", 0, 100, 60, step=5, key="h_anxiete")
-        
-        if st.form_submit_button("Ajouter à la liste"):
-            new_row = {
-                "Crainte": crainte_active['Nom'], # Lien avec la crainte
-                "Situation": sit, 
-                "Conséquence Anticipée": cons, 
-                "Attente (0-100)": attente, 
-                "Anxiété (0-100)": anxiete
-            }
-            st.session_state.data_hierarchie = pd.concat([st.session_state.data_hierarchie, pd.DataFrame([new_row])], ignore_index=True)
-            
-            # Cloud (Ajout colonne Crainte)
-            from connect_db import save_data
-            patient = st.session_state.get("patient_id", "Anonyme")
-            save_data("Evitements", [patient, datetime.now().strftime("%Y-%m-%d"), crainte_active['Nom'], sit, attente, cons, f"Anx:{anxiete}"])
-            st.success("Ajouté !")
-
-    st.divider()
-    
-    # FILTRAGE : On n'affiche que ceux de la crainte active
-    df_global = st.session_state.data_hierarchie
-    df_filtre = df_global[df_global["Crainte"] == crainte_active['Nom']].sort_values(by="Attente (0-100)", ascending=False)
-
-    if not df_filtre.empty:
-        st.write("#### 📋 Liste hiérarchisée")
-        st.dataframe(df_filtre[["Situation", "Attente (0-100)", "Anxiété (0-100)"]], use_container_width=True)
-        
-        # SUPPRESSION (Demandé)
-        with st.expander("🗑️ Gérer / Supprimer des situations"):
-            opts = {f"{row['Situation']} ({row['Attente (0-100)']})": i for i, row in df_filtre.iterrows()}
-            sel_del = st.selectbox("Choisir la situation à supprimer", list(opts.keys()))
-            if st.button("Supprimer situation"):
-                idx_to_drop = opts[sel_del]
-                st.session_state.data_hierarchie = st.session_state.data_hierarchie.drop(idx_to_drop).reset_index(drop=True)
-                st.rerun()
-    else:
-        st.info("Aucune situation listée pour cette crainte.")
-
-# ==============================================================================
-# ONGLET 3 : PLANIFICATION
-# ==============================================================================
-with tab3:
-    st.header("Planifier")
-    
-    # On récupère seulement les situations de la crainte active
-    df_filtre = st.session_state.data_hierarchie[st.session_state.data_hierarchie["Crainte"] == crainte_active['Nom']]
-    
-    if df_filtre.empty:
-        st.warning("Remplissez la hiérarchie (Onglet 2) pour cette crainte d'abord.")
-    else:
-        choix_sit = st.selectbox("Situation à affronter :", df_filtre["Situation"].unique())
-        
-        # Scores initiaux
-        row_sit = df_filtre[df_filtre["Situation"] == choix_sit].iloc[0]
-        st.caption(f"Score initial : Attente {row_sit['Attente (0-100)']}%")
-        
-        c1, c2 = st.columns(2)
-        with c1: date_prevue = st.date_input("Date", datetime.now())
-        with c2: heure_prevue = st.time_input("Heure", datetime.now().time())
-            
-        with st.container(border=True):
-            st.write("**Configuration (Modulateurs)**")
-            # Facteurs liés à la crainte active
-            aggravants = [f['Description'] for f in crainte_active["Facteurs"] if "Risque" in f['Type']]
-            protecteurs = [f['Description'] for f in crainte_active["Facteurs"] if "Protecteur" in f['Type']]
-            
-            c_a, c_b = st.columns(2)
-            with c_a: sel_agg = st.multiselect("➕ Je combine (Aggravants)", aggravants)
-            with c_b: sel_prot = st.multiselect("❌ Je jette (Protecteurs)", protecteurs)
-        
-        st.write("---")
-        st.markdown("#### Ré-évaluation dans ces conditions")
-        c3, c4 = st.columns(2)
-        with c3: new_att = st.slider("Probabilité catastrophe (0-100%)", 0, 100, int(row_sit['Attente (0-100)']), step=5, key="new_att")
-        with c4: new_anx = st.slider("Niveau Anxiété (0-100)", 0, 100, int(row_sit['Anxiété (0-100)']), step=5, key="new_anx")
-
-        if st.button("📅 Valider"):
-            heure_propre = str(heure_prevue)[:5] 
-            resume = f"Aggravants: {', '.join(sel_agg)} | Sans: {', '.join(sel_prot)}"
-            
-            new_plan = {
-                "Crainte": crainte_active['Nom'], # Lien
-                "Date": str(date_prevue), "Heure": heure_propre, "Situation": choix_sit,
-                "Attente Pré-Expo": new_att, "Anxiété Pré-Expo": new_anx
-            }
-            st.session_state.data_planning_expo = pd.concat([st.session_state.data_planning_expo, pd.DataFrame([new_plan])], ignore_index=True)
-            
-            from connect_db import save_data
-            patient = st.session_state.get("patient_id", "Anonyme")
-            # Ordre Cloud : Patient, Date, CRAINTE, Situation, Type, Details, Score1, Score2, Vide, Vide
-            save_data("Expositions", [
-                patient, str(date_prevue), crainte_active['Nom'], choix_sit, 
-                "PLANIFIÉ", resume, new_att, new_anx, "", ""
-            ])
-            st.success("Planifié !")
-
-    # Affichage Planning Filtré + Suppression
-    df_plan_filtre = st.session_state.data_planning_expo[st.session_state.data_planning_expo["Crainte"] == crainte_active['Nom']]
-    
-    if not df_plan_filtre.empty:
-        st.write("---")
-        st.write("#### 🗓️ Exercices prévus (Cette crainte)")
-        st.dataframe(df_plan_filtre[["Date", "Heure", "Situation"]], use_container_width=True)
-        
-        # SUPPRESSION PLAN
-        with st.expander("🗑️ Gérer / Supprimer un exercice planifié"):
-            opts_plan = {f"{r['Date']} - {r['Situation']}": i for i, r in df_plan_filtre.iterrows()}
-            sel_del_plan = st.selectbox("Choisir", list(opts_plan.keys()))
-            if st.button("Supprimer exercice"):
-                st.session_state.data_planning_expo = st.session_state.data_planning_expo.drop(opts_plan[sel_del_plan]).reset_index(drop=True)
-                st.rerun()
-
-# ==============================================================================
-# ONGLET 4 : CONSOLIDATION
-# ==============================================================================
-with tab4:
-    st.header("Consolidation (Bilan)")
-    
-    # On filtre les exos planifiés pour cette crainte
-    df_plan_filtre = st.session_state.data_planning_expo[st.session_state.data_planning_expo["Crainte"] == crainte_active['Nom']]
-    
-    if df_plan_filtre.empty:
-        st.warning("Aucun exercice planifié pour cette crainte.")
-    else:
-        liste_prevus = [f"{row['Date']} {row['Heure']} : {row['Situation']}" for i, row in df_plan_filtre.iterrows()]
-        choix_exo_str = st.selectbox("Quel exercice avez-vous fait ?", liste_prevus)
-        
-        # Retrouver les infos
-        idx_global = df_plan_filtre[df_plan_filtre.apply(lambda r: f"{r['Date']} {r['Heure']} : {r['Situation']}" == choix_exo_str, axis=1)].index[0]
-        donnees_planif = st.session_state.data_planning_expo.iloc[idx_global]
-        
-        st.divider()
-        with st.form("form_consolidation"):
-            st.subheader("1. Juste avant / Pendant")
-            c1, c2 = st.columns(2)
-            with c1: pre_att = st.slider("Probabilité catastrophe (0-100%)", 0, 100, 80, step=5, key="c_att_pre")
-            with c2: pre_anx = st.slider("Niveau Anxiété (0-100)", 0, 100, 80, step=5, key="c_anx_pre")
-            
-            st.subheader("2. Après")
-            duree = st.number_input("Durée (min)", 0, 240, 20)
-            st.markdown("**Analyse :**")
-            q1 = st.text_area("Comment je sais que la catastrophe n'a pas eu lieu ?", height=70)
-            q2 = st.text_area("Mes attentes initiales ?", height=70)
-            q3 = st.text_area("La réalité ? (Surprise)", height=70)
-            q4 = st.text_area("Ce que j'ai appris ?", height=70)
-            
-            st.subheader("3. Futur")
-            c3, c4 = st.columns(2)
-            with c3: post_att = st.slider("Si je recommence, probabilité catastrophe ?", 0, 100, 40, step=5, key="c_att_post")
-            with c4: post_anx = st.slider("Si je recommence, niveau anxiété ?", 0, 100, 40, step=5, key="c_anx_post")
-            
-            if st.form_submit_button("Enregistrer Bilan"):
-                new_log = {
-                    "Crainte": crainte_active['Nom'],
-                    "Date": datetime.now().strftime("%Y-%m-%d"),
-                    "Situation": donnees_planif['Situation'],
-                    "Planif-Attente": donnees_planif['Attente Pré-Expo'],
-                    "Avant-Attente": pre_att,
-                    "Après-Attente": post_att,
-                    "Apprentissage": q4
-                }
-                st.session_state.data_logs_expo = pd.concat([st.session_state.data_logs_expo, pd.DataFrame([new_log])], ignore_index=True)
-                
-                from connect_db import save_data
-                patient = st.session_state.get("patient_id", "Anonyme")
-                # Sauvegarde avec colonne Crainte
-                save_data("Expositions", [
-                    patient, datetime.now().strftime("%Y-%m-%d"), 
-                    crainte_active['Nom'], # Crainte
-                    donnees_planif['Situation'], 
-                    "BILAN", f"{duree} min", pre_att, post_att, pre_anx, 
-                    f"Preuves:{q1}|Attentes:{q2}|Réel:{q3}|Leçon:{q4}"
-                ])
-                st.success("Enregistré !")
-
-    # Historique FILTRÉ
-    df_logs_filtre = st.session_state.data_logs_expo[st.session_state.data_logs_expo["Crainte"] == crainte_active['Nom']]
-    
-    if not df_logs_filtre.empty:
-        st.divider()
-        st.write(f"#### 🧠 Évolution Croyances ({crainte_active['Nom']})")
-        for i, row in df_logs_filtre.iterrows():
-            with st.expander(f"{row['Date']} - {row['Situation']}"):
-                k1, k2, k3 = st.columns(3)
-                with k1: st.metric("Planification", f"{row['Planif-Attente']}%")
-                with k2: st.metric("Avant", f"{row['Avant-Attente']}%")
-                with k3: st.metric("Après", f"{row['Après-Attente']}%", delta=f"{int(row['Après-Attente']) - int(row['Avant-Attente'])}%")
-                st.info(row['Apprentissage'])
+    **2. Attitude constructive :**
+    Il est important d’adopter une orientation constructive face au problème. Il s’agit de voir le problème comme une **occasion ou un défi** plutôt que comme une menace. 
+    """)
 
 st.divider()
-st.page_link("streamlit_app.py", label="Retour Accueil", icon="🏠")
+
+# ==============================================================================
+# BLOC 1 : DÉFINITION
+# ==============================================================================
+st.markdown("### 1. Définition")
+st.caption("Définissez le problème de façon précise.")
+probleme = st.text_area("Quel est le problème ?", placeholder="Qui ? Quoi ? Où ? Quand ?")
+
+st.markdown("### 2. Objectifs")
+st.caption("Quels seraient les signes concrets que l'objectif est atteint ?")
+objectif = st.text_area("Mon objectif réaliste :")
+
+st.divider()
+
+# ==============================================================================
+# BLOC 2 : BRAINSTORMING
+# ==============================================================================
+st.markdown("### 3. Recherche de solutions")
+st.caption("Ajoutez toutes vos idées une par une.")
+
+with st.form("ajout_solution_form", clear_on_submit=True):
+    col_input, col_btn = st.columns([4, 1])
+    with col_input:
+        nouvelle_solution = st.text_input("Nouvelle solution :", placeholder="Ex: Demander de l'aide...", label_visibility="collapsed")
+    with col_btn:
+        submitted_ajout = st.form_submit_button("Ajouter")
+    
+    if submitted_ajout and nouvelle_solution:
+        st.session_state.liste_solutions_temp.append(nouvelle_solution)
+        st.rerun()
+
+if st.session_state.liste_solutions_temp:
+    st.write("---")
+    st.write("**Vos idées listées :**")
+    for i, sol in enumerate(st.session_state.liste_solutions_temp):
+        c_text, c_del = st.columns([5, 1])
+        with c_text: st.markdown(f"**{i+1}.** {sol}")
+        with c_del:
+            if st.button("🗑️", key=f"del_sol_{i}"):
+                st.session_state.liste_solutions_temp.pop(i)
+                st.rerun()
+else:
+    st.info("Votre liste est vide.")
+
+st.divider()
+
+# ==============================================================================
+# BLOC 3 : ANALYSE
+# ==============================================================================
+st.markdown("### 4. Analyse Avantages / Inconvénients")
+
+if len(st.session_state.liste_solutions_temp) > 0:
+    st.write("Pour chaque solution, ajoutez des arguments.")
+    
+    with st.form("ajout_argument_form", clear_on_submit=True):
+        c_sol, c_type, c_term = st.columns(3)
+        with c_sol: sol_selected = st.selectbox("Solution", st.session_state.liste_solutions_temp)
+        with c_type: type_point = st.selectbox("Type", ["Avantage (+)", "Inconvénient (-)"])
+        with c_term: terme = st.selectbox("Échéance", ["Court terme", "Moyen terme", "Long terme"])
+        
+        c_desc, c_note = st.columns([3, 1])
+        with c_desc: desc_point = st.text_input("Description")
+        with c_note: note_point = st.number_input("Importance (0-10)", 0, 10, 5)
+
+        if st.form_submit_button("➕ Ajouter l'argument"):
+            valeur = note_point if "Avantage" in type_point else -note_point
+            new_entry = {"Solution": sol_selected, "Type": type_point, "Terme": terme, "Description": desc_point, "Note": note_point, "Valeur": valeur}
+            st.session_state.analyse_detaillee = pd.concat([st.session_state.analyse_detaillee, pd.DataFrame([new_entry])], ignore_index=True)
+            st.success("Ajouté !")
+
+    if not st.session_state.analyse_detaillee.empty:
+        st.divider()
+        st.markdown("#### 📊 Tableau Comparatif")
+        df = st.session_state.analyse_detaillee
+        rows_display = []
+        for sol in df["Solution"].unique():
+            pros = df[(df["Solution"] == sol) & (df["Type"].str.contains("Avantage"))]
+            pros_score = pros["Note"].sum()
+            pros_text = "\n".join([f"- {r['Description']} ({r['Note']}/10)" for i, r in pros.iterrows()])
+            
+            cons = df[(df["Solution"] == sol) & (df["Type"].str.contains("Inconvénient"))]
+            cons_score = cons["Note"].sum()
+            cons_text = "\n".join([f"- {r['Description']} ({r['Note']}/10)" for i, r in cons.iterrows()])
+            
+            rows_display.append({"Solution": sol, "Avantages": pros_text, "Total (+)": pros_score, "Inconvénients": cons_text, "Total (-)": cons_score, "Bilan": pros_score - cons_score})
+            
+        df_display = pd.DataFrame(rows_display)
+        st.table(df_display.set_index("Solution"))
+        
+        best_sol = df_display.loc[df_display["Bilan"].idxmax()]
+        st.success(f"💡 Meilleure solution : **{best_sol['Solution']}** (Score : {best_sol['Bilan']})")
+
+        with st.expander("Gérer / Supprimer des arguments"):
+            df["label"] = df["Solution"] + " - " + df["Description"] + " (" + df["Note"].astype(str) + ")"
+            options_arg = {row["label"]: i for i, row in df.iterrows()}
+            sel_arg = st.selectbox("Choisir un argument à supprimer", list(options_arg.keys()))
+            if st.button("Supprimer cet argument"):
+                st.session_state.analyse_detaillee = st.session_state.analyse_detaillee.drop(options_arg[sel_arg]).reset_index(drop=True)
+                st.rerun()
+else:
+    st.info("👆 Ajoutez des solutions à l'étape 3.")
+
+st.divider()
+
+# ==============================================================================
+# BLOC 4 : DÉCISION & PLAN D'ACTION
+# ==============================================================================
+st.markdown("### 5. Décision finale")
+st.caption("Quelle(s) solution(s) choisissez-vous finalement ? [cite: 22-23]")
+
+# --- SÉLECTION DES SOLUTIONS (MULTI-SELECT) ---
+if st.session_state.liste_solutions_temp:
+    solutions_retenues = st.multiselect(
+        "Je décide de mettre en œuvre la ou les solutions suivantes :", 
+        st.session_state.liste_solutions_temp
+    )
+    # On transforme la liste en une seule chaîne de texte pour la sauvegarde
+    solution_choisie = ", ".join(solutions_retenues)
+else:
+    # Cas de secours si la liste est vide (champ libre)
+    solution_choisie = st.text_input("Je décide de mettre en œuvre :")
+
+st.markdown("### 6. Préparation")
+c1, c2 = st.columns(2)
+with c1: obstacles = st.text_area("Obstacles possibles")
+with c2: ressources = st.text_area("Ressources nécessaires")
+
+st.divider()
+
+# --- NOUVEAU : PLAN D'ACTION PAR ÉTAPES ---
+st.markdown("### 7. Plan d'action détaillé")
+st.caption("Déterminez les étapes par lesquelles vous devez passer pour appliquer la solution choisie. Faites un plan détaillé, avec un échéancier précis et réaliste. Veillez à ce que la première étape soit assez facile et passez à l’action rapidement et si possible immédiatement. Un premier pas même tout petit vous donnera le sentiment d’avoir « brisé la glace ». ")
+
+# Formulaire d'ajout d'étape (AVEC HEURE)
+with st.form("ajout_etape_form", clear_on_submit=True):
+    # On divise en 3 colonnes : Description (large) | Date (moyen) | Heure (petit)
+    c_step, c_date, c_heure = st.columns([3, 1, 1])
+    
+    with c_step:
+        desc_etape = st.text_input("Description de l'étape", placeholder="Ex: Appeler M. Dupont")
+    with c_date:
+        date_etape = st.date_input("Date prévue", datetime.now())
+    with c_heure:
+        # CHANGEMENT ICI : Ajout de l'heure
+        heure_etape = st.time_input("Heure", datetime.now().time())
+    
+    if st.form_submit_button("Ajouter cette étape"):
+        # On formate l'étape avec la date ET l'heure
+        # Format : "• 05/12 à 14:30 : Faire ceci"
+        etape_str = f"• {date_etape.strftime('%d/%m')} à {heure_etape.strftime('%H:%M')} : {desc_etape}"
+        st.session_state.plan_etapes_temp.append(etape_str)
+        st.rerun()
+
+# Affichage de la liste des étapes
+if st.session_state.plan_etapes_temp:
+    st.write("**Votre plan :**")
+    for i, etape in enumerate(st.session_state.plan_etapes_temp):
+        col_txt, col_del = st.columns([5, 1])
+        with col_txt: st.text(etape) # st.text pour un affichage propre sans markdown qui pourrait gêner
+        with col_del:
+            if st.button("x", key=f"del_step_{i}"):
+                st.session_state.plan_etapes_temp.pop(i)
+                st.rerun()
+else:
+    st.info("Ajoutez votre première étape ci-dessus (la première doit être facile !).")
+
+st.divider()
+
+# ==============================================================================
+# BLOC FINAL : VALIDATION & SAUVEGARDE
+# ==============================================================================
+st.markdown("### 9. Évaluation")
+st.caption("Évaluez les résultats après un délai raisonnable.")
+
+with st.form("validation_finale"):
+    date_eval = st.date_input("Date de bilan des résultats", datetime.now() + timedelta(days=7))
+    
+    submitted_final = st.form_submit_button("💾 ENREGISTRER LE PLAN D'ACTION")
+
+    if submitted_final:
+        # Compilation de la liste en texte
+        plan_texte_complet = "\n".join(st.session_state.plan_etapes_temp)
+        
+        new_row = {
+            "Date": datetime.now().strftime("%Y-%m-%d"),
+            "Problème": probleme, "Objectif": objectif, "Solution Choisie": solution_choisie,
+            "Plan Action": plan_texte_complet,
+            "Obstacles": obstacles, "Ressources": ressources, "Date Évaluation": str(date_eval)
+        }
+        
+        # Mise à jour locale
+        st.session_state.data_problemes = pd.concat([st.session_state.data_problemes, pd.DataFrame([new_row])], ignore_index=True)
+        
+        # Sauvegarde Cloud
+        from connect_db import save_data
+        patient = st.session_state.get("patient_id", "Anonyme")
+        save_data("Plans_Action", [patient, datetime.now().strftime("%Y-%m-%d"), probleme, objectif, solution_choisie, plan_texte_complet, obstacles, ressources, str(date_eval)])
+        
+        # On vide les mémoires pour repartir à zéro (sauf si on veut modifier, voir plus bas)
+        st.session_state.analyse_detaillee = pd.DataFrame(columns=["Solution", "Type", "Terme", "Description", "Note", "Valeur"])
+        st.session_state.liste_solutions_temp = [] 
+        st.session_state.plan_etapes_temp = [] 
+        
+        st.success("Plan enregistré avec succès ! Retrouvez-le dans l'Historique.")
+
+st.divider()
+
+# ==============================================================================
+# ZONE DE MODIFICATION (NOUVEAU)
+# ==============================================================================
+with st.expander("✏️ Modifier un plan précédent (En cas d'erreur)"):
+    st.write("Sélectionnez un plan pour le recharger dans le formulaire, le modifier, et le ré-enregistrer.")
+    
+    df_saved = st.session_state.data_problemes
+    
+    if not df_saved.empty:
+        # Liste déroulante des plans
+        options_plans = {f"{row['Date']} - {row['Problème'][:30]}...": i for i, row in df_saved.iterrows()}
+        selected_plan_label = st.selectbox("Choisir le plan à modifier", list(options_plans.keys()))
+        
+        col_load, col_del = st.columns([1, 1])
+        
+        # BOUTON CHARGER
+        if col_load.button("📥 Charger les données"):
+            index = options_plans[selected_plan_label]
+            data = df_saved.iloc[index]
+            
+            # On tente de remettre les données dans les champs (Attention: Streamlit ne permet pas de forcer facilement les text_area standard sans rerun, mais on peut remplir les listes)
+            
+            # 1. On remplit la liste des étapes
+            raw_plan = data["Plan Action"]
+            if isinstance(raw_plan, str):
+                st.session_state.plan_etapes_temp = raw_plan.split("\n")
+            
+            # 2. Pour les autres champs (Problème, Objectif...), comme ils ne sont pas en session_state persistante, 
+            # l'astuce est d'afficher les données à copier-coller ou de juste permettre la modification du plan d'action
+            st.info("Les étapes du plan d'action ont été rechargées dans la liste ci-dessus (étape 7). Vous pouvez maintenant les modifier (ajouter/supprimer) et cliquer sur Enregistrer à nouveau.")
+            st.rerun()
+
+        # BOUTON SUPPRIMER (Pour enlever la version erronée)
+        if col_del.button("🗑️ Supprimer ce plan (Doublon)"):
+            index = options_plans[selected_plan_label]
+            st.session_state.data_problemes = st.session_state.data_problemes.drop(index).reset_index(drop=True)
+            st.success("Ancienne version supprimée.")
+            st.rerun()
+    else:
+        st.caption("Aucun plan enregistré pour l'instant.")
+
+st.divider()
+st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
