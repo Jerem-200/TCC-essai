@@ -12,25 +12,39 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
 
 st.title("🧗 Exercice d'exposition")
 
-# --- INITIALISATION MÉMOIRE ---
-if "data_crainte_centrale" not in st.session_state:
-    st.session_state.data_crainte_centrale = {"Crainte": "", "Facteurs": []}
+# --- INITIALISATION ET SÉLECTION DE LA CRAINTE ---
+if "liste_craintes" not in st.session_state:
+    st.session_state.liste_craintes = []
 
+# Zone de gestion des craintes (Haut de page)
+col_info, col_sel = st.columns([2, 2])
+
+with col_info:
+    st.info("Sur quelle thématique travaillez-vous aujourd'hui ?")
+
+with col_sel:
+    # Création d'une nouvelle crainte
+    with st.popover("➕ Nouvelle Crainte"):
+        new_name = st.text_input("Nom de la peur (ex: Jugement, Mort...)")
+        if st.button("Créer") and new_name:
+            st.session_state.liste_craintes.append({"Nom": new_name, "Facteurs": []})
+            st.rerun()
+
+    # Sélecteur
+    if st.session_state.liste_craintes:
+        options = [c["Nom"] for c in st.session_state.liste_craintes]
+        choix_crainte = st.selectbox("Crainte active :", options, label_visibility="collapsed")
+        # On récupère l'objet complet pour le modifier plus tard
+        crainte_active = next((c for c in st.session_state.liste_craintes if c["Nom"] == choix_crainte), None)
+    else:
+        st.warning("Créez d'abord une crainte ci-dessus.")
+        st.stop() # Arrête le chargement si pas de crainte
+
+# --- MÉMOIRES GLOBALES (Si pas déjà fait) ---
 if "data_hierarchie" not in st.session_state:
-    # Ajout colonne Anxiété
-    st.session_state.data_hierarchie = pd.DataFrame(columns=["Situation", "Conséquence Anticipée", "Attente (0-100)", "Anxiété (0-100)"])
-
+    st.session_state.data_hierarchie = pd.DataFrame(columns=["Crainte", "Situation", "Conséquence", "Attente", "Anxiété"])
 if "data_planning_expo" not in st.session_state:
-    st.session_state.data_planning_expo = pd.DataFrame(columns=["Date", "Heure", "Situation", "Attente Pré-Expo", "Anxiété Pré-Expo"])
-
-if "data_logs_expo" not in st.session_state:
-    st.session_state.data_logs_expo = pd.DataFrame(columns=[
-        "Date", "Situation", "Planif-Attente", "Avant-Attente", "Après-Attente", "Apprentissage"
-    ])
-
-# Variable pour valider l'étape 1
-if "step1_valide" not in st.session_state:
-    st.session_state.step1_valide = False
+    st.session_state.data_planning_expo = pd.DataFrame(columns=["Crainte", "Date", "Situation", "Attente"])
 
 # --- LES 4 ONGLETS ---
 tab1, tab2, tab3, tab4 = st.tabs(["1. Analyse Crainte", "2. Hiérarchie", "3. Planifier", "4. Consolider"])
