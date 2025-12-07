@@ -99,7 +99,7 @@ if st.session_state.balance_items:
     
     # On prépare les données proprement
     data_chart = pd.DataFrame({
-        'Option': ['Rester (Statu Quo)', 'Changer (Action)'],
+        'Option': ['Comportement actuel', 'Comportement alternatif'],
         'Score': [score_maintien, score_changement]
     })
     
@@ -113,7 +113,7 @@ if st.session_state.balance_items:
     # Les barres (Couleurs forcées via domain/range pour être sûr que ça ne bouge pas)
     bars = base.mark_bar().encode(
         color=alt.Color('Option', scale=alt.Scale(
-            domain=['Rester (Statu Quo)', 'Changer (Action)'],
+            domain=['Comportement actuel', 'Comportement alternatif'],
             range=['#FF6B6B', '#4ECDC4']  # Rouge vs Vert
         ), legend=None)
     )
