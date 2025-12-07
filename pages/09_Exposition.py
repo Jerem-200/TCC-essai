@@ -4,377 +4,303 @@ from datetime import datetime
 
 st.set_page_config(page_title="Exposition", page_icon="🧗")
 
-# --- VIGILE DE SÉCURITÉ ---
+# --- VIGILE ---
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.warning("⛔ Veuillez vous connecter sur la page d'accueil.")
     st.switch_page("streamlit_app.py")
     st.stop()
 
-st.title("🧗 Exercice d'exposition")
+st.title("🧗 L'Exposition (Apprentissage Inhibiteur)")
 
-# --- INITIALISATION ET SÉLECTION DE LA CRAINTE ---
+# --- 1. GESTION DES CRAINTES (FILTRAGE INTELLIGENT) ---
 if "liste_craintes" not in st.session_state:
     st.session_state.liste_craintes = []
 
-# Zone de gestion des craintes (Haut de page)
 col_info, col_sel = st.columns([2, 2])
-
 with col_info:
-    st.info("Sur quelle thématique travaillez-vous aujourd'hui ?")
-
+    st.info("Sur quelle thématique travaillez-vous ?")
 with col_sel:
-    # Création d'une nouvelle crainte
     with st.popover("➕ Nouvelle Crainte"):
-        new_name = st.text_input("Nom de la peur (ex: Jugement, Mort...)")
+        new_name = st.text_input("Nom (ex: Jugement, Mort...)")
         if st.button("Créer") and new_name:
             st.session_state.liste_craintes.append({"Nom": new_name, "Facteurs": []})
             st.rerun()
 
-    # Sélecteur
     if st.session_state.liste_craintes:
         options = [c["Nom"] for c in st.session_state.liste_craintes]
         choix_crainte = st.selectbox("Crainte active :", options, label_visibility="collapsed")
-        # On récupère l'objet complet pour le modifier plus tard
         crainte_active = next((c for c in st.session_state.liste_craintes if c["Nom"] == choix_crainte), None)
     else:
-        st.warning("Créez d'abord une crainte ci-dessus.")
-        st.stop() # Arrête le chargement si pas de crainte
+        st.warning("Créez d'abord une crainte ci-dessus pour commencer.")
+        st.stop()
 
-# --- MÉMOIRES GLOBALES (Si pas déjà fait) ---
+# --- INITIALISATION DATA ---
 if "data_hierarchie" not in st.session_state:
     st.session_state.data_hierarchie = pd.DataFrame(columns=["Crainte", "Situation", "Conséquence", "Attente", "Anxiété"])
 if "data_planning_expo" not in st.session_state:
     st.session_state.data_planning_expo = pd.DataFrame(columns=["Crainte", "Date", "Situation", "Attente"])
+if "data_logs_expo" not in st.session_state:
+    st.session_state.data_logs_expo = pd.DataFrame(columns=["Crainte", "Date", "Situation", "Planif-Attente", "Avant-Attente", "Après-Attente", "Apprentissage"])
 
-# --- LES 4 ONGLETS ---
-tab1, tab2, tab3, tab4 = st.tabs(["1. Analyse Crainte", "2. Hiérarchie", "3. Planifier", "4. Consolider"])
+# --- ONGLETS ---
+tab1, tab2, tab3, tab4 = st.tabs(["1. Analyse", "2. Hiérarchie", "3. Planifier", "4. Consolider"])
 
 # ==============================================================================
-# ONGLET 1 : ANALYSE (INCHANGÉ MAIS AVEC LE BOUTON)
+# ONGLET 1 : ANALYSE (Liée à la crainte active)
 # ==============================================================================
 with tab1:
-    st.header("A. La Crainte Centrale")
-    help_crainte = "Il faut identifier la conséquence ultime crainte (ex: 'Je vais faire une crise cardiaque'), et non juste la sensation de peur. Cela doit être testable objectivement."
-    with st.expander("ℹ️ Aide : Comment définir sa crainte ?", expanded=False):
+    st.header(f"Analyse : {crainte_active['Nom']}")
+    
+    # 1.A DEFINITION
+    help_crainte = "Identifiez la conséquence ultime (ex: 'Je vais faire une crise cardiaque'), pas juste la sensation."
+    with st.expander("ℹ️ Aide : Définir la conséquence ultime"):
         st.info(help_crainte)
     
-    crainte_actuelle = st.session_state.data_crainte_centrale["Crainte"]
-    nouvelle_crainte = st.text_area("Quelle est la conséquence terrible qui pourrait arriver ?", value=crainte_actuelle, help=help_crainte)
-    
+    # On stocke la définition dans le dictionnaire de la crainte
+    current_def = crainte_active.get("Definition", "")
+    new_def = st.text_area("Quelle est la catastrophe redoutée ?", value=current_def, help=help_crainte)
     if st.button("💾 Sauvegarder la définition"):
-        st.session_state.data_crainte_centrale["Crainte"] = nouvelle_crainte
-        st.success("Crainte définie.")
+        crainte_active["Definition"] = new_def
+        st.success("Définition enregistrée.")
 
     st.divider()
-    st.header("B. Analyse des Facteurs")
+
+    # 1.B FACTEURS
+    st.subheader("Facteurs aggravants & protecteurs")
     
-    with st.form("ajout_facteur"):
+    with st.form("ajout_facteur", clear_on_submit=True):
         c1, c2 = st.columns([3, 1])
-        with c1: desc_facteur = st.text_input("Description du facteur :")
-        with c2: type_facteur = st.selectbox("Type", ["🔴 Risque (Aggravant)", "🟢 Protecteur (Sécurité)"])
+        with c1: desc = st.text_input("Description :")
+        with c2: type_f = st.selectbox("Type", ["🔴 Risque (Aggravant)", "🟢 Protecteur (Sécurité)"])
         
-        is_main_trigger = False
-        if "Risque" in type_facteur: is_main_trigger = st.checkbox("Est-ce le déclencheur principal (CS) ?")
+        is_main = False
+        if "Risque" in type_f: is_main = st.checkbox("Déclencheur principal ?")
             
-        if st.form_submit_button("Ajouter ce facteur"):
-            nouveau = {"Description": desc_facteur, "Type": type_facteur, "Main": is_main_trigger}
-            st.session_state.data_crainte_centrale["Facteurs"].append(nouveau)
+        if st.form_submit_button("Ajouter"):
+            crainte_active["Facteurs"].append({"Description": desc, "Type": type_f, "Main": is_main})
             st.rerun()
 
-    if st.session_state.data_crainte_centrale["Facteurs"]:
-        for i, f in enumerate(st.session_state.data_crainte_centrale["Facteurs"]):
-            col_icon, col_txt, col_del = st.columns([1, 6, 1])
-            with col_icon: st.write("🔥" if f["Main"] else ("🔴" if "Risque" in f["Type"] else "🟢"))
-            with col_txt: st.write(f"{'**[DÉCLENCHEUR]** ' if f['Main'] else ''}{f['Description']}")
-            with col_del:
-                if st.button("🗑️", key=f"del_f_{i}"):
-                    st.session_state.data_crainte_centrale["Facteurs"].pop(i)
+    # Liste avec suppression
+    if crainte_active["Facteurs"]:
+        st.write("---")
+        for i, f in enumerate(crainte_active["Facteurs"]):
+            c_icon, c_txt, c_del = st.columns([1, 6, 1])
+            with c_icon: st.write("🔥" if f.get("Main") else ("🔴" if "Risque" in f["Type"] else "🟢"))
+            with c_txt: st.write(f"{'**[PRINCIPAL]** ' if f.get('Main') else ''}{f['Description']}")
+            with c_del:
+                if st.button("🗑️", key=f"del_fact_{i}"):
+                    crainte_active["Facteurs"].pop(i)
                     st.rerun()
 
     st.divider()
-# BOUTON DE VALIDATION DE L'ÉTAPE 1
-    if st.button("✅ Valider l'étape 1 (Analyse terminée)"):
-        st.session_state.step1_valide = True
-    
-    # APPARITION DE L'INFO "EXPOSITION ULTIME"
-    if st.session_state.step1_valide:
-        st.success("Étape 1 validée !")
+    if st.button("✅ Valider l'Analyse et passer à l'étape suivante"):
+        st.success("Analyse terminée ! Cliquez sur l'onglet **'2. Hiérarchie'** en haut.")
         with st.container(border=True):
             st.markdown("### 🔥 Concept : L'Exposition Ultime")
-            st.markdown("""
-            Pour maximiser l'apprentissage (la surprise), l'exposition idéale doit :
-            1. Inclure le **déclencheur principal** (CS).
-            2. Ajouter les **modulateurs positifs** (ce qui rend la chose plus probable).
-            3. Supprimer tous les **signaux de sécurité** (inhibiteurs).
-            
-            *L'objectif : Créer une situation où l'attente que la catastrophe se produise est maximale, afin que sa non-occurrence crée la plus grande "erreur de prédiction" possible.*
-            """)
+            st.markdown("Inclure le déclencheur + Ajouter les modulateurs + Supprimer les sécurités.")
 
 # ==============================================================================
-# ONGLET 2 : HIÉRARCHIE (AVEC NOTE D'ATTENTE /100)
+# ONGLET 2 : HIÉRARCHIE (Filtrée)
 # ==============================================================================
 with tab2:
-    st.header("Liste des situations évitées / redoutées")
+    st.header(f"Hiérarchie ({crainte_active['Nom']})")
+    st.info("Listez les situations évitées, de la moins pire à la pire.")
 
-# Texte explicatif demandé
-    st.info("Dressez une liste aussi complète que possible de toutes les situations que vous évitez ou que vous redoutez en raison de la crainte qu’elles provoquent. L'objectif est de vous exposer à certaines de ces situations dans le futur.")
+    with st.expander("📚 Bonnes pratiques"):
+        st.write("**Faire :** Prolongé, Répété, Rapproché. **Ne pas faire :** Éviter, Fuir.")
 
-    st.caption("Hiérarchisation des situations selon votre croyance que le pire va arriver.")
-    
-    with st.expander("📚 Les caractéristiques de bons exercices d’exposition"):
-        st.markdown("""
-        **3 choses à faire :**
-        * Exercices prolongés
-        * Répétés
-        * Rapprochés
+    with st.form("form_hierarchie", clear_on_submit=True):
+        sit = st.text_input("Situation :")
+        cons = st.text_area("Crainte précise (Si je le fais, il va arriver...):", height=60)
         
-        **3 choses à ne pas faire :**
-        * Éviter
-        * Fuir
-        * Neutraliser
-        """)
-
-    with st.form("form_hierarchie"):
-        sit = st.text_input("Situation redoutée :")
-     
-        cons = st.text_area("Conséquence anticipée spécifique :", height=80, help="Pour chacune des situations identifiées dans votre liste, essayez de décrire le plus précisément et concrètement possible ce que vous craignez qu’il survienne si vous l’affrontez. Si possible décrivez votre crainte d’une façon telle qu’il sera possible de savoir clairement si ça s’est produit ou pas. Par exemple, une personne souffrant d’anxiété sociale qui a écrit : « J’ai peur que mon anxiété paraisse beaucoup » aurait intérêt à la décrire plus spécifiquement : « Je vais trembler de façon très apparente, je vais bafouiller à un point tel que les gens ne comprendront pas ce que je dis… ».")
-        
-        # Double curseur (Attente + Anxiété)
         c1, c2 = st.columns(2)
-        with c1:
-            attente = st.slider("Probabilité que la catastrophe arrive (0-100% - 0% : Pas du tout, 25% : possible, 50% : 50/50, 75% : probable, 100% : c'est certain)", 0, 100, 60, step=5, key="h_attente")
-        with c2:
-            anxiete = st.slider("Niveau d'Anxiété (0-100)", 0, 100, 60, step=5, key="h_anxiete")
+        with c1: att = st.slider("Probabilité catastrophe (Attente 0-100%)", 0, 100, 60, step=5)
+        with c2: anx = st.slider("Niveau Anxiété (0-100)", 0, 100, 60, step=5)
         
-        if st.form_submit_button("Ajouter à la hiérarchie"):
-            new_row = {"Situation": sit, "Conséquence Anticipée": cons, "Attente (0-100)": attente, "Anxiété (0-100)": anxiete}
-            st.session_state.data_hierarchie = pd.concat([st.session_state.data_hierarchie, pd.DataFrame([new_row])], ignore_index=True)
+        if st.form_submit_button("Ajouter"):
+            new = {"Crainte": crainte_active['Nom'], "Situation": sit, "Conséquence": cons, "Attente": att, "Anxiété": anx}
+            st.session_state.data_hierarchie = pd.concat([st.session_state.data_hierarchie, pd.DataFrame([new])], ignore_index=True)
             
+            # Cloud
             from connect_db import save_data
             patient = st.session_state.get("patient_id", "Anonyme")
-            save_data("Evitements", [patient, datetime.now().strftime("%Y-%m-%d"), sit, attente, cons, f"Anxiété:{anxiete}"])
+            save_data("Evitements", [patient, datetime.now().strftime("%Y-%m-%d"), crainte_active['Nom'], sit, att, cons, f"Anx:{anx}"])
             st.success("Ajouté !")
 
-    if not st.session_state.data_hierarchie.empty:
+    # FILTRAGE INTELLIGENT
+    df = st.session_state.data_hierarchie
+    df_filtre = df[df["Crainte"] == crainte_active['Nom']].sort_values(by="Attente", ascending=False)
+
+    if not df_filtre.empty:
         st.divider()
-        st.write("#### 📋 Votre Hiérarchie")
-        df_sorted = st.session_state.data_hierarchie.sort_values(by="Attente (0-100)", ascending=False)
-        st.dataframe(df_sorted, use_container_width=True)
-        
-        if df_sorted["Attente (0-100)"].max() < 60:
-            st.warning("⚠️ Vos scores d'attente sont bas (<60%).")
-    
+        st.write("#### 📋 Votre échelle")
+        for idx, row in df_filtre.iterrows():
+            c_sc, c_tx, c_dl = st.columns([2, 5, 1])
+            with c_sc: st.metric("Attente", f"{row['Attente']}%", f"Anx: {row['Anxiété']}")
+            with c_tx: 
+                st.markdown(f"**{row['Situation']}**")
+                st.caption(row['Conséquence'])
+            with c_dl:
+                if st.button("🗑️", key=f"del_h_{idx}"):
+                    st.session_state.data_hierarchie = df.drop(idx).reset_index(drop=True)
+                    st.rerun()
+    else:
+        st.info("Liste vide pour cette crainte.")
+
     st.divider()
-    if st.button("✅ Valider l'Étape 2"):
-        st.success("Hiérarchie validée !")
+    if st.button("✅ Valider la Hiérarchie et passer à la Planification"):
+        st.success("Hiérarchie validée ! Cliquez sur l'onglet **'3. Planifier'**.")
 
 # ==============================================================================
-# ONGLET 3 : PLANIFICATION (AVEC HEURE PROPRE ET DOUBLE CURSEUR)
+# ONGLET 3 : PLANIFICATION (Filtrée)
 # ==============================================================================
 with tab3:
-    st.header("Planifier une activité")
-    st.write("Choisissez une situation et ajustez les conditions (Facteurs).")
+    st.header("Planifier un exercice")
     
-    # Info sur les 4 stratégies
-    with st.expander("💡 Les 4 Stratégies Clés (Pour durcir l'exercice)"):
-        st.markdown("""
-        1. **Jetez-le ("Throw it Out")** : Éliminez les comportements de sécurité.
-        2. **Restez avec ("Stay with It")** : Maintenez l'attention sur le déclencheur.
-        3. **Combinez-le ("Combine It")** : Utilisez l'extinction approfondie (ajoutez des facteurs aggravants).
-        4. **Affrontez-le ("Face It")** : Acceptez un échec réel occasionnel.
-        """)
+    # On ne propose QUE les situations de la crainte active
+    df_source = st.session_state.data_hierarchie
+    situations_dispo = df_source[df_source["Crainte"] == crainte_active['Nom']]["Situation"].unique()
     
-    if st.session_state.data_hierarchie.empty:
-        st.warning("Remplissez la hiérarchie en onglet 2 d'abord.")
+    if len(situations_dispo) == 0:
+        st.warning("Remplissez la hiérarchie (Onglet 2) d'abord.")
     else:
-        choix_sit = st.selectbox("Quelle situation voulez-vous planifier ?", st.session_state.data_hierarchie["Situation"].unique())
+        choix_sit = st.selectbox("Situation à affronter :", situations_dispo)
         
-        # Récupération des scores initiaux
-        row_sit = st.session_state.data_hierarchie[st.session_state.data_hierarchie["Situation"] == choix_sit].iloc[0]
-        score_init = row_sit["Attente (0-100)"]
-        anx_init = row_sit.get("Anxiété (0-100)", 0) # .get au cas où la colonne n'existait pas avant
-        
-        st.caption(f"Score initial (dans la liste) : Attente {score_init}% | Anxiété {anx_init}/100")
-        
-        st.write("---")
+        # Récup score initial
+        row_sit = df_source[(df_source["Crainte"] == crainte_active['Nom']) & (df_source["Situation"] == choix_sit)].iloc[0]
+        st.caption(f"Score de base : Attente {row_sit['Attente']}%")
         
         c1, c2 = st.columns(2)
-        with c1: date_prevue = st.date_input("Date prévue", datetime.now())
-        with c2: heure_prevue = st.time_input("Heure prévue", datetime.now().time())
+        with c1: date_p = st.date_input("Date")
+        with c2: heure_p = st.time_input("Heure")
             
         with st.container(border=True):
-            st.write("**Configuration (Modulateurs)**")
-            facteurs = st.session_state.data_crainte_centrale["Facteurs"]
-            aggravants = [f['Description'] for f in facteurs if "Risque" in f['Type']]
-            protecteurs = [f['Description'] for f in facteurs if "Protecteur" in f['Type']]
+            st.write("**Configuration**")
+            aggs = [f['Description'] for f in crainte_active["Facteurs"] if "Risque" in f['Type']]
+            prots = [f['Description'] for f in crainte_active["Facteurs"] if "Protecteur" in f['Type']]
             
             c_a, c_b = st.columns(2)
-            with c_a: 
-                sel_agg = st.multiselect("➕ Je combine (Aggravants) :", aggravants) if aggravants else []
-            with c_b: 
-                sel_prot = st.multiselect("❌ Je jette (Protecteurs) :", protecteurs) if protecteurs else []
+            with c_a: sel_agg = st.multiselect("➕ Je combine (Aggravants)", aggs)
+            with c_b: sel_prot = st.multiselect("❌ Je jette (Protecteurs)", prots)
         
-        st.write("---")
-        st.markdown("#### Ré-évaluation de l'attente avec ces conditions")
-        st.write(f"Si vous faites l'exercice **{choix_sit}** en ajoutant **{len(sel_agg)} facteurs aggravants** et en retirant **{len(sel_prot)} sécurités**...")
-        
-        # DOUBLE CURSEUR ICI AUSSI
-        col_att, col_anx = st.columns(2)
-        with col_att:
-            nouvelle_attente = st.slider("Probabilité catastrophe (0-100%)", 0, 100, int(score_init), step=5, key="p_attente")
-        with col_anx:
-            nouvelle_anxiete = st.slider("Niveau d'Anxiété (0-100)", 0, 100, int(anx_init), step=5, key="p_anxiete")
-        
-        if nouvelle_attente < score_init:
-            st.warning("⚠️ Attention : Vous devriez essayer de rendre l'exercice PLUS difficile (plus d'attente de catastrophe), pour pouvoir créer un apprentissage.")
-        elif nouvelle_attente > 80:
-            st.success("🔥 Excellent ! C'est une situation à fort potentiel d'apprentissage (maximisation de la surprise).")
+        st.markdown("#### Ré-évaluation")
+        c3, c4 = st.columns(2)
+        with c3: new_att = st.slider("Probabilité catastrophe ?", 0, 100, int(row_sit['Attente']), step=5, key="new_att")
+        with c4: new_anx = st.slider("Niveau Anxiété ?", 0, 100, int(row_sit['Anxiété']), step=5, key="new_anx")
 
         if st.button("📅 Valider et Planifier"):
-            heure_propre = str(heure_prevue)[:5] 
-            resume_contexte = f"Aggravants: {', '.join(sel_agg)} | Sans: {', '.join(sel_prot)}"
-            
+            resume = f"Aggravants: {', '.join(sel_agg)} | Sans: {', '.join(sel_prot)}"
             new_plan = {
-                "Date": str(date_prevue), 
-                "Heure": heure_propre, 
-                "Situation": choix_sit,
-                "Attente Pré-Expo": nouvelle_attente, 
-                "Anxiété Pré-Expo": nouvelle_anxiete
+                "Crainte": crainte_active['Nom'],
+                "Date": str(date_p), "Heure": str(heure_p)[:5], "Situation": choix_sit,
+                "Attente": new_att
             }
             st.session_state.data_planning_expo = pd.concat([st.session_state.data_planning_expo, pd.DataFrame([new_plan])], ignore_index=True)
             
-            # --- CORRECTION ICI ---
+            # Cloud
             from connect_db import save_data
             patient = st.session_state.get("patient_id", "Anonyme")
-            
-            # On envoie une chaîne vide "" à la fin car 'affronte_txt' n'existe plus ici
+            # [Patient, Date, Crainte, Situation, Type, Details, Score1, Score2, Vide, Vide]
             save_data("Expositions", [
-                patient, 
-                str(date_prevue), 
-                choix_sit, 
-                "PLANIFIÉ", 
-                resume_contexte,    # Colonne E
-                nouvelle_attente,   # Colonne F
-                nouvelle_anxiete,   # Colonne G
-                "",                 # Colonne H (Vide)
-                ""                  # Colonne I (Vide, remplace l'erreur)
+                patient, str(date_p), crainte_active['Nom'], choix_sit, 
+                "PLANIFIÉ", resume, new_att, new_anx, "", ""
             ])
-            
-            st.success(f"Exercice ajouté pour le {date_prevue} à {heure_propre} !")
-            
-    if not st.session_state.data_planning_expo.empty:
+            st.success("Planifié !")
+
+    # Planning Filtré
+    df_plan = st.session_state.data_planning_expo
+    df_plan_filtre = df_plan[df_plan["Crainte"] == crainte_active['Nom']]
+    
+    if not df_plan_filtre.empty:
         st.write("---")
-        st.write("#### 🗓️ Vos exercices à venir")
-        st.dataframe(st.session_state.data_planning_expo, use_container_width=True)
+        st.write("#### 🗓️ Vos exercices prévus")
+        for idx, row in df_plan_filtre.iterrows():
+            c_d, c_s, c_x = st.columns([2, 4, 1])
+            with c_d: st.write(f"📅 {row['Date']} {row['Heure']}")
+            with c_s: st.write(f"**{row['Situation']}** (Attente: {row['Attente']}%)")
+            with c_x:
+                if st.button("🗑️", key=f"del_plan_{idx}"):
+                    st.session_state.data_planning_expo = df_plan.drop(idx).reset_index(drop=True)
+                    st.rerun()
 
 # ==============================================================================
-# ONGLET 4 : CONSOLIDATION (NOUVELLES QUESTIONS + COMPARATIF 3 TEMPS)
+# ONGLET 4 : CONSOLIDATION (Filtrée)
 # ==============================================================================
 with tab4:
-    st.header("Grille d'auto-observation (Après l'exercice)")
+    st.header("Consolidation")
     
-    if st.session_state.data_planning_expo.empty:
-        st.warning("Planifiez d'abord un exercice dans l'onglet 3.")
+    # On ne propose que les plans de la crainte active
+    df_plan = st.session_state.data_planning_expo
+    df_plan_filtre = df_plan[df_plan["Crainte"] == crainte_active['Nom']]
+    
+    if df_plan_filtre.empty:
+        st.warning("Aucun exercice planifié pour cette crainte.")
     else:
-        # Liste pour choisir l'exercice
-        liste_prevus = [f"{row['Date']} {row['Heure']} : {row['Situation']}" for i, row in st.session_state.data_planning_expo.iterrows()]
-        choix_exo_str = st.selectbox("Quel exercice avez-vous fait ?", liste_prevus)
+        opts = [f"{r['Date']} : {r['Situation']}" for i, r in df_plan_filtre.iterrows()]
+        choix_exo = st.selectbox("Exercice réalisé :", opts)
         
-        # On retrouve les données planifiées pour faire le comparatif
-        # (On triche un peu en cherchant par l'index dans la liste, supposant que l'ordre n'a pas changé)
-        index_exo = liste_prevus.index(choix_exo_str)
-        donnees_planif = st.session_state.data_planning_expo.iloc[index_exo]
-        attente_planif = donnees_planif.get("Attente Pré-Expo", "?")
+        # Retrouver les infos (Attente Planifiée)
+        idx_match = df_plan_filtre[df_plan_filtre.apply(lambda r: f"{r['Date']} : {r['Situation']}" == choix_exo, axis=1)].index[0]
+        attente_prevue = df_plan_filtre.loc[idx_match, "Attente"]
         
         st.divider()
-        
-        with st.form("form_consolidation"):
-            
-            # TEMPS 2 : JUSTE AVANT / PENDANT
-            st.subheader("1. Juste avant / Pendant l'exercice")
+        with st.form("form_bilan"):
+            st.subheader("1. Juste avant")
             c1, c2 = st.columns(2)
-            with c1:
-                pre_attente = st.slider("Probabilité catastrophe (0-100%)", 0, 100, 80, step=5, key="c_attente_pre")
-            with c2:
-                pre_anxiete = st.slider("Niveau d'Anxiété (0-100)", 0, 100, 80, step=5, key="c_anxiete_pre")
+            with c1: pre_att = st.slider("Probabilité catastrophe ?", 0, 100, 80, step=5, key="bilan_att")
+            with c2: pre_anx = st.slider("Anxiété ?", 0, 100, 80, step=5, key="bilan_anx")
             
-            st.divider()
+            st.subheader("2. Après")
+            duree = st.number_input("Durée (min)", 0, 240, 20)
+            q1 = st.text_area("Preuves que la catastrophe n'a pas eu lieu ?", height=70)
+            q2 = st.text_area("Mes attentes vs Réalité ?", height=70)
+            q3 = st.text_area("Surprise ?", height=70)
+            q4 = st.text_area("Apprentissage ?", height=70)
             
-            # TEMPS 3 : APRÈS (RÉALITÉ)
-            st.subheader("2. Après (Réalité)")
-            duree = st.number_input("Durée (minutes)", 0, 240, 20)
-
-
-            # Nouvelles questions demandées
-            st.markdown("**Analyse de l'expérience :**")
-
-            st.write("**Est-ce que la catastrophe redoutée s'est produite ?**")
-            resultat_reel = st.radio("", ["Oui, exactement comme prévu", "Oui, mais moins grave", "Non, pas du tout"], label_visibility="collapsed")
-            
-            q1 = st.text_area("Comment je sais que ma crainte ne s'est pas réalisée ?", height=70)
-            q2 = st.text_area("À quoi je m'attendais suite à cette expérience ?", height=70)
-            q3 = st.text_area("Que s'est-il passé ? Cela m'a-t-il surpris ?", height=70)
-            q4 = st.text_area("Qu'en ai-je appris ?", height=70)
-            
-            # Compilation du texte d'apprentissage
-            appr_complet = f"Preuves: {q1} | Attentes: {q2} | Réalité: {q3} | Leçon: {q4}"
-            
-            st.divider()
-            
-            # TEMPS 4 : FUTUR (RÉÉVALUATION)
-            st.subheader("3. Ré-évaluation (Futur)")
+            st.subheader("3. Futur")
             c3, c4 = st.columns(2)
-            with c3:
-                post_attente = st.slider("Si je recommençais maintenant, quelle serait la probabilité que la catastrophe arrive ? (0-100% - 0% : Pas du tout, 25% : possible, 50% : 50/50, 75% : probable, 100% : c'est certain)", 0, 100, 40, step=5, key="c_attente_post")
-            with c4:
-                post_anxiete = st.slider("Si je recommençais, Si je recommençais maintenant, quelle serait mon niveau d'anxiété ? (0-100)", 0, 100, 40, step=5, key="c_anxiete_post")
+            with c3: post_att = st.slider("Si je recommence, probabilité ?", 0, 100, 40, step=5, key="futur_att")
+            with c4: post_anx = st.slider("Si je recommence, anxiété ?", 0, 100, 40, step=5, key="futur_anx")
             
-            submit_log = st.form_submit_button("Enregistrer le Bilan")
-            
-            if submit_log:
+            if st.form_submit_button("Enregistrer Bilan"):
                 new_log = {
+                    "Crainte": crainte_active['Nom'],
                     "Date": datetime.now().strftime("%Y-%m-%d"),
-                    "Situation": choix_exo_str, # <--- Variable corrigée
-                    "Planif-Attente": attente_planif,
-                    "Avant-Attente": pre_attente,
-                    "Après-Attente": post_attente,
+                    "Situation": choix_exo.split(" : ")[1],
+                    "Planif-Attente": attente_prevue,
+                    "Avant-Attente": pre_att,
+                    "Après-Attente": post_att,
                     "Apprentissage": q4
                 }
                 st.session_state.data_logs_expo = pd.concat([st.session_state.data_logs_expo, pd.DataFrame([new_log])], ignore_index=True)
                 
-                # SAUVEGARDE CLOUD CORRIGÉE
+                # Cloud
                 from connect_db import save_data
                 patient = st.session_state.get("patient_id", "Anonyme")
-                
-                # Ordre : [Patient, Date, Situation, TYPE, Durée, AttenteAvant, AttenteApres, Anxiete(H), Apprentissage(I)]
+                full_txt = f"Preuves:{q1}|Attente:{q2}|Surprise:{q3}|Leçon:{q4}"
+                # [Patient, Date, Crainte, Situation, Type, Details, Score1, Score2, Score3, Texte]
                 save_data("Expositions", [
-                    patient, 
-                    datetime.now().strftime("%Y-%m-%d"), 
-                    choix_exo_str,  # <--- Variable corrigée
-                    "BILAN", 
-                    f"{duree} min", 
-                    pre_attente,    # Colonne F
-                    post_attente,   # Colonne G
-                    pre_anxiete,    # Colonne H (On met l'anxiété ici car 'surprise' n'existe plus)
-                    post_anxiete,   # Colonne I
-                    appr_complet    # Colonne J
+                    patient, datetime.now().strftime("%Y-%m-%d"), 
+                    crainte_active['Nom'], 
+                    choix_exo.split(" : ")[1], 
+                    "BILAN", f"{duree} min", pre_att, post_att, pre_anx, full_txt
                 ])
-                
-                st.success("Bilan enregistré ! Bravo.")
+                st.success("Bilan enregistré !")
 
-    # Historique Visuel des 3 Temps
-    if not st.session_state.data_logs_expo.empty:
+    # Historique Filtré
+    df_logs = st.session_state.data_logs_expo
+    df_logs_filtre = df_logs[df_logs["Crainte"] == crainte_active['Nom']]
+    
+    if not df_logs_filtre.empty:
         st.divider()
-        st.write("#### 🧠 Évolution de vos croyances (Comparatif)")
-        for i, row in st.session_state.data_logs_expo.iterrows():
+        st.write("#### 🧠 Apprentissages (Cette crainte)")
+        for idx, row in df_logs_filtre.iterrows():
             with st.expander(f"{row['Date']} - {row['Situation']}"):
-                # Affichage des 3 temps en colonnes
                 k1, k2, k3 = st.columns(3)
-                with k1: st.metric("1. À la planification", f"{row['Planif-Attente']}%")
-                with k2: st.metric("2. Juste avant", f"{row['Avant-Attente']}%")
-                with k3: st.metric("3. Après", f"{row['Après-Attente']}%", delta=f"{int(row['Après-Attente']) - int(row['Avant-Attente'])}%")
-                
-                st.info(f"**Apprentissage :** {row['Apprentissage']}")
+                with k1: st.metric("Planif", f"{row['Planif-Attente']}%")
+                with k2: st.metric("Avant", f"{row['Avant-Attente']}%")
+                with k3: st.metric("Après", f"{row['Après-Attente']}%", delta=f"{int(row['Après-Attente']) - int(row['Avant-Attente'])}%")
+                st.info(row['Apprentissage'])
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
