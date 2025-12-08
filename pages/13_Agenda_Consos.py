@@ -126,7 +126,14 @@ with st.form("form_addiction"):
         submitted = st.form_submit_button("💾 Enregistrer")
         
         if submitted:
-            heure_str = heure_evt.strftime("%H:%M")
+            # 1. CORRECTION BUG CLOUD : Ajout des secondes (:00) pour le format SQL
+            heure_str = heure_evt.strftime("%H:%M:%S")
+            
+            # 2. MÉMOIRE : On sauvegarde ce que l'utilisateur vient de mettre
+            st.session_state.memoire_heure = heure_evt
+            # On ne sauvegarde l'unité que si elle existe (cas consommation)
+            if 'unite_txt' in locals():
+                st.session_state.memoire_unite = unite_txt
             
             # Local
             new_row = {
