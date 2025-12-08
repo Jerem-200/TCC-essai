@@ -57,9 +57,9 @@ with tab1:
         st.write("**Habitudes**")
         c1, c2 = st.columns(2)
         with c1:
-            sieste = st.text_input("1. Siestes hier (ex: 13h30 à 14h00)", placeholder="Non ou heures")
+            sieste = st.text_input("1. Siestes hier (ex: 13h30 à 14h00)", placeholder="Heures")
         with c2:
-            medics = st.text_input("2. Médicaments / Alcool (mg/verres)", placeholder="Non ou détails")
+            medics = st.text_input("2. Médicaments / Alcool (mg/verres)", placeholder="Détails")
 
         st.write("---")
         
