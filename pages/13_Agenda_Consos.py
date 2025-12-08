@@ -48,47 +48,72 @@ with col_sel:
 tab1, tab2 = st.tabs(["📝 Saisie (Journal)", "📊 Bilan & Historique"])
 
 # ==============================================================================
-# ONGLET 1 : SAISIE
+# ONGLET 1 : SAISIE ADAPTATIVE
 # ==============================================================================
 with tab1:
     st.header(f"Journal : {substance_active}")
     
+    # On sort le choix du type du formulaire pour que l'interface change instantanément
+    type_evt = st.radio(
+        "Qu'est-ce qui s'est passé ?", 
+        ["⚡ J'ai eu une ENVIE (Craving)", "🍷 J'ai CONSOMMÉ"], 
+        horizontal=True
+    )
+    
     with st.form("form_addiction", clear_on_submit=True):
-        c1, c2, c3 = st.columns([1, 1, 2])
-        with c1:
-            date_evt = st.date_input("Date", datetime.now())
-        with c2:
-            heure_evt = st.time_input("Heure", datetime.now().time())
-        with c3:
-            type_evt = st.radio("Qu'est-ce qui s'est passé ?", ["⚡ J'ai eu une ENVIE (Craving)", "🍷 J'ai CONSOMMÉ"], horizontal=True)
+        c_date, c_heure = st.columns(2)
+        with c_date: date_evt = st.date_input("Date", datetime.now())
+        with c_heure: heure_evt = st.time_input("Heure", datetime.now().time())
             
         st.divider()
         
-        # Intensité
-        intensite = st.slider("Intensité de l'envie ou quantité consommée (0-10)", 0, 10, 5)
+        # --- BLOC DYNAMIQUE ---
+        valeur_numerique = 0.0
+        info_unite = ""
         
+        if "ENVIE" in type_evt:
+            st.markdown("#### Évaluation de l'envie")
+            valeur_numerique = st.slider("Intensité du craving (0 = Nulle, 10 = Irrépressible)", 0, 10, 5)
+            # Info-bulle pour l'envie
+            with st.expander("ℹ️ Types de pensées à noter"):
+                st.markdown("""
+                * **Permissives :** "Juste un seul", "C'est l'occasion".
+                * **Soulageantes :** "Ça va me calmer", "J'en ai besoin".
+                * **Anticipatoires :** "Je serai plus drôle", "Je dormirai mieux".
+                """)
+                
+        else: # CONSOMMATION
+            st.markdown("#### Mesure de la consommation")
+            st.write("Indiquez la quantité exacte.")
+            
+            c_mode, c_val, c_unit = st.columns([1, 1, 1])
+            with c_mode:
+                mode_mesure = st.selectbox("Mode de compte", ["Nombre (Unités)", "Volume/Dosage"])
+            with c_val:
+                valeur_numerique = st.number_input("Chiffre", min_value=0.0, step=0.5)
+            with c_unit:
+                # L'utilisateur écrit lui-même l'unité
+                placeholder_txt = "ex: Cigarettes, Verres" if "Nombre" in mode_mesure else "ex: ml, cl, grammes"
+                unite_txt = st.text_input("Unité", placeholder=placeholder_txt)
+            
+            # On prépare le texte de l'unité pour la sauvegarde
+            if unite_txt:
+                info_unite = f"[{valeur_numerique} {unite_txt}] "
+            else:
+                info_unite = f"[{valeur_numerique} ut.] "
+
         st.divider()
         
-        # PENSÉES AUTOMATIQUES (Le cœur TCC)
-        st.write("Quelles pensées vous ont traversé l'esprit ?")
-        
-        # Info-bulle pédagogique (Expander pour ne pas prendre trop de place mais être lisible)
-        with st.expander("ℹ️ Aide : Les 3 types de pensées à repérer"):
-            st.markdown("""
-            * **🟢 Pensées Permissives :** Autorisations qu'on se donne.  
-              *Ex: "Juste un seul, ça ne compte pas", "C'est l'occasion ou jamais".*
-            * **🔵 Pensées Soulageantes :** Croyance que le produit est le seul remède.  
-              *Ex: "Ça va me calmer", "J'ai besoin de décompresser", "Je ne tiendrai pas sans".*
-            * **🟡 Attentes Positives :** Idéalisation des effets.  
-              *Ex: "Je serai plus drôle", "Je dormirai mieux", "La soirée sera nulle sans ça".*
-            """)
-            
-        pensees = st.text_area("Vos pensées / Contexte :", placeholder="Ex: Je me sentais stressé et je me suis dit 'Juste un verre pour décompresser'...")
+        # PENSÉES (Commun aux deux)
+        pensees = st.text_area("Pensées associées / Contexte / Déclencheurs :", placeholder="J'étais avec des amis, je me sentais stressé...")
         
         submitted = st.form_submit_button("💾 Enregistrer")
         
         if submitted:
             heure_str = str(heure_evt)[:5]
+            
+            # On combine l'unité et les pensées pour ne rien perdre
+            pensees_finales = info_unite + pensees
             
             # Local
             new_row = {
@@ -96,8 +121,8 @@ with tab1:
                 "Heure": heure_str,
                 "Substance": substance_active,
                 "Type": type_evt,
-                "Intensité": intensite,
-                "Pensées": pensees
+                "Intensité": valeur_numerique,
+                "Pensées": pensees_finales
             }
             st.session_state.data_addictions = pd.concat([st.session_state.data_addictions, pd.DataFrame([new_row])], ignore_index=True)
             
@@ -108,7 +133,7 @@ with tab1:
             # Ordre : Patient, Date, Heure, Substance, Type, Intensité, Pensées
             save_data("Addictions", [
                 patient, str(date_evt), heure_str, substance_active, 
-                type_evt, intensite, pensees
+                type_evt, valeur_numerique, pensees_finales
             ])
             
             st.success("Enregistré !")
