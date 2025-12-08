@@ -89,14 +89,12 @@ with tab1:
             st.markdown("#### Mesure de la consommation")
             st.write("Indiquez la quantité exacte.")
             
-            c_mode, c_val, c_unit = st.columns([1, 1, 1])
-            with c_mode:
-                mode_mesure = st.selectbox("Mode de compte", ["Nombre (Unités)", "Volume/Dosage"])
+            c_val, c_unit = st.columns([1, 1])
             with c_val:
                 valeur_numerique = st.number_input("Chiffre", min_value=0.0, step=0.5)
             with c_unit:
                 # L'utilisateur écrit lui-même l'unité
-                placeholder_txt = "ex: Cigarettes, Verres" if "Nombre" in mode_mesure else "ex: ml, cl, grammes"
+                placeholder_txt = "ex: Cigarettes, Verres, ml, cl, grammes"
                 unite_txt = st.text_input("Unité", placeholder=placeholder_txt)
             
             # On prépare le texte de l'unité pour la sauvegarde
