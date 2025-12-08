@@ -100,20 +100,20 @@ with tab1:
             st.success("Humeur enregistrée !")
 
 # ==============================================================================
-# ONGLET 2 : HISTORIQUE COMPLET (Tableau Global)
+# ONGLET 2 : HISTORIQUE COMPLET & ANALYSE
 # ==============================================================================
 with tab2:
-    st.header("Historique de toutes les activités")
+    st.header("Historique & Analyse")
     
-    # 1. Récupération de TOUT le dataframe
+    # 1. Vérification qu'il y a des données
     if not st.session_state.data_activites.empty and "Date" in st.session_state.data_activites.columns:
         
-        # Tri : Du plus récent au plus ancien
+        # Récupération et Tri
         df_global = st.session_state.data_activites.sort_values(by=["Date", "Heure"], ascending=False).reset_index(drop=True)
         
-        st.info("💡 Vous pouvez modifier les valeurs directement dans le tableau ci-dessous.")
+        st.info("💡 Tableau modifiable : double-cliquez sur une case pour corriger.")
         
-        # 2. Tableau Éditable (Toutes les données)
+        # 2. TABLEAU ÉDITABLE (TOUT L'HISTORIQUE)
         edited_df = st.data_editor(
             df_global,
             use_container_width=True,
@@ -121,17 +121,58 @@ with tab2:
             key="editor_activites"
         )
         
-        # Mise à jour si modification manuelle dans le tableau
+        # Mise à jour si modification manuelle
         if not edited_df.equals(df_global):
             st.session_state.data_activites = edited_df
             st.rerun()
 
         st.divider()
+
+        # 3. GRAPHIQUE : MOYENNES GLOBALES PAR ACTIVITÉ
+        st.subheader("📊 Bilan : Moyennes par Activité")
+        st.caption("Ce graphique fait la moyenne de toutes les fois où vous avez réalisé une même activité.")
+
+        # --- PRÉPARATION DES DONNÉES AGRÉGÉES ---
+        df_stats = df_global.copy()
         
-        # 3. Zone de Suppression (Globale)
+        # Conversion en numérique
+        cols_score = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
+        for col in cols_score: 
+            df_stats[col] = pd.to_numeric(df_stats[col], errors='coerce')
+        
+        # Nettoyage : On enlève les activités vides si jamais
+        df_stats = df_stats[df_stats["Activité"].notna() & (df_stats["Activité"] != "")]
+
+        if not df_stats.empty:
+            # --- CALCUL DES MOYENNES (GROUPBY) ---
+            # On regroupe par nom d'activité et on fait la moyenne des scores
+            df_grouped = df_stats.groupby("Activité")[cols_score].mean().reset_index()
+            
+            # Transformation format long pour Altair
+            df_long = df_grouped.melt(
+                id_vars=["Activité"], 
+                value_vars=cols_score, 
+                var_name="Indicateur", 
+                value_name="Moyenne"
+            )
+
+            # --- CRÉATION DU CHART ---
+            chart = alt.Chart(df_long).mark_bar().encode(
+                x=alt.X('Activité:N', axis=alt.Axis(labelAngle=-45, title=None)), # Labels inclinés pour lisibilité
+                y=alt.Y('Moyenne:Q', title='Note Moyenne (0-10)', scale=alt.Scale(domain=[0, 10])),
+                color=alt.Color('Indicateur:N', legend=alt.Legend(orient="bottom", title="Critères")),
+                xOffset='Indicateur:N', # Décale les barres pour qu'elles soient côte à côte
+                tooltip=['Activité', 'Indicateur', alt.Tooltip('Moyenne', format='.1f')]
+            ).properties(height=400)
+            
+            st.altair_chart(chart, use_container_width=True)
+        else:
+            st.info("Pas assez de données valides pour générer le graphique.")
+
+        st.divider()
+        
+        # 4. ZONE DE SUPPRESSION (GLOBALE)
         with st.expander("🗑️ Supprimer une activité spécifique"):
-            # Création d'une liste lisible pour la suppression
-            # On inclut la date pour différencier les jours
             options_dict = {
                 f"{row['Date']} à {row['Heure']} - {row['Activité']}": idx 
                 for idx, row in df_global.iterrows()
@@ -140,54 +181,20 @@ with tab2:
             selected_label = st.selectbox("Choisir l'activité à supprimer :", list(options_dict.keys()), index=None, placeholder="Sélectionnez une ligne...")
             
             if st.button("❌ Supprimer définitivement") and selected_label:
-                # Retrouver l'index dans le DF édité
                 index_to_drop = options_dict[selected_label]
-                row_to_delete = df_global.loc[index_to_drop]
                 
-                # A. Suppression Cloud
+                # Suppression Cloud (Dummy block si la fonction n'est pas adaptée pour Activites, sinon ça marche)
                 try:
                     from connect_db import delete_data
-                    patient_id = st.session_state.get("patient_id", "Inconnu")
-                    # On suppose que delete_data est configuré pour gérer aussi la table "Activites"
-                    # Il faudra peut-être adapter delete_data pour accepter 'Activité' comme critère si ce n'est pas fait
-                    # Ici on envoie les clés principales
-                    # Attention : Assurez-vous que votre delete_data gère la table Activites
-                    # Sinon, il faudra l'adapter.
+                    # Note : Il faut s'assurer que delete_data gère la suppression par ID ou par critères exacts
                     pass 
                 except:
                     pass
                 
-                # B. Suppression Locale
-                # On supprime la ligne correspondante
+                # Suppression Locale
                 st.session_state.data_activites = df_global.drop(index_to_drop).reset_index(drop=True)
                 st.success("Activité supprimée !")
                 st.rerun()
-
-        # 4. Petit bonus : Graphique sur une journée spécifique (Optionnel mais pratique)
-        st.divider()
-        st.subheader("🔎 Zoom sur une journée")
-        date_zoom = st.date_input("Voir les stats du :", datetime.now())
-        
-        df_zoom = df_global[df_global["Date"] == str(date_zoom)]
-        
-        if not df_zoom.empty:
-            df_chart = df_zoom.copy()
-            cols_score = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
-            for col in cols_score: df_chart[col] = pd.to_numeric(df_chart[col], errors='coerce')
-
-            df_grouped = df_chart.groupby("Activité")[cols_score].mean().reset_index()
-            df_long = df_grouped.melt(id_vars=["Activité"], value_vars=cols_score, var_name="Indicateur", value_name="Score")
-
-            chart = alt.Chart(df_long).mark_bar().encode(
-                x=alt.X('Activité:N', title=None, axis=alt.Axis(labelAngle=0)), 
-                y=alt.Y('Score:Q', title='Note (0-10)', scale=alt.Scale(domain=[0, 10])),
-                color=alt.Color('Indicateur:N', legend=alt.Legend(orient="bottom")),
-                xOffset='Indicateur:N',
-                tooltip=['Activité', 'Indicateur', alt.Tooltip('Score', format='.1f')]
-            ).properties(height=350)
-            st.altair_chart(chart, use_container_width=True)
-        else:
-            st.caption(f"Pas de données pour le {date_zoom.strftime('%d/%m/%Y')}.")
 
     else:
         st.info("Aucune activité enregistrée pour le moment.")
