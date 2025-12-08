@@ -64,7 +64,7 @@ with tab1:
         horizontal=True
     )
     
-    with st.form("form_addiction", clear_on_submit=True):
+    with st.form("form_addiction"):
         c_date, c_heure = st.columns(2)
         with c_date: date_evt = st.date_input("Date", datetime.now())
         with c_heure: heure_evt = st.time_input("Heure", datetime.now().time())
