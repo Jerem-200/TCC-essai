@@ -95,7 +95,7 @@ with c2:
     st.page_link("pages/02_Echelles_BDI.py", label="Tester", icon="➡️")
 
 with c3:
-    st.info("### ⚖️ Balance")
+    st.info("### ⚖️ Balance décisonnelle")
     st.write("Pour & Contre")
     st.page_link("pages/11_Balance_Decisionnelle.py", label="Peser", icon="➡️")
 
@@ -105,17 +105,17 @@ st.divider()
 c4, c5, c6 = st.columns(3)
 
 with c4:
-    st.warning("### 📝 Activités")
+    st.warning("### 📝 Agenda des activités")
     st.write("Registre Plaisir/Maîtrise")
     st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="➡️")
 
 with c5:
-    st.error("### 💡 Résolution Pb")
+    st.error("### 💡 Résolution de problèmes")
     st.write("Trouver des solutions")
     st.page_link("pages/06_Resolution_Probleme.py", label="Lancer", icon="➡️")
 
 with c6:
-    st.error("### 🧗 Exposition")
+    st.error("### 🧗 Protocole d'exposition")
     st.write("Affronter ses peurs")
     st.page_link("pages/09_Exposition.py", label="Planifier", icon="➡️")
 
@@ -126,7 +126,7 @@ c7, c8, c9 = st.columns(3)
 
 with c7:
     # --- CORRECTION ICI (st.info au lieu de st.primary) ---
-    st.info("### 🌙 Sommeil")
+    st.info("### 🌙 Agenda du sommeil")
     st.write("Agenda du sommeil")
     st.page_link("pages/10_Agenda_Sommeil.py", label="Noter", icon="➡️")
 
@@ -136,7 +136,7 @@ with c8:
     st.page_link("pages/07_Relaxation.py", label="Lancer", icon="➡️")
 
 with c9:
-    st.warning("### 🍷 Agenda Conso") 
+    st.warning("### 🍷 Agenda de consommation") 
     st.write("Envies & Substances")
     # Vérifiez que le fichier 13_Agenda_Consos.py existe bien
     st.page_link("pages/13_Agenda_Consos.py", label="Ouvrir", icon="➡️") 
@@ -171,14 +171,14 @@ with st.sidebar:
     st.divider()
     st.title("Navigation")
     st.page_link("streamlit_app.py", label="🏠 Accueil")
-    st.page_link("pages/01_Colonnes_Beck.py", label="🧩 Beck")
+    st.page_link("pages/01_Colonnes_Beck.py", label="🧩 Tableau de Beck")
     st.page_link("pages/02_Echelles_BDI.py", label="📊 BDI")
-    st.page_link("pages/11_Balance_Decisionnelle.py", label="⚖️ Balance")
-    st.page_link("pages/06_Resolution_Probleme.py", label="💡 Problèmes")
-    st.page_link("pages/05_Registre_Activites.py", label="📝 Activités")
+    st.page_link("pages/11_Balance_Decisionnelle.py", label="⚖️ Balance décisionnelle")
+    st.page_link("pages/06_Resolution_Probleme.py", label="💡 Résolution de problèmes")
+    st.page_link("pages/05_Registre_Activites.py", label="📝 Agenda des activités")
     st.page_link("pages/09_Exposition.py", label="🧗 Exposition")
-    st.page_link("pages/10_Agenda_Sommeil.py", label="🌙 Sommeil")
-    st.page_link("pages/13_Agenda_Consos.py", label="🍷 Consos")
+    st.page_link("pages/10_Agenda_Sommeil.py", label="🌙 Agenda du sommeil")
+    st.page_link("pages/13_Agenda_Consos.py", label="🍷 Agenda de consommation")
     st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
     st.page_link("pages/04_Historique.py", label="📜 Historique")
     st.page_link("pages/08_Export_Rapport.py", label="📩 Export PDF")
