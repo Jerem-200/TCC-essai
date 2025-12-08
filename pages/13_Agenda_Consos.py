@@ -24,10 +24,6 @@ if "data_addictions" not in st.session_state:
         "Date", "Heure", "Substance", "Type", "Intensité", "Pensées"
     ])
 
-# NOUVEAU : Mémoire pour retenir l'unité par substance
-if "memoire_unites" not in st.session_state:
-    st.session_state.memoire_unites = {}
-
 # Zone de sélection
 col_info, col_sel = st.columns([2, 2])
 with col_info:
@@ -89,10 +85,6 @@ with tab1:
                 *Ex: "Je serai plus drôle", "Je dormirai mieux", "La soirée sera nulle sans ça".*
                 """)
 
-            st.divider()
-        
-            pensees = st.text_area("Pensées associées / Contexte / Déclencheurs :", placeholder="J'étais avec des amis, je me sentais stressé...")
-
         else: # CONSOMMATION
             st.markdown("#### Mesure de la consommation")
             st.write("Indiquez la quantité exacte.")
@@ -101,9 +93,9 @@ with tab1:
             with c_val:
                 valeur_numerique = st.number_input("Chiffre", min_value=0.0, step=0.5)
             with c_unit:
-                # NOUVEAU : On récupère l'unité mémorisée pour cette substance
-                default_unit = st.session_state.memoire_unites.get(substance_active, "")
-                unite_txt = st.text_input("Unité", value=default_unit, placeholder="ex: Cigarettes, Verres, ml, cl, grammes")
+                # L'utilisateur écrit lui-même l'unité
+                placeholder_txt = "ex: Cigarettes, Verres, ml, cl, grammes"
+                unite_txt = st.text_input("Unité", placeholder=placeholder_txt)
             
             # On prépare le texte de l'unité pour la sauvegarde
             if unite_txt:
@@ -111,11 +103,18 @@ with tab1:
             else:
                 info_unite = f"[{valeur_numerique} ut.] "
 
-
+        st.divider()
+        
+        # PENSÉES (Commun aux deux)
+        pensees = st.text_area("Pensées associées / Contexte / Déclencheurs :", placeholder="J'étais avec des amis, je me sentais stressé...")
+        
         submitted = st.form_submit_button("💾 Enregistrer")
         
         if submitted:
             heure_str = str(heure_evt)[:5]
+            
+            # On combine l'unité et les pensées pour ne rien perdre
+            pensees_finales = info_unite + pensees
             
             # Local
             new_row = {
@@ -124,7 +123,7 @@ with tab1:
                 "Substance": substance_active,
                 "Type": type_evt,
                 "Intensité": valeur_numerique,
-                "Pensées": pensees
+                "Pensées": pensees_finales
             }
             st.session_state.data_addictions = pd.concat([st.session_state.data_addictions, pd.DataFrame([new_row])], ignore_index=True)
             
@@ -135,12 +134,8 @@ with tab1:
             # Ordre : Patient, Date, Heure, Substance, Type, Intensité, Pensées
             save_data("Addictions", [
                 patient, str(date_evt), heure_str, substance_active, 
-                type_evt, valeur_numerique, pensees
+                type_evt, valeur_numerique, pensees_finales
             ])
-            
-            # NOUVEAU : On sauvegarde l'unité dans la mémoire pour la prochaine fois
-            if "CONSOMMÉ" in type_evt and unite_txt:
-                st.session_state.memoire_unites[substance_active] = unite_txt
             
             st.success("Enregistré !")
 
