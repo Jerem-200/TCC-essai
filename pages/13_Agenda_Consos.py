@@ -24,6 +24,10 @@ if "data_addictions" not in st.session_state:
         "Date", "Heure", "Substance", "Type", "Intensité", "Pensées"
     ])
 
+# NOUVEAU : Mémoire pour retenir l'unité par substance
+if "memoire_unites" not in st.session_state:
+    st.session_state.memoire_unites = {}
+
 # Zone de sélection
 col_info, col_sel = st.columns([2, 2])
 with col_info:
@@ -98,9 +102,9 @@ with tab1:
             with c_val:
                 valeur_numerique = st.number_input("Chiffre", min_value=0.0, step=0.5)
             with c_unit:
-                # L'utilisateur écrit lui-même l'unité
-                placeholder_txt = "ex: Cigarettes, Verres, ml, cl, grammes"
-                unite_txt = st.text_input("Unité", placeholder=placeholder_txt)
+                # NOUVEAU : On récupère l'unité mémorisée pour cette substance
+                default_unit = st.session_state.memoire_unites.get(substance_active, "")
+                unite_txt = st.text_input("Unité", value=default_unit, placeholder="ex: Cigarettes, Verres, ml, cl, grammes")
             
             # On prépare le texte de l'unité pour la sauvegarde
             if unite_txt:
@@ -137,6 +141,10 @@ with tab1:
                 patient, str(date_evt), heure_str, substance_active, 
                 type_evt, valeur_numerique, pensees_finales
             ])
+            
+            # NOUVEAU : On sauvegarde l'unité dans la mémoire pour la prochaine fois
+            if "CONSOMMÉ" in type_evt and unite_txt:
+                st.session_state.memoire_unites[substance_active] = unite_txt
             
             st.success("Enregistré !")
 
