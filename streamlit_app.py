@@ -106,78 +106,90 @@ st.title(f"🧠 Bienvenue, {st.session_state.patient_id}")
 st.subheader("Tableau de bord personnel")
 st.divider()
 
-# --- LIGNE 1 ---
-col1, col2 = st.columns(2)
-with col1:
+# --- LIGNE 1 : COGNITIF & ANALYSE ---
+c1, c2, c3 = st.columns(3)
+
+with c1:
     st.info("### 🧩 Restructuration")
-    st.write("Beck & Pensées alternatives")
+    st.write("Colonnes de Beck")
     st.page_link("pages/01_Colonnes_Beck.py", label="Lancer", icon="➡️")
-with col2:
+
+with c2:
     st.info("### 📊 Échelles (BDI)")
-    st.write("Auto-évaluation de l'humeur")
+    st.write("Suivi de l'humeur")
     st.page_link("pages/02_Echelles_BDI.py", label="Tester", icon="➡️")
+
+with c3:
+    st.info("### ⚖️ Balance")
+    st.write("Pour & Contre")
+    st.page_link("pages/11_Balance_Decisionnelle.py", label="Peser", icon="➡️")
 
 st.divider()
 
-# --- LIGNE 2 : ACTION ---
-c3, c4, c5 = st.columns(3) # On passe à 3 colonnes
-
-with c3:
-    st.warning("### 📝 Registre Activités")
-    st.write("Quotidien & Plaisir")
-    st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="➡️")
+# --- LIGNE 2 : ACTION & PROBLÈMES ---
+c4, c5, c6 = st.columns(3)
 
 with c4:
-    st.error("### 💡 Résolution Problèmes")
+    st.warning("### 📝 Activités")
+    st.write("Registre Plaisir/Maîtrise")
+    st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="➡️")
+
+with c5:
+    st.error("### 💡 Résolution Pb")
     st.write("Trouver des solutions")
     st.page_link("pages/06_Resolution_Probleme.py", label="Lancer", icon="➡️")
 
-with c5:
-    # LE NOUVEAU BOUTON
+with c6:
     st.error("### 🧗 Exposition")
     st.write("Affronter ses peurs")
     st.page_link("pages/09_Exposition.py", label="Planifier", icon="➡️")
-    
+
 st.divider()
 
-# --- LIGNE 3 : SANTÉ & BIEN-ÊTRE ---
-c5, c6 = st.columns(2)
+# --- LIGNE 3 : PHYSIOLOGIE & BIEN-ÊTRE ---
+c7, c8, c9 = st.columns(3)
 
-with c5:
-    # NOUVEAU BOUTON SOMMEIL
-    st.info("### 🌙 Sommeil")
+with c7:
+    st.primary("### 🌙 Sommeil")
     st.write("Agenda du sommeil")
-    st.page_link("pages/10_Agenda_Sommeil.py", label="Ouvrir", icon="➡️")
+    st.page_link("pages/10_Agenda_Sommeil.py", label="Noter", icon="➡️")
 
-with c6:
+with c8:
     st.success("### 🧘 Relaxation")
     st.write("Respiration & Détente")
     st.page_link("pages/07_Relaxation.py", label="Lancer", icon="➡️")
 
+with c9:
+    # Si vous avez gardé l'agenda conso (addictions), c'est ici, sinon on laisse vide ou on met historique
+    st.warning("### 🍷 Agenda Conso") 
+    st.write("Envies & Substances")
+    # Vérifiez que le fichier 13_Agenda_Consos.py existe bien, sinon supprimez ce bloc
+    st.page_link("pages/13_Agenda_Consos.py", label="Ouvrir", icon="➡️") 
+
 st.divider()
 
-# --- LIGNE 4 : SUIVI & EXPORT ---
-c7, c8 = st.columns(2)
+# --- LIGNE 4 : SUIVI & RESSOURCES ---
+c10, c11, c12 = st.columns(3)
 
-with c7:
+with c10:
     st.success("### 📜 Historique")
     st.write("Mes progrès")
     st.page_link("pages/04_Historique.py", label="Consulter", icon="📅")
 
-with c8:
-    st.warning("### 📩 Export PDF")
+with c11:
+    st.success("### 📩 Export PDF")
     st.write("Envoyer rapport")
     st.page_link("pages/08_Export_Rapport.py", label="Générer", icon="📤")
 
-st.divider()
+with c12:
+    st.success("### 📚 Ressources")
+    st.write("Fiches pratiques")
+    st.page_link("pages/03_Ressources.py", label="Lire", icon="📚")
 
-with st.expander("📚 Bibliothèque de Fiches & Ressources"):
-    st.write("Accédez aux documents de référence.")
-    st.page_link("pages/03_Ressources.py", label="Ouvrir la bibliothèque", icon="📚")
 
-# --- SIDEBAR ---
+# --- SIDEBAR (MENU COMPLET) ---
 with st.sidebar:
-    st.write(f"Utilisateur : **{st.session_state.patient_id}**")
+    st.write(f"👤 **{st.session_state.patient_id}**")
     if st.button("Se déconnecter"):
         st.session_state.authentifie = False
         st.rerun()
@@ -186,9 +198,13 @@ with st.sidebar:
     st.page_link("streamlit_app.py", label="🏠 Accueil")
     st.page_link("pages/01_Colonnes_Beck.py", label="🧩 Beck")
     st.page_link("pages/02_Echelles_BDI.py", label="📊 BDI")
-    st.page_link("pages/05_Registre_Activites.py", label="📝 Activités")
+    st.page_link("pages/11_Balance_Decisionnelle.py", label="⚖️ Balance")
     st.page_link("pages/06_Resolution_Probleme.py", label="💡 Problèmes")
+    st.page_link("pages/05_Registre_Activites.py", label="📝 Activités")
+    st.page_link("pages/09_Exposition.py", label="🧗 Exposition")
     st.page_link("pages/10_Agenda_Sommeil.py", label="🌙 Sommeil")
+    st.page_link("pages/13_Agenda_Consos.py", label="🍷 Consos")
     st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
+    st.page_link("pages/03_Ressources.py", label="📚 Ressources")
     st.page_link("pages/04_Historique.py", label="📜 Historique")
     st.page_link("pages/08_Export_Rapport.py", label="📩 Export PDF")
