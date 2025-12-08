@@ -196,27 +196,25 @@ with tab2:
                 idx_to_drop = options_history[choice_history]
                 row_to_delete = df_history.loc[idx_to_drop]
 
-                # 1. SUPPRESSION CLOUD (Google Sheets)
+                # 1. SUPPRESSION CLOUD (SIMPLIFIÉE)
                 try:
                     from connect_db import delete_data_flexible
                     pid = st.session_state.get("patient_id", "Anonyme")
                     
-                    # MODIFICATION ICI : On utilise seulement les critères sûrs
-                    # Assurez-vous que les colonnes "Patient", "Date" et "Heure Coucher" existent dans le Sheet
+                    # MODIFICATION : On supprime uniquement sur la base du PATIENT et de la DATE.
+                    # C'est beaucoup plus fiable car ça évite les erreurs de format d'heure (23:00 vs 23:00:00)
                     delete_data_flexible("Sommeil", {
                         "Patient": pid,
-                        "Date": str(row_to_delete['Date']),
-                        "Heure Coucher": str(row_to_delete['Heure Coucher'])
-                        # J'ai retiré "Heure Lever" car le titre est mal placé dans votre Excel
+                        "Date": str(row_to_delete['Date'])
                     })
                 except Exception as e:
-                    st.warning(f"Info Cloud: {e}")
+                    st.warning(f"Erreur Cloud (la suppression locale sera quand même faite) : {e}")
 
                 # 2. SUPPRESSION LOCALE
                 st.session_state.data_sommeil = st.session_state.data_sommeil.drop(idx_to_drop).reset_index(drop=True)
                 st.success("Entrée supprimée !")
                 st.rerun()
-                
+
     else:
         st.info("Remplissez l'agenda pour voir vos statistiques.")
 
