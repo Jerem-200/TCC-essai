@@ -105,7 +105,7 @@ st.divider()
 c4, c5, c6 = st.columns(3)
 
 with c4:
-    st.success("### 🧘 Relaxation")
+    st.error("### 🧘 Relaxation")
     st.write("Respiration & Détente")
     st.page_link("pages/07_Relaxation.py", label="Lancer", icon="➡️")
 
@@ -126,7 +126,7 @@ c7, c8, c9 = st.columns(3)
 
 with c7:
     # --- CORRECTION ICI (st.info au lieu de st.primary) ---
-    st.info("### 🌙 Agenda du sommeil")
+    st.warning("### 🌙 Agenda du sommeil")
     st.write("Agenda du sommeil")
     st.page_link("pages/10_Agenda_Sommeil.py", label="Noter", icon="➡️")
 
