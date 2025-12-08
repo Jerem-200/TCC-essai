@@ -114,40 +114,65 @@ with tab1:
             st.success("Enregistré !")
 
 # ==============================================================================
-# ONGLET 2 : BILAN
+# ONGLET 2 : BILAN (TABLEAU ÉDITABLE + GRAPHIQUE ÉVOLUTION)
 # ==============================================================================
 with tab2:
     st.header(f"Historique : {substance_active}")
     
-    # Filtrage par substance active
-    df = st.session_state.data_addictions
-    df_filtre = df[df["Substance"] == substance_active]
+    # 1. FILTRAGE ET PRÉPARATION
+    df_global = st.session_state.data_addictions
+    # On ne garde que les lignes de la substance active pour l'affichage
+    df_filtre = df_global[df_global["Substance"] == substance_active].sort_values(by=["Date", "Heure"], ascending=False).reset_index(drop=True)
     
     if not df_filtre.empty:
-        # Tableau
-        st.dataframe(df_filtre[["Date", "Heure", "Type", "Intensité", "Pensées"]].sort_values(by=["Date", "Heure"], ascending=False), use_container_width=True)
+        st.info("💡 Vous pouvez modifier les valeurs directement dans le tableau (double-cliquez sur une case).")
         
+        # 2. TABLEAU ÉDITABLE (Comme Agenda Sommeil)
+        # On cache la colonne Substance car on est déjà dans l'onglet de cette substance
+        edited_df = st.data_editor(
+            df_filtre, 
+            column_order=["Date", "Heure", "Type", "Intensité", "Pensées"], 
+            use_container_width=True, 
+            num_rows="dynamic",
+            key=f"editor_{substance_active}" # Clé unique pour éviter les bugs entre substances
+        )
+        
+        # MISE À JOUR DE LA MÉMOIRE SI CHANGEMENT
+        # Si le tableau édité est différent de l'original affiché
+        if not edited_df.equals(df_filtre):
+            # 1. On prend le DF global et on enlève les anciennes lignes de cette substance
+            df_others = df_global[df_global["Substance"] != substance_active]
+            # 2. On remet la colonne "Substance" dans le DF édité (au cas où elle aurait sauté)
+            edited_df["Substance"] = substance_active
+            # 3. On fusionne les autres + les nouvelles lignes éditées
+            st.session_state.data_addictions = pd.concat([df_others, edited_df], ignore_index=True)
+            st.rerun()
+
         st.divider()
-        st.write("#### 📉 Répartition Envies vs Consommations")
-        
-        # Graphique simple (Barres)
-        chart = alt.Chart(df_filtre).mark_bar().encode(
-            x='Type',
-            y='count()',
-            color='Type',
-            tooltip=['Type', 'count()']
-        ).properties(height=300)
+        st.write(f"### Évolution : {substance_active}")
+
+        # 3. GRAPHIQUE AVEC POINTS (ALTAIR)
+        # Préparation de la date complète pour l'axe X
+        df_chart = edited_df.copy()
+        try:
+            df_chart['Full_Date'] = pd.to_datetime(df_chart['Date'].astype(str) + ' ' + df_chart['Heure'].astype(str), errors='coerce')
+        except:
+            df_chart['Full_Date'] = pd.to_datetime(df_chart['Date'])
+
+        # Graphique Ligne + Points
+        chart = alt.Chart(df_chart).mark_line(
+            point=alt.OverlayMarkDef(size=100, filled=True)
+        ).encode(
+            x=alt.X('Full_Date:T', title='Temps', axis=alt.Axis(format='%d/%m %H:%M')),
+            y=alt.Y('Intensité:Q', title='Intensité (0-10)'),
+            color=alt.Color('Type', legend=alt.Legend(title="Type d'événement")), # Couleur différente pour Envie vs Conso
+            tooltip=['Date', 'Heure', 'Type', 'Intensité', 'Pensées']
+        ).interactive()
+
         st.altair_chart(chart, use_container_width=True)
         
-        # Gestion suppression
-        with st.expander("🗑️ Gérer / Supprimer une entrée"):
-            opts = {f"{r['Date']} {r['Heure']} - {r['Type']}": i for i, r in df_filtre.iterrows()}
-            sel = st.selectbox("Choisir", list(opts.keys()))
-            if st.button("Supprimer"):
-                st.session_state.data_addictions = df.drop(opts[sel]).reset_index(drop=True)
-                st.rerun()
     else:
-        st.info("Aucune donnée pour cette substance.")
+        st.info(f"Aucune donnée enregistrée pour '{substance_active}'.")
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
