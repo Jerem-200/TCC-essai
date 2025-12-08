@@ -158,74 +158,7 @@ with tab1:
             
             st.success("Enregistré !")
 
-# ... (Ceci se place à la suite de votre code existant dans l'onglet 1, après st.success)
 
-        # =========================================================
-        # ZONE DE SUPPRESSION (CHOIX LIBRE)
-        # =========================================================
-        st.write("---")
-        with st.expander("🗑️ Supprimer une entrée (Gestion des erreurs)"):
-            
-            # 1. Récupération des données de la substance active
-            df_actuel = st.session_state.data_addictions
-            # On filtre pour n'avoir que la substance en cours
-            df_substance = df_actuel[df_actuel["Substance"] == substance_active].sort_values(by=["Date", "Heure"], ascending=False)
-            
-            if not df_substance.empty:
-                st.warning("Attention : Suppression définitive.")
-                
-                # 2. Création des labels lisibles pour le menu
-                # On crée une copie pour l'affichage
-                df_display_tab1 = df_substance.copy()
-                df_display_tab1['Label'] = df_display_tab1.apply(
-                    lambda x: f"{x['Date']} | {x['Heure']} | {x['Type']} ({x['Intensité']})", axis=1
-                )
-                
-                # 3. Menu déroulant (Avec une 'key' unique pour l'onglet 1)
-                choix_suppr_tab1 = st.selectbox(
-                    "Sélectionnez la ligne à effacer :", 
-                    options=df_display_tab1['Label'],
-                    index=None,
-                    placeholder="Choisir une entrée...",
-                    key="select_suppr_tab1" # <--- Clé unique indispensable
-                )
-                
-                # 4. Bouton de validation (Avec une 'key' unique)
-                if st.button("❌ Supprimer cette entrée", key="btn_suppr_tab1") and choix_suppr_tab1:
-                    # Retrouver la ligne originale
-                    row_to_delete = df_display_tab1[df_display_tab1['Label'] == choix_suppr_tab1].iloc[0]
-                    
-                    # --- A. SUPPRESSION CLOUD ---
-                    try:
-                        from connect_db import delete_data
-                        patient_id = st.session_state.get("patient_id", "Anonyme")
-                        delete_data("Addictions", [
-                            patient_id, 
-                            str(row_to_delete["Date"]), 
-                            str(row_to_delete["Heure"]), 
-                            substance_active
-                        ])
-                        st.toast("Entrée supprimée !", icon="🗑️")
-                    except Exception as e:
-                        st.error(f"Erreur Cloud : {e}")
-                    
-                    # --- B. SUPPRESSION LOCALE ---
-                    # On reprend le DF global pour être sûr de supprimer au bon endroit
-                    df_global = st.session_state.data_addictions
-                    
-                    # On crée un masque pour trouver la ligne exacte
-                    mask = (
-                        (df_global["Date"].astype(str) == str(row_to_delete["Date"])) &
-                        (df_global["Heure"].astype(str) == str(row_to_delete["Heure"])) &
-                        (df_global["Substance"] == substance_active) &
-                        (df_global["Type"] == row_to_delete["Type"])
-                    )
-                    
-                    # On garde l'inverse du masque (~)
-                    st.session_state.data_addictions = df_global[~mask]
-                    st.rerun()
-            else:
-                st.info("Aucune donnée enregistrée pour cette substance.")
         
 
 # ==============================================================================
