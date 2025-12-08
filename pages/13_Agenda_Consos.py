@@ -173,28 +173,62 @@ with tab2:
             st.session_state.data_addictions = pd.concat([df_others, edited_df], ignore_index=True)
             st.rerun()
 
+# ... (le code du tableau éditable reste au dessus) ...
+
         st.divider()
         st.write(f"### Évolution : {substance_active}")
 
-        # 3. GRAPHIQUE AVEC POINTS (ALTAIR)
-        # Préparation de la date complète pour l'axe X
+        # --- PRÉPARATION DES DONNÉES ---
         df_chart = edited_df.copy()
+        
+        # 1. Conversion Date/Heure
         try:
             df_chart['Full_Date'] = pd.to_datetime(df_chart['Date'].astype(str) + ' ' + df_chart['Heure'].astype(str), errors='coerce')
         except:
             df_chart['Full_Date'] = pd.to_datetime(df_chart['Date'])
 
-        # Graphique Ligne + Points
-        chart = alt.Chart(df_chart).mark_line(
-            point=alt.OverlayMarkDef(size=100, filled=True)
-        ).encode(
-            x=alt.X('Full_Date:T', title='Temps', axis=alt.Axis(format='%d/%m %H:%M')),
-            y=alt.Y('Intensité:Q', title='Intensité (0-10)'),
-            color=alt.Color('Type', legend=alt.Legend(title="Type d'événement")), # Couleur différente pour Envie vs Conso
-            tooltip=['Date', 'Heure', 'Type', 'Intensité', 'Pensées']
-        ).interactive()
+        # 2. Conversion Chiffres
+        df_chart['Intensité'] = pd.to_numeric(df_chart['Intensité'], errors='coerce')
 
-        st.altair_chart(chart, use_container_width=True)
+        # 3. SÉPARATION DES DEUX TYPES
+        # On filtre selon le texte contenu dans la colonne "Type"
+        df_envie = df_chart[df_chart["Type"].str.contains("ENVIE", na=False)]
+        df_conso = df_chart[df_chart["Type"].str.contains("CONSOMMÉ", na=False)]
+
+        # --- GRAPHIQUE 1 : LES ENVIES (COURBE) ---
+        if not df_envie.empty:
+            st.subheader("⚡ Évolution des Envies (Craving)")
+            st.caption("Intensité du besoin psychologique (0 à 10)")
+            
+            chart_envie = alt.Chart(df_envie).mark_line(
+                point=alt.OverlayMarkDef(size=100, filled=True, color="#9B59B6") # Violet
+            ).encode(
+                x=alt.X('Full_Date:T', title='Temps', axis=alt.Axis(format='%d/%m %H:%M')),
+                y=alt.Y('Intensité:Q', title='Intensité (0-10)', scale=alt.Scale(domain=[0, 10])),
+                color=alt.value("#9B59B6"), # Ligne Violette
+                tooltip=['Date', 'Heure', 'Intensité', 'Pensées']
+            ).interactive()
+            
+            st.altair_chart(chart_envie, use_container_width=True)
+        
+        # --- GRAPHIQUE 2 : LES CONSOMMATIONS (BARRES) ---
+        if not df_conso.empty:
+            st.subheader("🍷 Quantités Consommées")
+            st.caption("Volumes ou Unités réels")
+            
+            chart_conso = alt.Chart(df_conso).mark_bar(
+                color="#E74C3C", # Rouge
+                size=15 # Largeur des barres
+            ).encode(
+                x=alt.X('Full_Date:T', title='Temps', axis=alt.Axis(format='%d/%m %H:%M')),
+                y=alt.Y('Intensité:Q', title='Quantité'),
+                tooltip=['Date', 'Heure', 'Intensité', 'Pensées']
+            ).interactive()
+            
+            st.altair_chart(chart_conso, use_container_width=True)
+
+        if df_envie.empty and df_conso.empty:
+            st.info("Pas assez de données pour afficher les graphiques.")
         
     else:
         st.info(f"Aucune donnée enregistrée pour '{substance_active}'.")
