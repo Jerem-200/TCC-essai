@@ -85,6 +85,9 @@ with tab1:
                 *Ex: "Je serai plus drôle", "Je dormirai mieux", "La soirée sera nulle sans ça".*
                 """)
 
+        pensees = st.text_area("Pensées associées / Contexte / Déclencheurs :", placeholder="J'étais avec des amis, je me sentais stressé...")
+            
+
         else: # CONSOMMATION
             st.markdown("#### Mesure de la consommation")
             st.write("Indiquez la quantité exacte.")
@@ -104,10 +107,7 @@ with tab1:
                 info_unite = f"[{valeur_numerique} ut.] "
 
         st.divider()
-        
-        # PENSÉES (Commun aux deux)
-        pensees = st.text_area("Pensées associées / Contexte / Déclencheurs :", placeholder="J'étais avec des amis, je me sentais stressé...")
-        
+
         submitted = st.form_submit_button("💾 Enregistrer")
         
         if submitted:
