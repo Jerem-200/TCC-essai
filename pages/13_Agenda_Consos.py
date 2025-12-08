@@ -85,11 +85,10 @@ with tab1:
                 *Ex: "Je serai plus drôle", "Je dormirai mieux", "La soirée sera nulle sans ça".*
                 """)
 
-                st.divider()
+            st.divider()
         
-                # PENSÉES (Commun aux deux)
-                pensees = st.text_area("Pensées associées / Contexte / Déclencheurs :", placeholder="J'étais avec des amis, je me sentais stressé...")
-        
+            # PENSÉES (Commun aux deux)
+            pensees = st.text_area("Pensées associées / Contexte / Déclencheurs :", placeholder="J'étais avec des amis, je me sentais stressé...")
 
         else: # CONSOMMATION
             st.markdown("#### Mesure de la consommation")
