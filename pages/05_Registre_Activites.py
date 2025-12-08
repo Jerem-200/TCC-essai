@@ -119,19 +119,38 @@ with tab1:
         else:
             st.info("Aucune activité récente à supprimer.")
 
-    # --- 4. FORMULAIRE B : HUMEUR ---
+# --- B. HUMEUR ---
     st.subheader("2. Bilan de la journée")
+    
+    # ⚠️ CORRECTIF ICI : Tout le bloc d'enregistrement reste groupé
     with st.form("humeur_form"):
         date_humeur = st.date_input("Date du bilan", datetime.now(), key="date_bilan")
         humeur_globale = st.slider("🌈 Humeur globale du jour (0-10)", 0, 10, 5)
+        
+        # Le bouton Submit doit être ICI, DANS le with st.form
+        submitted_humeur = st.form_submit_button("Enregistrer l'humeur")
+        
+        if submitted_humeur:
+            # Local
+            new_humeur = {"Date": str(date_humeur), "Humeur Globale (0-10)": humeur_globale}
+            st.session_state.data_humeur_jour = pd.concat([st.session_state.data_humeur_jour, pd.DataFrame([new_humeur])], ignore_index=True)
+            
+            # Cloud
+            try:
+                from connect_db import save_data
+                patient = st.session_state.get("patient_id", "Inconnu")
+                save_data("Humeur", [patient, str(date_humeur), humeur_globale])
+                st.success("Humeur enregistrée !")
+            except:
+                st.success("Humeur enregistrée (Local) !")
 
-    # --- AJOUT : SUPPRESSION RAPIDE HUMEUR ---
-    st.write("") # Petit espace
+    # --- SUPPRESSION HUMEUR (HORS DU FORMULAIRE) ---
+    # On sort de l'indentation du st.form pour placer l'outil de suppression
+    st.write("") 
     with st.expander("🗑️ Supprimer un relevé d'humeur"):
         df_hum = st.session_state.data_humeur_jour
         if not df_hum.empty:
             df_hum_sorted = df_hum.sort_values(by=["Date"], ascending=False)
-            
             options_hum = {f"{row['Date']} - Note: {row['Humeur Globale (0-10)']}/10": i for i, row in df_hum_sorted.iterrows()}
             
             choice_hum = st.selectbox("Choisir l'humeur à effacer :", list(options_hum.keys()), key="del_hum_tab1", index=None, placeholder="Sélectionnez...")
@@ -140,38 +159,25 @@ with tab1:
                 idx = options_hum[choice_hum]
                 row = df_hum_sorted.loc[idx]
                 
-                # A. Suppression Cloud (Humeur)
+                # Cloud
                 try:
                     from connect_db import delete_data_flexible
                     pid = st.session_state.get("patient_id", "Inconnu")
-                    
                     delete_data_flexible("Humeur", {
-                        "Patient": pid,
-                        "Date": str(row['Date']),
+                        "Patient": pid, 
+                        "Date": str(row['Date']), 
                         "Humeur Globale (0-10)": row['Humeur Globale (0-10)']
                     })
                 except: pass
                 
-                # B. Suppression Locale
+                # Local
                 st.session_state.data_humeur_jour = df_hum.drop(idx).reset_index(drop=True)
                 st.success("Humeur supprimée !")
                 st.rerun()
         else:
             st.info("Aucun relevé d'humeur récent.")
-        
-        if st.form_submit_button("Enregistrer l'humeur"):
-            # Local
-            new_humeur = {"Date": str(date_humeur), "Humeur Globale (0-10)": humeur_globale}
-            st.session_state.data_humeur_jour = pd.concat([st.session_state.data_humeur_jour, pd.DataFrame([new_humeur])], ignore_index=True)
-            
-            # Cloud
-            from connect_db import save_data
-            patient = st.session_state.get("patient_id", "Inconnu")
-            save_data("Humeur", [patient, str(date_humeur), humeur_globale])
-            
-            st.success("Humeur enregistrée !")
-    
 
+            
 # ==============================================================================
 # ONGLET 2 : HISTORIQUE COMPLET & ANALYSE
 # ==============================================================================
