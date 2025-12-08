@@ -67,7 +67,8 @@ with tab1:
     with st.form("form_addiction"):
         c_date, c_heure = st.columns(2)
         with c_date: date_evt = st.date_input("Date", datetime.now())
-        with c_heure: heure_evt = st.time_input("Heure", value=st.session_state.last_heure)
+        with c_heure: heure_evt = st.time_input("Heure", datetime.now().time())
+    
             
         st.divider()
         
