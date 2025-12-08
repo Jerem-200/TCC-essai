@@ -113,9 +113,6 @@ with tab1:
         if submitted:
             heure_str = str(heure_evt)[:5]
             
-            # On combine l'unité et les pensées pour ne rien perdre
-            pensees_finales = info_unite + pensees
-            
             # Local
             new_row = {
                 "Date": str(date_evt),
@@ -123,7 +120,6 @@ with tab1:
                 "Substance": substance_active,
                 "Type": type_evt,
                 "Intensité": valeur_numerique,
-                "Pensées": pensees_finales
             }
             st.session_state.data_addictions = pd.concat([st.session_state.data_addictions, pd.DataFrame([new_row])], ignore_index=True)
             
@@ -134,7 +130,7 @@ with tab1:
             # Ordre : Patient, Date, Heure, Substance, Type, Intensité, Pensées
             save_data("Addictions", [
                 patient, str(date_evt), heure_str, substance_active, 
-                type_evt, valeur_numerique, pensees_finales
+                type_evt, valeur_numerique
             ])
             
             st.success("Enregistré !")
