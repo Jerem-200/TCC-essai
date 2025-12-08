@@ -198,7 +198,48 @@ with tab2:
         ).interactive()
         
         st.altair_chart(chart, use_container_width=True)
-        
+
+# --- AJOUT : ZONE DE SUPPRESSION DANS L'ONGLET 2 ---
+        st.divider()
+        with st.expander("🗑️ Supprimer une entrée depuis l'historique"):
+            st.warning("Attention : Cette action efface définitivement la ligne sélectionnée.")
+            
+            # On trie les données par date décroissante pour plus de facilité
+            df_history = df.sort_values(by="Date", ascending=False)
+            
+            # Liste déroulante lisible
+            options_history = {f"{row['Date']} (Efficacité: {row['Efficacité']}%)": i for i, row in df_history.iterrows()}
+            
+            choice_history = st.selectbox("Sélectionnez la nuit à supprimer :", list(options_history.keys()), key="del_tab2", index=None, placeholder="Choisir une date...")
+            
+            if st.button("Confirmer la suppression", key="btn_del_tab2") and choice_history:
+                # 1. Retrouver l'index exact dans le DataFrame original
+                idx_to_drop = options_history[choice_history]
+                row_to_delete = df_history.loc[idx_to_drop]
+
+                # 2. Suppression CLOUD (Google Sheets)
+                try:
+                    from connect_db import delete_data_flexible
+                    pid = st.session_state.get("patient_id", "Anonyme")
+                    
+                    # On appelle la fonction de suppression avec les critères exacts
+                    # ATTENTION : Vérifiez que vos colonnes Excel s'appellent bien "Date", "Heure Coucher", etc.
+                    delete_data_flexible("Sommeil", {
+                        "Patient": pid,
+                        "Date": str(row_to_delete['Date']),
+                        "Heure Coucher": str(row_to_delete['Heure Coucher']),
+                        "Heure Lever": str(row_to_delete['Heure Lever'])
+                    })
+                except Exception as e:
+                    # En cas d'erreur de connexion, on continue pour supprimer en local au moins
+                    st.warning(f"Note : Suppression Cloud non effectuée ({e})")
+
+                # 3. Suppression LOCALE
+                st.session_state.data_sommeil = st.session_state.data_sommeil.drop(idx_to_drop).reset_index(drop=True)
+                
+                st.success("Entrée supprimée avec succès !")
+                st.rerun()
+
     else:
         st.info("Remplissez l'agenda pour voir vos statistiques.")
 
