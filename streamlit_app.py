@@ -125,7 +125,8 @@ st.divider()
 c7, c8, c9 = st.columns(3)
 
 with c7:
-    st.primary("### 🌙 Sommeil")
+    # --- CORRECTION ICI (st.info au lieu de st.primary) ---
+    st.info("### 🌙 Sommeil")
     st.write("Agenda du sommeil")
     st.page_link("pages/10_Agenda_Sommeil.py", label="Noter", icon="➡️")
 
@@ -135,10 +136,9 @@ with c8:
     st.page_link("pages/07_Relaxation.py", label="Lancer", icon="➡️")
 
 with c9:
-    # Si vous avez gardé l'agenda conso (addictions), c'est ici, sinon on laisse vide ou on met historique
     st.warning("### 🍷 Agenda Conso") 
     st.write("Envies & Substances")
-    # Vérifiez que le fichier 13_Agenda_Consos.py existe bien, sinon supprimez ce bloc
+    # Vérifiez que le fichier 13_Agenda_Consos.py existe bien
     st.page_link("pages/13_Agenda_Consos.py", label="Ouvrir", icon="➡️") 
 
 st.divider()
