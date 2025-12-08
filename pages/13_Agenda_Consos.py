@@ -158,7 +158,7 @@ with tab1:
             
             st.success("Enregistré !")
 
-            with st.expander("🗑️ Supprimer une entrée (Gestion des erreurs)"):
+    with st.expander("🗑️ Supprimer une entrée (Gestion des erreurs)"):
                 # 1. On récupère les données
                 df_actuel = st.session_state.data_addictions
                 df_substance = df_actuel[df_actuel["Substance"] == substance_active].sort_values(by=["Date", "Heure"], ascending=False)
