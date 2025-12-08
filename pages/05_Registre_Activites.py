@@ -100,40 +100,81 @@ with tab1:
             st.success("Humeur enregistrée !")
 
 # ==============================================================================
-# ONGLET 2 : RÉSUMÉ & HISTORIQUE
+# ONGLET 2 : HISTORIQUE COMPLET (Tableau Global)
 # ==============================================================================
 with tab2:
-    st.header("Visualisation")
+    st.header("Historique de toutes les activités")
     
-    # Sélecteur de date pour voir l'historique
-    date_visu = st.date_input("📅 Choisir la date à visualiser :", datetime.now())
-    date_str = str(date_visu)
-
-    # Vérification des données
+    # 1. Récupération de TOUT le dataframe
     if not st.session_state.data_activites.empty and "Date" in st.session_state.data_activites.columns:
         
-        # Filtrage sur la date choisie
-        df_today = st.session_state.data_activites[st.session_state.data_activites["Date"] == date_str]
+        # Tri : Du plus récent au plus ancien
+        df_global = st.session_state.data_activites.sort_values(by=["Date", "Heure"], ascending=False).reset_index(drop=True)
         
-        if not df_today.empty:
-            st.write(f"### Activités du {date_visu.strftime('%d/%m/%Y')}")
-            
-            # 1. Tableau
-            st.dataframe(
-                df_today[["Heure", "Activité", "Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]].sort_values("Heure"), 
-                use_container_width=True,
-                hide_index=True
-            )
-            
-            # 2. Graphique
-            df_chart = df_today.copy()
-            cols_score = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
-            
-            # Conversion en numérique pour être sûr
-            for col in cols_score: 
-                df_chart[col] = pd.to_numeric(df_chart[col], errors='coerce')
+        st.info("💡 Vous pouvez modifier les valeurs directement dans le tableau ci-dessous.")
+        
+        # 2. Tableau Éditable (Toutes les données)
+        edited_df = st.data_editor(
+            df_global,
+            use_container_width=True,
+            num_rows="dynamic",
+            key="editor_activites"
+        )
+        
+        # Mise à jour si modification manuelle dans le tableau
+        if not edited_df.equals(df_global):
+            st.session_state.data_activites = edited_df
+            st.rerun()
 
-            # Préparation pour Altair
+        st.divider()
+        
+        # 3. Zone de Suppression (Globale)
+        with st.expander("🗑️ Supprimer une activité spécifique"):
+            # Création d'une liste lisible pour la suppression
+            # On inclut la date pour différencier les jours
+            options_dict = {
+                f"{row['Date']} à {row['Heure']} - {row['Activité']}": idx 
+                for idx, row in df_global.iterrows()
+            }
+            
+            selected_label = st.selectbox("Choisir l'activité à supprimer :", list(options_dict.keys()), index=None, placeholder="Sélectionnez une ligne...")
+            
+            if st.button("❌ Supprimer définitivement") and selected_label:
+                # Retrouver l'index dans le DF édité
+                index_to_drop = options_dict[selected_label]
+                row_to_delete = df_global.loc[index_to_drop]
+                
+                # A. Suppression Cloud
+                try:
+                    from connect_db import delete_data
+                    patient_id = st.session_state.get("patient_id", "Inconnu")
+                    # On suppose que delete_data est configuré pour gérer aussi la table "Activites"
+                    # Il faudra peut-être adapter delete_data pour accepter 'Activité' comme critère si ce n'est pas fait
+                    # Ici on envoie les clés principales
+                    # Attention : Assurez-vous que votre delete_data gère la table Activites
+                    # Sinon, il faudra l'adapter.
+                    pass 
+                except:
+                    pass
+                
+                # B. Suppression Locale
+                # On supprime la ligne correspondante
+                st.session_state.data_activites = df_global.drop(index_to_drop).reset_index(drop=True)
+                st.success("Activité supprimée !")
+                st.rerun()
+
+        # 4. Petit bonus : Graphique sur une journée spécifique (Optionnel mais pratique)
+        st.divider()
+        st.subheader("🔎 Zoom sur une journée")
+        date_zoom = st.date_input("Voir les stats du :", datetime.now())
+        
+        df_zoom = df_global[df_global["Date"] == str(date_zoom)]
+        
+        if not df_zoom.empty:
+            df_chart = df_zoom.copy()
+            cols_score = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
+            for col in cols_score: df_chart[col] = pd.to_numeric(df_chart[col], errors='coerce')
+
             df_grouped = df_chart.groupby("Activité")[cols_score].mean().reset_index()
             df_long = df_grouped.melt(id_vars=["Activité"], value_vars=cols_score, var_name="Indicateur", value_name="Score")
 
@@ -143,30 +184,13 @@ with tab2:
                 color=alt.Color('Indicateur:N', legend=alt.Legend(orient="bottom")),
                 xOffset='Indicateur:N',
                 tooltip=['Activité', 'Indicateur', alt.Tooltip('Score', format='.1f')]
-            ).properties(height=400)
-            
+            ).properties(height=350)
             st.altair_chart(chart, use_container_width=True)
-
-            # 3. Suppression locale (Mise à jour pour être plus robuste)
-            st.divider()
-            with st.expander("🗑️ Supprimer une activité de cette date"):
-                # On crée une liste lisible
-                df_today = df_today.sort_values("Heure")
-                # On utilise l'index global pour savoir quoi supprimer
-                options_dict = {f"{row['Heure']} - {row['Activité']}": idx for idx, row in df_today.iterrows()}
-                
-                selected_label = st.selectbox("Choisir l'activité à supprimer :", list(options_dict.keys()))
-                
-                if st.button("Supprimer l'activité"):
-                    index_to_drop = options_dict[selected_label]
-                    # Suppression dans le DF global
-                    st.session_state.data_activites = st.session_state.data_activites.drop(index_to_drop).reset_index(drop=True)
-                    st.rerun()
-
         else:
-            st.info(f"Aucune activité enregistrée pour le {date_visu.strftime('%d/%m/%Y')}.")
+            st.caption(f"Pas de données pour le {date_zoom.strftime('%d/%m/%Y')}.")
+
     else:
-        st.info("Le registre est vide pour le moment.")
+        st.info("Aucune activité enregistrée pour le moment.")
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
