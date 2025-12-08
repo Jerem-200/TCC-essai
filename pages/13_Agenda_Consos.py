@@ -127,7 +127,7 @@ with st.form("form_addiction"):
         
         if submitted:
             # 1. CORRECTION BUG CLOUD : Ajout des secondes (:00) pour le format SQL
-            heure_str = heure_evt.strftime("%H:%M:%S")
+            heure_str = heure_evt.strftime("%H:%M")
             
             # 2. MÉMOIRE : On sauvegarde ce que l'utilisateur vient de mettre
             st.session_state.memoire_heure = heure_evt
