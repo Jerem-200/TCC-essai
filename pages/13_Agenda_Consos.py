@@ -113,7 +113,7 @@ with tab1:
         submitted = st.form_submit_button("💾 Enregistrer")
         
         if submitted:
-            heure_str = str(heure_evt)[:5]
+            heure_str = heure_evt.strftime("%H:%M")
             
             # Local
             new_row = {
