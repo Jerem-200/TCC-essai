@@ -74,14 +74,17 @@ with tab1:
         if "ENVIE" in type_evt:
             st.markdown("#### Évaluation de l'envie")
             valeur_numerique = st.slider("Intensité du craving (0 = Nulle, 10 = Irrépressible)", 0, 10, 5)
-            # Info-bulle pour l'envie
-            with st.expander("ℹ️ Types de pensées à noter"):
+            # Info-bulle pédagogique (Expander pour ne pas prendre trop de place mais être lisible)
+            with st.expander("ℹ️ Aide : Les 3 types de pensées à repérer"):
                 st.markdown("""
-                * **Permissives :** "Juste un seul", "C'est l'occasion".
-                * **Soulageantes :** "Ça va me calmer", "J'en ai besoin".
-                * **Anticipatoires :** "Je serai plus drôle", "Je dormirai mieux".
+                * **🟢 Pensées Permissives :** Autorisations qu'on se donne.  
+                *Ex: "Juste un seul, ça ne compte pas", "C'est l'occasion ou jamais".*
+                * **🔵 Pensées Soulageantes :** Croyance que le produit est le seul remède.  
+                *Ex: "Ça va me calmer", "J'ai besoin de décompresser", "Je ne tiendrai pas sans".*
+                * **🟡 Attentes Positives :** Idéalisation des effets.  
+                *Ex: "Je serai plus drôle", "Je dormirai mieux", "La soirée sera nulle sans ça".*
                 """)
-                
+
         else: # CONSOMMATION
             st.markdown("#### Mesure de la consommation")
             st.write("Indiquez la quantité exacte.")
@@ -201,3 +204,4 @@ with tab2:
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
+
