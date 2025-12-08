@@ -68,7 +68,7 @@ with tab1:
     )
     
 # Important : Pas de clear_on_submit ici
-with st.form("form_addiction"):
+    with st.form("form_addiction"):
         c_date, c_heure = st.columns(2)
         with c_date: 
             date_evt = st.date_input("Date", datetime.now())
