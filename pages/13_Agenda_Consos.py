@@ -131,7 +131,7 @@ with tab1:
             # Ordre : Patient, Date, Heure, Substance, Type, Intensité, Pensées
             save_data("Addictions", [
                 patient, str(date_evt), heure_str, substance_active, 
-                type_evt, valeur_numerique, pensees
+                type_evt, valeur_numerique
             ])
             
             st.success("Enregistré !")
