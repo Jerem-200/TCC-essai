@@ -4,3 +4,4 @@ altair
 gspread
 oauth2client
 fpdf
+mysql-connector-python

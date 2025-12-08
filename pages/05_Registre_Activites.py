@@ -81,11 +81,83 @@ with tab1:
 
     st.divider()
 
+    # --- AJOUT : SUPPRESSION RAPIDE ACTIVITÉ ---
+    with st.expander("🗑️ Supprimer une activité (Erreur de saisie)"):
+        df_act = st.session_state.data_activites
+        if not df_act.empty:
+            # Tri par date décroissante pour voir les dernières en premier
+            df_act_sorted = df_act.sort_values(by=["Date", "Heure"], ascending=False)
+            
+            # Création de la liste déroulante
+            options_act = {f"{row['Date']} à {row['Heure']} - {row['Activité']}": i for i, row in df_act_sorted.iterrows()}
+            
+            choice_act = st.selectbox("Choisir l'activité à effacer :", list(options_act.keys()), key="del_act_tab1", index=None, placeholder="Sélectionnez...")
+            
+            if st.button("Confirmer suppression activité", key="btn_del_act_tab1") and choice_act:
+                idx = options_act[choice_act]
+                row = df_act_sorted.loc[idx]
+                
+                # A. Suppression Cloud (CORRIGÉ AVEC VOS COLONNES)
+                try:
+                    from connect_db import delete_data_flexible
+                    pid = st.session_state.get("patient_id", "Inconnu")
+                    
+                    # ICI : Les clés doivent être IDENTIQUES à votre Excel
+                    delete_data_flexible("Activites", {
+                        "Patient": pid,               # Au lieu de "patient_id"
+                        "Date": str(row['Date']),     # Au lieu de "date"
+                        "Heure": str(row['Heure']),   # Au lieu de "heure"
+                        "Activité": row['Activité']   # Au lieu de "activite"
+                    })
+                except Exception as e:
+                    pass
+                
+                # B. Suppression Locale
+                st.session_state.data_activites = df_act.drop(idx).reset_index(drop=True)
+                st.success("Activité supprimée !")
+                st.rerun()
+        else:
+            st.info("Aucune activité récente à supprimer.")
+
     # --- 4. FORMULAIRE B : HUMEUR ---
     st.subheader("2. Bilan de la journée")
     with st.form("humeur_form"):
         date_humeur = st.date_input("Date du bilan", datetime.now(), key="date_bilan")
         humeur_globale = st.slider("🌈 Humeur globale du jour (0-10)", 0, 10, 5)
+
+    # --- AJOUT : SUPPRESSION RAPIDE HUMEUR ---
+    st.write("") # Petit espace
+    with st.expander("🗑️ Supprimer un relevé d'humeur"):
+        df_hum = st.session_state.data_humeur_jour
+        if not df_hum.empty:
+            df_hum_sorted = df_hum.sort_values(by=["Date"], ascending=False)
+            
+            options_hum = {f"{row['Date']} - Note: {row['Humeur Globale (0-10)']}/10": i for i, row in df_hum_sorted.iterrows()}
+            
+            choice_hum = st.selectbox("Choisir l'humeur à effacer :", list(options_hum.keys()), key="del_hum_tab1", index=None, placeholder="Sélectionnez...")
+            
+            if st.button("Confirmer suppression humeur", key="btn_del_hum_tab1") and choice_hum:
+                idx = options_hum[choice_hum]
+                row = df_hum_sorted.loc[idx]
+                
+                # A. Suppression Cloud (Humeur)
+                try:
+                    from connect_db import delete_data_flexible
+                    pid = st.session_state.get("patient_id", "Inconnu")
+                    
+                    delete_data_flexible("Humeur", {
+                        "Patient": pid,
+                        "Date": str(row['Date']),
+                        "Humeur Globale (0-10)": row['Humeur Globale (0-10)']
+                    })
+                except: pass
+                
+                # B. Suppression Locale
+                st.session_state.data_humeur_jour = df_hum.drop(idx).reset_index(drop=True)
+                st.success("Humeur supprimée !")
+                st.rerun()
+        else:
+            st.info("Aucun relevé d'humeur récent.")
         
         if st.form_submit_button("Enregistrer l'humeur"):
             # Local
@@ -98,6 +170,7 @@ with tab1:
             save_data("Humeur", [patient, str(date_humeur), humeur_globale])
             
             st.success("Humeur enregistrée !")
+    
 
 # ==============================================================================
 # ONGLET 2 : HISTORIQUE COMPLET & ANALYSE
@@ -182,14 +255,23 @@ with tab2:
             
             if st.button("❌ Supprimer définitivement") and selected_label:
                 index_to_drop = options_dict[selected_label]
+                row_to_delete = df_global.loc[index_to_drop]
                 
-                # Suppression Cloud (Dummy block si la fonction n'est pas adaptée pour Activites, sinon ça marche)
+                # Suppression Cloud (CORRIGÉ)
                 try:
-                    from connect_db import delete_data
-                    # Note : Il faut s'assurer que delete_data gère la suppression par ID ou par critères exacts
-                    pass 
+                    from connect_db import delete_data_flexible
+                    pid = st.session_state.get("patient_id", "Inconnu")
+                    
+                    delete_data_flexible("Activites", {
+                        "Patient": pid,
+                        "Date": str(row_to_delete['Date']),
+                        "Heure": str(row_to_delete['Heure']),
+                        "Activité": row_to_delete['Activité']
+                    })
                 except:
                     pass
+                
+                # Suppression Locale... (la suite ne change pas)
                 
                 # Suppression Locale
                 st.session_state.data_activites = df_global.drop(index_to_drop).reset_index(drop=True)
