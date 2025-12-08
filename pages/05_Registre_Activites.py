@@ -249,43 +249,6 @@ with tab2:
             st.info("Pas assez de données valides pour générer le graphique.")
 
         st.divider()
-        
-        # 4. ZONE DE SUPPRESSION (GLOBALE)
-        with st.expander("🗑️ Supprimer une activité spécifique"):
-            options_dict = {
-                f"{row['Date']} à {row['Heure']} - {row['Activité']}": idx 
-                for idx, row in df_global.iterrows()
-            }
-            
-            selected_label = st.selectbox("Choisir l'activité à supprimer :", list(options_dict.keys()), index=None, placeholder="Sélectionnez une ligne...")
-            
-            if st.button("❌ Supprimer définitivement") and selected_label:
-                index_to_drop = options_dict[selected_label]
-                row_to_delete = df_global.loc[index_to_drop]
-                
-                # Suppression Cloud (CORRIGÉ)
-                try:
-                    from connect_db import delete_data_flexible
-                    pid = st.session_state.get("patient_id", "Inconnu")
-                    
-                    delete_data_flexible("Activites", {
-                        "Patient": pid,
-                        "Date": str(row_to_delete['Date']),
-                        "Heure": str(row_to_delete['Heure']),
-                        "Activité": row_to_delete['Activité']
-                    })
-                except:
-                    pass
-                
-                # Suppression Locale... (la suite ne change pas)
-                
-                # Suppression Locale
-                st.session_state.data_activites = df_global.drop(index_to_drop).reset_index(drop=True)
-                st.success("Activité supprimée !")
-                st.rerun()
-
-    else:
-        st.info("Aucune activité enregistrée pour le moment.")
 
     # =========================================================
     # NOUVEAU : GRAPHIQUE D'ÉVOLUTION DE L'HUMEUR
@@ -322,6 +285,44 @@ with tab2:
         
     else:
         st.info("Pas encore de données d'humeur enregistrées pour afficher le graphique.")
+
+
+        # 4. ZONE DE SUPPRESSION (GLOBALE)
+        with st.expander("🗑️ Supprimer une activité spécifique"):
+            options_dict = {
+                f"{row['Date']} à {row['Heure']} - {row['Activité']}": idx 
+                for idx, row in df_global.iterrows()
+            }
+            
+            selected_label = st.selectbox("Choisir l'activité à supprimer :", list(options_dict.keys()), index=None, placeholder="Sélectionnez une ligne...")
+            
+            if st.button("❌ Supprimer définitivement") and selected_label:
+                index_to_drop = options_dict[selected_label]
+                row_to_delete = df_global.loc[index_to_drop]
+                
+                # Suppression Cloud (CORRIGÉ)
+                try:
+                    from connect_db import delete_data_flexible
+                    pid = st.session_state.get("patient_id", "Inconnu")
+                    
+                    delete_data_flexible("Activites", {
+                        "Patient": pid,
+                        "Date": str(row_to_delete['Date']),
+                        "Heure": str(row_to_delete['Heure']),
+                        "Activité": row_to_delete['Activité']
+                    })
+                except:
+                    pass
+                
+                # Suppression Locale... (la suite ne change pas)
+                
+                # Suppression Locale
+                st.session_state.data_activites = df_global.drop(index_to_drop).reset_index(drop=True)
+                st.success("Activité supprimée !")
+                st.rerun()
+
+    else:
+        st.info("Aucune activité enregistrée pour le moment.")
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
