@@ -184,9 +184,10 @@ with tab2:
 # --- ZONE DE SUPPRESSION (ONGLET 2) ---
         st.divider()
         with st.expander("🗑️ Supprimer une entrée depuis l'historique"):
-            # On trie pour faciliter la recherche
-            df_history = df.sort_values(by="Date", ascending=False)
+            # On trie pour faciliter la recherche (dates récentes en haut)
+            df_history = st.session_state.data_sommeil.sort_values(by="Date", ascending=False)
             
+            # Création des labels pour le menu déroulant
             options_history = {f"{row['Date']} (Eff: {row['Efficacité']}%)": i for i, row in df_history.iterrows()}
             
             choice_history = st.selectbox("Sélectionnez la nuit à supprimer :", list(options_history.keys()), key="del_tab2", index=None)
@@ -195,23 +196,27 @@ with tab2:
                 idx_to_drop = options_history[choice_history]
                 row_to_delete = df_history.loc[idx_to_drop]
 
-                # 1. SUPPRESSION CLOUD
+                # 1. SUPPRESSION CLOUD (Google Sheets)
                 try:
                     from connect_db import delete_data_flexible
                     pid = st.session_state.get("patient_id", "Anonyme")
                     
+                    # MODIFICATION ICI : On utilise seulement les critères sûrs
+                    # Assurez-vous que les colonnes "Patient", "Date" et "Heure Coucher" existent dans le Sheet
                     delete_data_flexible("Sommeil", {
                         "Patient": pid,
-                        "Date": str(row_to_delete['Date'])
+                        "Date": str(row_to_delete['Date']),
+                        "Heure Coucher": str(row_to_delete['Heure Coucher'])
+                        # J'ai retiré "Heure Lever" car le titre est mal placé dans votre Excel
                     })
-                except:
-                    pass
+                except Exception as e:
+                    st.warning(f"Info Cloud: {e}")
 
                 # 2. SUPPRESSION LOCALE
                 st.session_state.data_sommeil = st.session_state.data_sommeil.drop(idx_to_drop).reset_index(drop=True)
                 st.success("Entrée supprimée !")
                 st.rerun()
-
+                
     else:
         st.info("Remplissez l'agenda pour voir vos statistiques.")
 
