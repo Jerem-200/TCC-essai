@@ -105,9 +105,9 @@ st.divider()
 c4, c5, c6 = st.columns(3)
 
 with c4:
-    st.warning("### 📝 Agenda des activités")
-    st.write("Registre Plaisir/Maîtrise")
-    st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="➡️")
+    st.success("### 🧘 Relaxation")
+    st.write("Respiration & Détente")
+    st.page_link("pages/07_Relaxation.py", label="Lancer", icon="➡️")
 
 with c5:
     st.error("### 💡 Résolution de problèmes")
@@ -131,9 +131,9 @@ with c7:
     st.page_link("pages/10_Agenda_Sommeil.py", label="Noter", icon="➡️")
 
 with c8:
-    st.success("### 🧘 Relaxation")
-    st.write("Respiration & Détente")
-    st.page_link("pages/07_Relaxation.py", label="Lancer", icon="➡️")
+    st.warning("### 📝 Agenda des activités")
+    st.write("Registre Plaisir/Maîtrise")
+    st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="➡️")
 
 with c9:
     st.warning("### 🍷 Agenda de consommation") 
@@ -172,14 +172,15 @@ with st.sidebar:
     st.title("Navigation")
     st.page_link("streamlit_app.py", label="🏠 Accueil")
     st.page_link("pages/01_Colonnes_Beck.py", label="🧩 Tableau de Beck")
-    st.page_link("pages/02_Echelles_BDI.py", label="📊 BDI")
     st.page_link("pages/11_Balance_Decisionnelle.py", label="⚖️ Balance décisionnelle")
     st.page_link("pages/06_Resolution_Probleme.py", label="💡 Résolution de problèmes")
     st.page_link("pages/05_Registre_Activites.py", label="📝 Agenda des activités")
-    st.page_link("pages/09_Exposition.py", label="🧗 Exposition")
     st.page_link("pages/10_Agenda_Sommeil.py", label="🌙 Agenda du sommeil")
     st.page_link("pages/13_Agenda_Consos.py", label="🍷 Agenda de consommation")
+    st.page_link("pages/02_Echelles_BDI.py", label="📊 BDI")
     st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
+    st.page_link("pages/09_Exposition.py", label="🧗 Exposition")
+    st.page_link("pages/03_Ressources.py", label="📚 Ressources")
     st.page_link("pages/04_Historique.py", label="📜 Historique")
     st.page_link("pages/08_Export_Rapport.py", label="📩 Export PDF")
-    st.page_link("pages/03_Ressources.py", label="📚 Ressources")
+ 
