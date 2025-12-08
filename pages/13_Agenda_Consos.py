@@ -117,26 +117,33 @@ with tab1:
         submitted = st.form_submit_button("💾 Enregistrer")
         
         if submitted:
-            heure_str = heure_evt.strftime("%H:%M")
-            
-            # Local
+            # Combine explicitement la date ET l'heure choisies par l'utilisateur
+            full_dt = datetime.combine(date_evt, heure_evt)  # <-- important : on prend la valeur du formulaire
+            # formatage : garde les secondes si tu veux une précision complète
+            date_str = full_dt.date().isoformat()            # ex: '2025-12-08'
+            heure_str = full_dt.time().strftime("%H:%M:%S")  # ex: '14:30:00'
+
+            # Local (on garde la même structure de DataFrame)
             new_row = {
-                "Date": str(date_evt),
+                "Date": date_str,
                 "Heure": heure_str,
                 "Substance": substance_active,
                 "Type": type_evt,
                 "Intensité": valeur_numerique,
-                "Pensées" : pensees
+                "Pensées": pensees
             }
-            st.session_state.data_addictions = pd.concat([st.session_state.data_addictions, pd.DataFrame([new_row])], ignore_index=True)
-            
-            # Cloud
+            st.session_state.data_addictions = pd.concat(
+                [st.session_state.data_addictions, pd.DataFrame([new_row])],
+                ignore_index=True
+            )
+
+            # Cloud : on envoie la date ET l'heure issues du formulaire (pas l'heure courante)
             from connect_db import save_data
             patient = st.session_state.get("patient_id", "Anonyme")
-            
+
             # Ordre : Patient, Date, Heure, Substance, Type, Intensité, Pensées
             save_data("Addictions", [
-                patient, str(date_evt), heure_str, substance_active, 
+                patient, date_str, heure_str, substance_active,
                 type_evt, valeur_numerique, pensees
             ])
             
