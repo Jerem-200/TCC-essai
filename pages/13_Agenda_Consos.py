@@ -120,6 +120,7 @@ with tab1:
                 "Substance": substance_active,
                 "Type": type_evt,
                 "Intensité": valeur_numerique,
+                "Pensées" : pensees
             }
             st.session_state.data_addictions = pd.concat([st.session_state.data_addictions, pd.DataFrame([new_row])], ignore_index=True)
             
