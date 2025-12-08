@@ -106,7 +106,7 @@ with tab1:
             else:
                 info_unite = f"[{valeur_numerique} ut.] "
 
-            pensees = st.text_area("Contexte / Déclencheur :", placeholder="Où étiez-vous ? Avec qui ? Que s'est-il passé juste avant ?")
+            pensees = ""
 
         st.divider()
 
