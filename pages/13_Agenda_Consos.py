@@ -104,7 +104,6 @@ with tab1:
                 placeholder_txt = "ex: Cigarettes, Verres, ml, cl, grammes"
                 unite_txt = st.text_input("Unité", placeholder=placeholder_txt)
                 default_unit = st.session_state.memoire_unites.get(substance_active, "")
-                unite_txt = st.text_input("Unité", value=default_unit, placeholder="ex: Verres, Cigarettes")
             
             # On prépare le texte de l'unité pour la sauvegarde
             if unite_txt:
