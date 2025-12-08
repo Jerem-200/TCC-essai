@@ -157,8 +157,8 @@ with tab1:
             ])
             
             st.success("Enregistré !")
-        
-        # ... (Ceci se place à la suite de votre code existant dans l'onglet 1, après st.success)
+
+# ... (Ceci se place à la suite de votre code existant dans l'onglet 1, après st.success)
 
         # =========================================================
         # ZONE DE SUPPRESSION (CHOIX LIBRE)
@@ -226,6 +226,7 @@ with tab1:
                     st.rerun()
             else:
                 st.info("Aucune donnée enregistrée pour cette substance.")
+        
 
 # ==============================================================================
 # ONGLET 2 : BILAN (TABLEAU ÉDITABLE + GRAPHIQUE ÉVOLUTION)
