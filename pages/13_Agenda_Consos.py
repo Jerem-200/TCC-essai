@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
-from datetime import datetime
+from datetime import datetime, time 
 
 st.set_page_config(page_title="Agenda Consos", page_icon="🍷")
 
@@ -24,9 +24,12 @@ if "data_addictions" not in st.session_state:
         "Date", "Heure", "Substance", "Type", "Intensité", "Pensées"
     ])
 
-# NOUVEAU : Mémoire pour retenir l'unité par substance
-if "memoire_unites" not in st.session_state:
-    st.session_state.memoire_unites = {}
+# --- MEMOIRE INTELLIGENTE (Session State) ---
+# C'est ici qu'on définit les valeurs par défaut fixes (pas l'heure actuelle)
+if "memoire_heure" not in st.session_state:
+    st.session_state.memoire_heure = time(12, 00) # <--- Par défaut : 12h00
+if "memoire_unite" not in st.session_state:
+    st.session_state.memoire_unite = ""
 
 # Zone de sélection
 col_info, col_sel = st.columns([2, 2])
@@ -64,10 +67,15 @@ with tab1:
         horizontal=True
     )
     
-    with st.form("form_addiction"):
+# Important : Pas de clear_on_submit ici
+with st.form("form_addiction"):
         c_date, c_heure = st.columns(2)
-        with c_date: date_evt = st.date_input("Date", datetime.now())
-        with c_heure: heure_evt = st.time_input("Heure", datetime.now().time())
+        with c_date: 
+            date_evt = st.date_input("Date", datetime.now())
+        with c_heure: 
+            # --- MODIFIER CETTE LIGNE ---
+            # On utilise la valeur en mémoire au lieu de datetime.now()
+            heure_evt = st.time_input("Heure", value=st.session_state.memoire_heure)
             
         st.divider()
         
@@ -95,15 +103,16 @@ with tab1:
         else: # CONSOMMATION
             st.markdown("#### Mesure de la consommation")
             st.write("Indiquez la quantité exacte.")
-            
+
             c_val, c_unit = st.columns([1, 1])
             with c_val:
                 valeur_numerique = st.number_input("Chiffre", min_value=0.0, step=0.5)
             with c_unit:
-                # L'utilisateur écrit lui-même l'unité
                 placeholder_txt = "ex: Cigarettes, Verres, ml, cl, grammes"
-                unite_txt = st.text_input("Unité", placeholder=placeholder_txt)
-            
+                # --- MODIFIER CETTE LIGNE ---
+                # On ajoute value=... pour pré-remplir avec la dernière unité utilisée
+                unite_txt = st.text_input("Unité", value=st.session_state.memoire_unite, placeholder=placeholder_txt)
+
             # On prépare le texte de l'unité pour la sauvegarde
             if unite_txt:
                 info_unite = f"[{valeur_numerique} {unite_txt}] "
@@ -122,7 +131,7 @@ with tab1:
             # Local
             new_row = {
                 "Date": str(date_evt),
-                "Heure": heure_evt,
+                "Heure": heure_str,
                 "Substance": substance_active,
                 "Type": type_evt,
                 "Intensité": valeur_numerique,
