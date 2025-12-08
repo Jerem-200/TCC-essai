@@ -249,44 +249,7 @@ with tab2:
             st.info("Pas assez de données valides pour générer le graphique.")
 
         st.divider()
-
-    # =========================================================
-    # NOUVEAU : GRAPHIQUE D'ÉVOLUTION DE L'HUMEUR
-    # =========================================================
-    st.divider()
-    st.subheader("🌈 Évolution de l'Humeur")
-    
-    # 1. Récupération des données d'humeur
-    df_humeur = st.session_state.get("data_humeur_jour", pd.DataFrame())
-    
-    if not df_humeur.empty and "Date" in df_humeur.columns:
-        # 2. Préparation : On trie par date pour que la ligne soit logique
-        df_chart_humeur = df_humeur.copy()
-        df_chart_humeur["Date"] = pd.to_datetime(df_chart_humeur["Date"])
-        df_chart_humeur = df_chart_humeur.sort_values("Date")
         
-        # 3. Création du graphique (Ligne avec points)
-        chart_humeur = alt.Chart(df_chart_humeur).mark_line(
-            point=alt.OverlayMarkDef(size=100, filled=True, color="#FFA500"), # Points oranges
-            color="#FFA500" # Ligne orange
-        ).encode(
-            x=alt.X('Date:T', title='Date', axis=alt.Axis(format='%d/%m')),
-            y=alt.Y('Humeur Globale (0-10):Q', title='Humeur (0-10)', scale=alt.Scale(domain=[0, 10])),
-            tooltip=[
-                alt.Tooltip('Date', format='%d/%m/%Y'), 
-                'Humeur Globale (0-10)'
-            ]
-        ).properties(
-            height=300,
-            title="Suivi de l'humeur quotidienne"
-        ).interactive()
-        
-        st.altair_chart(chart_humeur, use_container_width=True)
-        
-    else:
-        st.info("Pas encore de données d'humeur enregistrées pour afficher le graphique.")
-
-
         # 4. ZONE DE SUPPRESSION (GLOBALE)
         with st.expander("🗑️ Supprimer une activité spécifique"):
             options_dict = {
@@ -323,6 +286,42 @@ with tab2:
 
     else:
         st.info("Aucune activité enregistrée pour le moment.")
+
+    # =========================================================
+    # NOUVEAU : GRAPHIQUE D'ÉVOLUTION DE L'HUMEUR
+    # =========================================================
+    st.divider()
+    st.subheader("🌈 Évolution de l'Humeur")
+    
+    # 1. Récupération des données d'humeur
+    df_humeur = st.session_state.get("data_humeur_jour", pd.DataFrame())
+    
+    if not df_humeur.empty and "Date" in df_humeur.columns:
+        # 2. Préparation : On trie par date pour que la ligne soit logique
+        df_chart_humeur = df_humeur.copy()
+        df_chart_humeur["Date"] = pd.to_datetime(df_chart_humeur["Date"])
+        df_chart_humeur = df_chart_humeur.sort_values("Date")
+        
+        # 3. Création du graphique (Ligne avec points)
+        chart_humeur = alt.Chart(df_chart_humeur).mark_line(
+            point=alt.OverlayMarkDef(size=100, filled=True, color="#FFA500"), # Points oranges
+            color="#FFA500" # Ligne orange
+        ).encode(
+            x=alt.X('Date:T', title='Date', axis=alt.Axis(format='%d/%m')),
+            y=alt.Y('Humeur Globale (0-10):Q', title='Humeur (0-10)', scale=alt.Scale(domain=[0, 10])),
+            tooltip=[
+                alt.Tooltip('Date', format='%d/%m/%Y'), 
+                'Humeur Globale (0-10)'
+            ]
+        ).properties(
+            height=300,
+            title="Suivi de l'humeur quotidienne"
+        ).interactive()
+        
+        st.altair_chart(chart_humeur, use_container_width=True)
+        
+    else:
+        st.info("Pas encore de données d'humeur enregistrées pour afficher le graphique.")
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
