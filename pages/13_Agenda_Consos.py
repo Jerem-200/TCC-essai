@@ -210,8 +210,6 @@ with tab1:
         else:
             st.info("Aucune donnée à supprimer pour cette substance.")
 
-        
-
 # ==============================================================================
 # ONGLET 2 : BILAN (TABLEAU ÉDITABLE + GRAPHIQUE ÉVOLUTION)
 # ==============================================================================
