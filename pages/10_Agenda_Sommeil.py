@@ -185,43 +185,43 @@ with tab2:
         st.divider()
         with st.expander("🗑️ Supprimer une entrée depuis l'historique"):
             # 1. On trie les données (les plus récentes en haut)
-            df_history = st.session_state.data_sommeil.sort_values(by="Date", ascending=False)
+            # On utilise le DF global pour avoir accès à tout
+            df_history = st.session_state.data_addictions.sort_values(by=["Date", "Heure"], ascending=False)
             
-            # 2. On crée les options pour le menu déroulant
-            options_history = {f"{row['Date']} (Eff: {row['Efficacité']}%)": i for i, row in df_history.iterrows()}
-            
-            # 3. Le menu de sélection
-            choice_history = st.selectbox("Sélectionnez la nuit à supprimer :", list(options_history.keys()), key="del_tab2", index=None)
-            
-            # 4. Le bouton de confirmation
-            if st.button("Confirmer la suppression", key="btn_del_tab2") and choice_history:
-                # Retrouver la ligne à supprimer
-                idx_to_drop = options_history[choice_history]
-                row_to_delete = df_history.loc[idx_to_drop]
-
-                # --- A. SUPPRESSION CLOUD (Google Sheets) ---
-                try:
-                    from connect_db import delete_data_flexible
-                    pid = st.session_state.get("patient_id", "Anonyme")
-                    
-                    # On appelle votre fonction avec les critères Patient + Date
-                    # Les clés "Patient" et "Date" doivent correspondre aux titres de votre Excel
-                    success = delete_data_flexible("Sommeil", {
-                        "Patient": pid,
-                        "Date": str(row_to_delete['Date'])  
-                    })
-                    
-                    if not success:
-                        st.warning("⚠️ Ligne introuvable dans le Cloud (Vérifiez les titres colonnes A et B dans Excel). Suppression locale effectuée.")
-                        
-                except Exception as e:
-                    st.warning(f"Erreur Cloud : {e}")
-
-                # --- B. SUPPRESSION LOCALE ---
-                st.session_state.data_sommeil = st.session_state.data_sommeil.drop(idx_to_drop).reset_index(drop=True)
+            if not df_history.empty:
+                # 2. Création des options
+                options_history = {f"{row['Date']} - {row['Heure']} : {row['Substance']} ({row['Type']})": i for i, row in df_history.iterrows()}
                 
-                st.success("Entrée supprimée avec succès !")
-                st.rerun()
+                # 3. Menu de sélection
+                choice_history = st.selectbox("Sélectionnez l'entrée à supprimer :", list(options_history.keys()), key="del_tab2", index=None)
+                
+                # 4. Bouton de confirmation
+                if st.button("Confirmer la suppression", key="btn_del_tab2") and choice_history:
+                    idx_to_drop = options_history[choice_history]
+                    row_to_delete = df_history.loc[idx_to_drop]
+
+                    # --- A. SUPPRESSION CLOUD ---
+                    try:
+                        from connect_db import delete_data_flexible
+                        pid = st.session_state.get("patient_id", "Anonyme")
+                        
+                        success = delete_data_flexible("Addictions", {
+                            "Patient": pid,
+                            "Date": str(row_to_delete['Date']),
+                            "Heure": str(row_to_delete['Heure']),
+                            "Substance": str(row_to_delete['Substance'])
+                        })
+                        
+                        if not success:
+                             st.warning("⚠️ Ligne introuvable sur le Cloud.")
+
+                    except Exception as e:
+                        st.warning(f"Info Cloud : {e}")
+
+                    # --- B. SUPPRESSION LOCALE ---
+                    st.session_state.data_addictions = st.session_state.data_addictions.drop(idx_to_drop).reset_index(drop=True)
+                    st.success("Entrée supprimée avec succès !")
+                    st.rerun()
 
     else:
         st.info("Remplissez l'agenda pour voir vos statistiques.")
