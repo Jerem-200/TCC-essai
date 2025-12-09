@@ -184,35 +184,43 @@ with tab2:
 # --- ZONE DE SUPPRESSION (ONGLET 2) ---
         st.divider()
         with st.expander("🗑️ Supprimer une entrée depuis l'historique"):
-            # On trie pour faciliter la recherche (dates récentes en haut)
+            # 1. On trie les données (les plus récentes en haut)
             df_history = st.session_state.data_sommeil.sort_values(by="Date", ascending=False)
             
-            # Création des labels pour le menu déroulant
+            # 2. On crée les options pour le menu déroulant
             options_history = {f"{row['Date']} (Eff: {row['Efficacité']}%)": i for i, row in df_history.iterrows()}
             
+            # 3. Le menu de sélection
             choice_history = st.selectbox("Sélectionnez la nuit à supprimer :", list(options_history.keys()), key="del_tab2", index=None)
             
+            # 4. Le bouton de confirmation
             if st.button("Confirmer la suppression", key="btn_del_tab2") and choice_history:
+                # Retrouver la ligne à supprimer
                 idx_to_drop = options_history[choice_history]
                 row_to_delete = df_history.loc[idx_to_drop]
 
-                # 1. SUPPRESSION CLOUD (SIMPLIFIÉE)
+                # --- A. SUPPRESSION CLOUD (Google Sheets) ---
                 try:
                     from connect_db import delete_data_flexible
                     pid = st.session_state.get("patient_id", "Anonyme")
                     
-                    # MODIFICATION : On supprime uniquement sur la base du PATIENT et de la DATE.
-                    # C'est beaucoup plus fiable car ça évite les erreurs de format d'heure (23:00 vs 23:00:00)
-                    delete_data_flexible("Sommeil", {
+                    # On appelle votre fonction avec les critères Patient + Date
+                    # Les clés "Patient" et "Date" doivent correspondre aux titres de votre Excel
+                    success = delete_data_flexible("Sommeil", {
                         "Patient": pid,
                         "Date": str(row_to_delete['Date'])
                     })
+                    
+                    if not success:
+                        st.warning("⚠️ Ligne introuvable dans le Cloud (Vérifiez les titres colonnes A et B dans Excel). Suppression locale effectuée.")
+                        
                 except Exception as e:
-                    st.warning(f"Erreur Cloud (la suppression locale sera quand même faite) : {e}")
+                    st.warning(f"Erreur Cloud : {e}")
 
-                # 2. SUPPRESSION LOCALE
+                # --- B. SUPPRESSION LOCALE ---
                 st.session_state.data_sommeil = st.session_state.data_sommeil.drop(idx_to_drop).reset_index(drop=True)
-                st.success("Entrée supprimée !")
+                
+                st.success("Entrée supprimée avec succès !")
                 st.rerun()
 
     else:
