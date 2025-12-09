@@ -308,7 +308,6 @@ with tab2:
         st.divider()
         with st.expander("🗑️ Supprimer une entrée depuis l'historique"):
             # On trie pour faciliter la recherche
-            # On utilise le dataframe filtré sur la substance active
             df_history = df_filtre.sort_values(by=["Date", "Heure"], ascending=False)
             
             # Création des labels
@@ -320,25 +319,26 @@ with tab2:
                 idx_to_drop = options_history[choice_history]
                 row_to_delete = df_history.loc[idx_to_drop]
 
-                # 1. SUPPRESSION CLOUD
+                # --- SUPPRESSION CLOUD (CORRIGÉE) ---
                 try:
                     from connect_db import delete_data_flexible
                     pid = st.session_state.get("patient_id", "Anonyme")
                     
+                    # Force le format HH:MM
+                    heure_clean = str(row_to_delete['Heure'])[:5]
+                    
                     delete_data_flexible("Addictions", {
-                        "Patient": pid, # Vérifiez le titre colonne Excel ("Patient" ?)
-                        "Date": str(row_to_delete['Date']), # Vérifiez titre colonne Excel ("Date" ?)
-                        "Heure": str(row_to_delete['Heure']), # Vérifiez titre colonne Excel ("Heure" ?)
-                        "Substance": substance_active # Vérifiez titre colonne Excel ("Substance" ?)
+                        "Patient": pid,
+                        "Date": str(row_to_delete['Date']),
+                        "Heure": heure_clean
                     })
                 except Exception as e:
                     st.warning(f"Info Cloud : {e}")
 
-                # 2. SUPPRESSION LOCALE
-                # On doit supprimer dans le DF global (st.session_state.data_addictions)
+                # --- SUPPRESSION LOCALE ---
                 df_global = st.session_state.data_addictions
                 
-                # Masque pour trouver la ligne unique
+                # Masque pour trouver la ligne unique dans le tableau global
                 mask = (
                     (df_global["Date"].astype(str) == str(row_to_delete["Date"])) &
                     (df_global["Heure"].astype(str) == str(row_to_delete["Heure"])) &
