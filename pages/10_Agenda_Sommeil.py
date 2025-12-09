@@ -208,8 +208,7 @@ with tab2:
                     # Les clés "Patient" et "Date" doivent correspondre aux titres de votre Excel
                     success = delete_data_flexible("Sommeil", {
                         "Patient": pid,
-                        "Date": str(row_to_delete['Date']),
-                        "Efficacité": str(row_to_delete['Efficacité'])    
+                        "Date": str(row_to_delete['Date'])  
                     })
                     
                     if not success:
