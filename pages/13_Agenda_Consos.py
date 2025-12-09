@@ -326,10 +326,10 @@ with tab2:
                     pid = st.session_state.get("patient_id", "Anonyme")
                     
                     delete_data_flexible("Addictions", {
-                        "patient_id": pid, # Vérifiez le titre colonne Excel ("Patient" ?)
-                        "date": str(row_to_delete['Date']), # Vérifiez titre colonne Excel ("Date" ?)
-                        "heure": str(row_to_delete['Heure']), # Vérifiez titre colonne Excel ("Heure" ?)
-                        "substance": substance_active # Vérifiez titre colonne Excel ("Substance" ?)
+                        "Patient": pid, # Vérifiez le titre colonne Excel ("Patient" ?)
+                        "Date": str(row_to_delete['Date']), # Vérifiez titre colonne Excel ("Date" ?)
+                        "Heure": str(row_to_delete['Heure']), # Vérifiez titre colonne Excel ("Heure" ?)
+                        "Substance": substance_active # Vérifiez titre colonne Excel ("Substance" ?)
                     })
                 except Exception as e:
                     st.warning(f"Info Cloud : {e}")
