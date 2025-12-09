@@ -307,48 +307,44 @@ with tab2:
 # --- ZONE DE SUPPRESSION (ONGLET 2) ---
         st.divider()
         with st.expander("🗑️ Supprimer une entrée depuis l'historique"):
-            # On trie pour faciliter la recherche
-            df_history = df_filtre.sort_values(by=["Date", "Heure"], ascending=False)
+            # 1. On trie les données (les plus récentes en haut)
+            # On utilise le DF global pour avoir accès à tout
+            df_history = st.session_state.data_addictions.sort_values(by=["Date", "Heure"], ascending=False)
             
-            # Création des labels
-            options_history = {f"{row['Date']} - {row['Heure']} ({row['Type']})": i for i, row in df_history.iterrows()}
-            
-            choice_history = st.selectbox("Sélectionnez l'entrée à supprimer :", list(options_history.keys()), key="del_tab2", index=None)
-            
-            if st.button("Confirmer la suppression", key="btn_del_tab2") and choice_history:
-                idx_to_drop = options_history[choice_history]
-                row_to_delete = df_history.loc[idx_to_drop]
-
-                # --- SUPPRESSION CLOUD (CORRIGÉE) ---
-                try:
-                    from connect_db import delete_data_flexible
-                    pid = st.session_state.get("patient_id", "Anonyme")
-                    
-                    # Force le format HH:MM
-                    heure_clean = str(row_to_delete['Heure'])[:5]
-                    
-                    delete_data_flexible("Addictions", {
-                        "Patient": pid,
-                        "Date": str(row_to_delete['Date']),
-                        "Heure": heure_clean
-                    })
-                except Exception as e:
-                    st.warning(f"Info Cloud : {e}")
-
-                # --- SUPPRESSION LOCALE ---
-                df_global = st.session_state.data_addictions
+            if not df_history.empty:
+                # 2. Création des options
+                options_history = {f"{row['Date']} - {row['Heure']} : {row['Substance']} ({row['Type']})": i for i, row in df_history.iterrows()}
                 
-                # Masque pour trouver la ligne unique dans le tableau global
-                mask = (
-                    (df_global["Date"].astype(str) == str(row_to_delete["Date"])) &
-                    (df_global["Heure"].astype(str) == str(row_to_delete["Heure"])) &
-                    (df_global["Substance"] == substance_active) &
-                    (df_global["Type"] == row_to_delete["Type"])
-                )
+                # 3. Menu de sélection
+                choice_history = st.selectbox("Sélectionnez l'entrée à supprimer :", list(options_history.keys()), key="del_tab2", index=None)
                 
-                st.session_state.data_addictions = df_global[~mask].reset_index(drop=True)
-                st.success("Entrée supprimée !")
-                st.rerun()
+                # 4. Bouton de confirmation
+                if st.button("Confirmer la suppression", key="btn_del_tab2") and choice_history:
+                    idx_to_drop = options_history[choice_history]
+                    row_to_delete = df_history.loc[idx_to_drop]
+
+                    # --- A. SUPPRESSION CLOUD ---
+                    try:
+                        from connect_db import delete_data_flexible
+                        pid = st.session_state.get("patient_id", "Anonyme")
+                        
+                        success = delete_data_flexible("Addictions", {
+                            "Patient": pid,
+                            "Date": str(row_to_delete['Date']),
+                            "Heure": str(row_to_delete['Heure']),
+                            "Substance": str(row_to_delete['Substance'])
+                        })
+                        
+                        if not success:
+                             st.warning("⚠️ Ligne introuvable sur le Cloud.")
+
+                    except Exception as e:
+                        st.warning(f"Info Cloud : {e}")
+
+                    # --- B. SUPPRESSION LOCALE ---
+                    st.session_state.data_addictions = st.session_state.data_addictions.drop(idx_to_drop).reset_index(drop=True)
+                    st.success("Entrée supprimée avec succès !")
+                    st.rerun()
 
     else:
         st.info(f"Aucune donnée enregistrée pour '{substance_active}'.")
