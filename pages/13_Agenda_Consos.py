@@ -345,6 +345,8 @@ with tab2:
                     st.session_state.data_addictions = st.session_state.data_addictions.drop(idx_to_drop).reset_index(drop=True)
                     st.success("Entrée supprimée avec succès !")
                     st.rerun()
+            else:
+                st.info("Historique vide.")
 
     else:
         st.info(f"Aucune donnée enregistrée pour '{substance_active}'.")
