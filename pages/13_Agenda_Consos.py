@@ -303,7 +303,53 @@ with tab2:
 
         if df_envie.empty and df_conso.empty:
             st.info("Pas assez de données pour afficher les graphiques.")
-        
+
+# --- ZONE DE SUPPRESSION (ONGLET 2) ---
+        st.divider()
+        with st.expander("🗑️ Supprimer une entrée depuis l'historique"):
+            # On trie pour faciliter la recherche
+            # On utilise le dataframe filtré sur la substance active
+            df_history = df_filtre.sort_values(by=["Date", "Heure"], ascending=False)
+            
+            # Création des labels
+            options_history = {f"{row['Date']} - {row['Heure']} ({row['Type']})": i for i, row in df_history.iterrows()}
+            
+            choice_history = st.selectbox("Sélectionnez l'entrée à supprimer :", list(options_history.keys()), key="del_tab2", index=None)
+            
+            if st.button("Confirmer la suppression", key="btn_del_tab2") and choice_history:
+                idx_to_drop = options_history[choice_history]
+                row_to_delete = df_history.loc[idx_to_drop]
+
+                # 1. SUPPRESSION CLOUD
+                try:
+                    from connect_db import delete_data_flexible
+                    pid = st.session_state.get("patient_id", "Anonyme")
+                    
+                    delete_data_flexible("Addictions", {
+                        "patient_id": pid, # Vérifiez le titre colonne Excel ("Patient" ?)
+                        "date": str(row_to_delete['Date']), # Vérifiez titre colonne Excel ("Date" ?)
+                        "heure": str(row_to_delete['Heure']), # Vérifiez titre colonne Excel ("Heure" ?)
+                        "substance": substance_active # Vérifiez titre colonne Excel ("Substance" ?)
+                    })
+                except Exception as e:
+                    st.warning(f"Info Cloud : {e}")
+
+                # 2. SUPPRESSION LOCALE
+                # On doit supprimer dans le DF global (st.session_state.data_addictions)
+                df_global = st.session_state.data_addictions
+                
+                # Masque pour trouver la ligne unique
+                mask = (
+                    (df_global["Date"].astype(str) == str(row_to_delete["Date"])) &
+                    (df_global["Heure"].astype(str) == str(row_to_delete["Heure"])) &
+                    (df_global["Substance"] == substance_active) &
+                    (df_global["Type"] == row_to_delete["Type"])
+                )
+                
+                st.session_state.data_addictions = df_global[~mask].reset_index(drop=True)
+                st.success("Entrée supprimée !")
+                st.rerun()
+
     else:
         st.info(f"Aucune donnée enregistrée pour '{substance_active}'.")
 
