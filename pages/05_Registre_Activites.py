@@ -17,7 +17,7 @@ st.title("📝 Registre des Activités")
 
 # A. CHARGEMENT DES ACTIVITÉS
 if "data_activites" not in st.session_state:
-    cols_act = ["Date", "Heure", "Activité", "Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
+    cols_act = ["Patient", "Date", "Heure", "Activité", "Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
     df_final_act = pd.DataFrame(columns=cols_act)
     
     try:
