@@ -13,17 +13,60 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
 
 st.title("📝 Registre des Activités")
 
-# --- 2. INITIALISATION DES MÉMOIRES (Correction du bug KeyError) ---
-# On définit explicitement les colonnes pour être sûr que "Date" existe
+# --- 2. INITIALISATION ET CHARGEMENT (ROBUSTE) ---
+
+# A. CHARGEMENT DES ACTIVITÉS
 if "data_activites" not in st.session_state:
-    st.session_state.data_activites = pd.DataFrame(columns=[
-        "Date", "Heure", "Activité", 
-        "Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"
-    ])
+    cols_act = ["Date", "Heure", "Activité", "Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
+    df_final_act = pd.DataFrame(columns=cols_act)
+    
+    try:
+        from connect_db import load_data
+        data_cloud = load_data("Activites") # Nom de l'onglet GSheet
+        
+        if data_cloud:
+            df_cloud = pd.DataFrame(data_cloud)
+            # Remplissage intelligent (Gestion Majuscules/Minuscules)
+            for col in cols_act:
+                if col in df_cloud.columns:
+                    df_final_act[col] = df_cloud[col]
+                elif col.lower() in df_cloud.columns:
+                    df_final_act[col] = df_cloud[col.lower()]
+            
+            # Conversion numérique forcée pour les notes (évite les bugs graphiques)
+            cols_num = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
+            for c in cols_num:
+                if c in df_final_act.columns:
+                    df_final_act[c] = pd.to_numeric(df_final_act[c], errors='coerce')
 
+    except: pass
+    st.session_state.data_activites = df_final_act
+
+# B. CHARGEMENT DE L'HUMEUR
 if "data_humeur_jour" not in st.session_state:
-    st.session_state.data_humeur_jour = pd.DataFrame(columns=["Date", "Humeur Globale (0-10)"])
+    cols_hum = ["Date", "Humeur Globale (0-10)"]
+    df_final_hum = pd.DataFrame(columns=cols_hum)
+    
+    try:
+        from connect_db import load_data
+        data_cloud_hum = load_data("Humeur") # Nom de l'onglet GSheet
+        
+        if data_cloud_hum:
+            df_cloud_hum = pd.DataFrame(data_cloud_hum)
+            for col in cols_hum:
+                if col in df_cloud_hum.columns:
+                    df_final_hum[col] = df_cloud_hum[col]
+                elif col.lower() in df_cloud_hum.columns:
+                    df_final_hum[col] = df_cloud_hum[col.lower()]
+            
+            # Conversion numérique pour le graphique
+            if "Humeur Globale (0-10)" in df_final_hum.columns:
+                df_final_hum["Humeur Globale (0-10)"] = pd.to_numeric(df_final_hum["Humeur Globale (0-10)"], errors='coerce')
 
+    except: pass
+    st.session_state.data_humeur_jour = df_final_hum
+
+# C. MÉMOIRES TEMPORAIRES (Heure/Minute)
 if "memoire_h" not in st.session_state:
     st.session_state.memoire_h = datetime.now().hour
 if "memoire_m" not in st.session_state:
@@ -287,39 +330,57 @@ with tab2:
     else:
         st.info("Aucune activité enregistrée pour le moment.")
 
-    # =========================================================
-    # NOUVEAU : GRAPHIQUE D'ÉVOLUTION DE L'HUMEUR
+# =========================================================
+    # NOUVEAU : GRAPHIQUE D'ÉVOLUTION DE L'HUMEUR (CORRIGÉ)
     # =========================================================
     st.divider()
     st.subheader("🌈 Évolution de l'Humeur")
     
-    # 1. Récupération des données d'humeur
+    # 1. Récupération sécurisée
     df_humeur = st.session_state.get("data_humeur_jour", pd.DataFrame())
     
-    if not df_humeur.empty and "Date" in df_humeur.columns:
-        # 2. Préparation : On trie par date pour que la ligne soit logique
+    # On vérifie qu'on a bien les colonnes nécessaires
+    if not df_humeur.empty and "Date" in df_humeur.columns and "Humeur Globale (0-10)" in df_humeur.columns:
+        
+        # 2. Nettoyage des données pour le graphique (Copie pour ne pas casser l'original)
         df_chart_humeur = df_humeur.copy()
-        df_chart_humeur["Date"] = pd.to_datetime(df_chart_humeur["Date"])
+        
+        # Conversion Date (Indispensable pour l'axe X temporel)
+        df_chart_humeur["Date"] = pd.to_datetime(df_chart_humeur["Date"], errors='coerce')
+        
+        # Conversion Humeur en nombre (Indispensable pour l'axe Y)
+        df_chart_humeur["Humeur Globale (0-10)"] = pd.to_numeric(df_chart_humeur["Humeur Globale (0-10)"], errors='coerce')
+        
+        # On supprime les lignes où la date ou la note sont invalides (NaN)
+        df_chart_humeur = df_chart_humeur.dropna(subset=["Date", "Humeur Globale (0-10)"])
+        
+        # Tri chronologique
         df_chart_humeur = df_chart_humeur.sort_values("Date")
         
-        # 3. Création du graphique (Ligne avec points)
-        chart_humeur = alt.Chart(df_chart_humeur).mark_line(
-            point=alt.OverlayMarkDef(size=100, filled=True, color="#FFA500"), # Points oranges
-            color="#FFA500" # Ligne orange
-        ).encode(
-            x=alt.X('Date:T', title='Date', axis=alt.Axis(format='%d/%m')),
-            y=alt.Y('Humeur Globale (0-10):Q', title='Humeur (0-10)', scale=alt.Scale(domain=[0, 10])),
-            tooltip=[
-                alt.Tooltip('Date', format='%d/%m/%Y'), 
-                'Humeur Globale (0-10)'
-            ]
-        ).properties(
-            height=300,
-            title="Suivi de l'humeur quotidienne"
-        ).interactive()
-        
-        st.altair_chart(chart_humeur, use_container_width=True)
-        
+        if not df_chart_humeur.empty:
+            # 3. Création du graphique
+            chart_humeur = alt.Chart(df_chart_humeur).mark_line(
+                point=alt.OverlayMarkDef(size=100, filled=True, color="#FFA500"), # Points oranges
+                color="#FFA500" # Ligne orange
+            ).encode(
+                # Axe X : Temps
+                x=alt.X('Date:T', title='Date', axis=alt.Axis(format='%d/%m')),
+                # Axe Y : Note de 0 à 10
+                y=alt.Y('Humeur Globale (0-10):Q', title='Humeur (0-10)', scale=alt.Scale(domain=[0, 10])),
+                # Tooltip au survol
+                tooltip=[
+                    alt.Tooltip('Date', format='%d/%m/%Y', title='Date'), 
+                    alt.Tooltip('Humeur Globale (0-10)', title='Note')
+                ]
+            ).properties(
+                height=300,
+                title="Suivi de l'humeur quotidienne"
+            ).interactive()
+            
+            st.altair_chart(chart_humeur, use_container_width=True)
+        else:
+            st.info("Données d'humeur présentes mais format invalide pour le graphique.")
+            
     else:
         st.info("Pas encore de données d'humeur enregistrées pour afficher le graphique.")
 
