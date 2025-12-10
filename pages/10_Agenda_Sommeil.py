@@ -163,28 +163,40 @@ with tab1:
             ])
 
 # --- ONGLET 2 : ANALYSE ---
+# --- ONGLET 2 : ANALYSE ---
 with tab2:
     st.header("📊 Tableau de bord du sommeil")
     
     if not st.session_state.data_sommeil.empty:
-        # Affichage du tableau complet
-        st.dataframe(st.session_state.data_sommeil, use_container_width=True)
+        # On travaille sur une copie pour éviter les erreurs de modification
+        df = st.session_state.data_sommeil.copy()
+        
+        # Affichage du tableau
+        st.dataframe(df, use_container_width=True)
         
         st.divider()
         
-        # Calcul des Moyennes (Sur les colonnes numériques)
-        df = st.session_state.data_sommeil
-        
-        # On doit convertir les colonnes TTE/TAL/TTS (qui sont en texte "7h30") en minutes pour faire la moyenne
-        # Astuce : On ne peut pas faire la moyenne du texte, on se base sur les colonnes sources si possible ou on affiche juste les scores
-        
-        avg_eff = df["Efficacité"].mean()
-        avg_forme = df["Forme"].mean()
-        
-        c1, c2 = st.columns(2)
-        c1.metric("Efficacité Moyenne", f"{avg_eff:.1f} %")
-        c2.metric("Forme Moyenne", f"{avg_forme:.1f} / 5")
-        
+        # Calcul des Moyennes (Sécurisé)
+        # On vérifie qu'il y a bien des chiffres avant de calculer
+        try:
+            # On revérifie la conversion au cas où
+            eff_clean = pd.to_numeric(df["Efficacité"], errors='coerce')
+            forme_clean = pd.to_numeric(df["Forme"], errors='coerce')
+            
+            avg_eff = eff_clean.mean()
+            avg_forme = forme_clean.mean()
+            
+            # Affichage si les calculs ont réussi (pas de NaN)
+            if pd.notna(avg_eff) and pd.notna(avg_forme):
+                c1, c2 = st.columns(2)
+                c1.metric("Efficacité Moyenne", f"{avg_eff:.1f} %")
+                c2.metric("Forme Moyenne", f"{avg_forme:.1f} / 5")
+            else:
+                st.info("Pas assez de données numériques valides pour les moyennes.")
+                
+        except Exception as e:
+            st.warning(f"Impossible de calculer les moyennes : {e}")
+
         st.write("### Évolution de l'efficacité du sommeil")
         
         # --- GRAPHIQUE AVEC POINTS ---
