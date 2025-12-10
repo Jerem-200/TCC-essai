@@ -14,9 +14,53 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
 st.title("🍷 Agenda des Envies & Consommations")
 st.info("Notez vos envies (craving) et vos consommations pour identifier les déclencheurs.")
 
-# --- 1. GESTION DES SUBSTANCES (MULTI-CIBLES) ---
+# --- 1. GESTION DES SUBSTANCES & INITIALISATION ---
+
+# A. On initialise la liste vide si elle n'existe pas
 if "liste_substances" not in st.session_state:
     st.session_state.liste_substances = []
+
+# B. CHARGEMENT DES DONNÉES ET RECUPERATION DES SUBSTANCES
+if "data_addictions" not in st.session_state:
+    cols_conso = ["Date", "Heure", "Substance", "Type", "Intensité", "Pensées"]
+    
+    # 1. Tentative de chargement Cloud
+    try:
+        from connect_db import load_data
+        data_cloud = load_data("Addictions")
+    except:
+        data_cloud = []
+
+    if data_cloud:
+        df_cloud = pd.DataFrame(data_cloud)
+        df_final = pd.DataFrame(columns=cols_conso)
+        
+        # 2. Remplissage intelligent des colonnes
+        for col in cols_conso:
+            if col in df_cloud.columns:
+                df_final[col] = df_cloud[col]
+            elif col.lower() in df_cloud.columns:
+                df_final[col] = df_cloud[col.lower()]
+        
+        # 3. Nettoyage numérique
+        if "Intensité" in df_final.columns:
+            df_final["Intensité"] = df_final["Intensité"].astype(str).str.replace(',', '.')
+            df_final["Intensité"] = pd.to_numeric(df_final["Intensité"], errors='coerce')
+            
+        st.session_state.data_addictions = df_final
+        
+        # --- C. LE CORRECTIF : On remplit la liste des substances automatiquement ---
+        if "Substance" in df_final.columns:
+            # On prend toutes les substances uniques qui sont dans le tableau
+            substances_existantes = df_final["Substance"].dropna().unique().tolist()
+            
+            # On les ajoute à la liste du menu déroulant
+            for s in substances_existantes:
+                if s and s not in st.session_state.liste_substances:
+                    st.session_state.liste_substances.append(s)
+                    
+    else:
+        st.session_state.data_addictions = pd.DataFrame(columns=cols_conso)
 
 # --- INITIALISATION ET CHARGEMENT (ROBUSTE) ---
 if "data_addictions" not in st.session_state:
