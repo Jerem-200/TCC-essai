@@ -289,8 +289,29 @@ with tab2:
         st.divider()
         st.write(f"### Évolution : {substance_active}")
 
-        # --- PRÉPARATION DES DONNÉES ---
+# --- PRÉPARATION DES DONNÉES (SÉCURISÉE) ---
         df_chart = edited_df.copy()
+        
+        # 1. Conversion Date/Heure (Gestion des formats multiples)
+        try:
+            # On combine Date et Heure pour l'axe temporel
+            df_chart['Full_Date'] = pd.to_datetime(
+                df_chart['Date'].astype(str) + ' ' + df_chart['Heure'].astype(str), 
+                format="%Y-%m-%d %H:%M", # On essaie le format standard d'abord
+                errors='coerce'
+            )
+            # Si ça échoue (NaN), on essaie de parser automatiquement
+            mask_error = df_chart['Full_Date'].isna()
+            if mask_error.any():
+                 df_chart.loc[mask_error, 'Full_Date'] = pd.to_datetime(df_chart.loc[mask_error, 'Date'], errors='coerce')
+        except:
+            df_chart['Full_Date'] = pd.to_datetime(df_chart['Date'], errors='coerce')
+
+        # 2. Conversion Chiffres (Sécurité supplémentaire)
+        # On remplace les virgules par des points et on convertit
+        if "Intensité" in df_chart.columns:
+            df_chart['Intensité'] = df_chart['Intensité'].astype(str).str.replace(',', '.')
+            df_chart['Intensité'] = pd.to_numeric(df_chart['Intensité'], errors='coerce')
         
         # 1. Conversion Date/Heure
         try:
