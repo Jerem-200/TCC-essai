@@ -13,12 +13,30 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
 st.title("🌙 Agenda du Sommeil")
 st.info("Remplissez ce formulaire chaque matin pour analyser la qualité de votre sommeil.")
 
-# --- INITIALISATION ---
+# --- INITIALISATION ET CHARGEMENT ---
 if "data_sommeil" not in st.session_state:
-    st.session_state.data_sommeil = pd.DataFrame(columns=[
+    # Colonnes officielles
+    cols_sommeil = [
         "Date", "Sieste", "Medicaments", "Heure Coucher", "Latence", "Eveil Nocturne", 
         "Heure Lever", "TTE", "TAL", "TTS", "Forme", "Qualité", "Efficacité"
-    ])
+    ]
+    
+    # Tentative de chargement Cloud
+    try:
+        from connect_db import load_data
+        data_cloud = load_data("Sommeil") # Nom de l'onglet dans Google Sheet
+    except:
+        data_cloud = []
+
+    if data_cloud:
+        # On charge et on ne garde que les bonnes colonnes pour éviter les bugs
+        df_cloud = pd.DataFrame(data_cloud)
+        # On filtre pour ne garder que les colonnes qui existent dans le DF et qu'on attend
+        cols_to_keep = [c for c in cols_sommeil if c in df_cloud.columns]
+        st.session_state.data_sommeil = df_cloud[cols_to_keep]
+    else:
+        # Sinon vide
+        st.session_state.data_sommeil = pd.DataFrame(columns=cols_sommeil)
 
 # --- FONCTIONS DE CALCUL (Le cerveau mathématique) ---
 def calculer_duree_minutes(heure_debut, heure_fin):
@@ -54,7 +72,7 @@ with tab1:
         st.write("---")
         
         # 1 & 2 : Comportements
-        st.write("**Habitudes**")
+        st.write("**Habitudes de la veille**")
         c1, c2 = st.columns(2)
         with c1:
             sieste = st.text_input("1. Siestes hier (ex: 13h30 à 14h00)", placeholder="Heures")

@@ -135,3 +135,16 @@ def delete_data_flexible(nom_onglet, criteres_dict):
     except Exception as e:
         st.error(f"Erreur suppression GSheet : {e}")
         return False
+
+# --- CHARGEMENT DES DONNÉES ---
+def load_data(nom_onglet):
+    """Récupère toutes les données d'un onglet sous forme de liste de dictionnaires"""
+    client = get_client()
+    if not client: return []
+    
+    try:
+        sheet = client.open("TCC_Base_Donnees")
+        ws = sheet.worksheet(nom_onglet)
+        return ws.get_all_records() # Retourne une liste de dicts
+    except:
+        return [] # Retourne une liste vide si l'onglet n'existe pas ou erreur
