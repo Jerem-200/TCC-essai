@@ -13,12 +13,35 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
 st.title("💡 Technique de Résolution de Problèmes")
 st.info("Une méthode structurée pour transformer un problème en plan d'action.")
 
-# --- 0. INITIALISATION DES MÉMOIRES ---
-if "data_problemes" not in st.session_state:
-    st.session_state.data_problemes = pd.DataFrame(columns=[
-        "Date", "Problème", "Objectif", "Solution Choisie", "Date Évaluation"
-    ])
+# --- 0. INITIALISATION ET CHARGEMENT (ROBUSTE) ---
 
+# A. CHARGEMENT DE L'HISTORIQUE DES PROBLÈMES
+if "data_problemes" not in st.session_state:
+    cols_pb = ["Date", "Problème", "Objectif", "Solution Choisie", "Plan Action", "Obstacles", "Ressources", "Date Évaluation"]
+    df_final = pd.DataFrame(columns=cols_pb)
+    
+    # 1. Tentative de chargement Cloud
+    try:
+        from connect_db import load_data
+        data_cloud = load_data("Plans_Action") # Vérifiez que l'onglet Excel s'appelle bien "Plans_Action"
+    except:
+        data_cloud = []
+
+    if data_cloud:
+        df_cloud = pd.DataFrame(data_cloud)
+        
+        # 2. Remplissage intelligent (Gestion Majuscules/Minuscules)
+        for col in cols_pb:
+            if col in df_cloud.columns:
+                df_final[col] = df_cloud[col]
+            elif col.lower() in df_cloud.columns: # Si Excel a "date" au lieu de "Date"
+                df_final[col] = df_cloud[col.lower()]
+            elif col.replace(" ", "_") in df_cloud.columns: # Si Excel a "Plan_Action"
+                df_final[col] = df_cloud[col.replace(" ", "_")]
+                
+    st.session_state.data_problemes = df_final
+
+# B. Mémoires temporaires (Pas besoin de charger, on les vide au démarrage)
 if "analyse_detaillee" not in st.session_state:
     st.session_state.analyse_detaillee = pd.DataFrame(columns=[
         "Solution", "Type", "Terme", "Description", "Note", "Valeur"
@@ -27,7 +50,6 @@ if "analyse_detaillee" not in st.session_state:
 if "liste_solutions_temp" not in st.session_state:
     st.session_state.liste_solutions_temp = []
 
-# NOUVEAU : Mémoire pour les étapes du plan d'action
 if "plan_etapes_temp" not in st.session_state:
     st.session_state.plan_etapes_temp = []
 
