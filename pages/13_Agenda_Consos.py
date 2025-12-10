@@ -62,51 +62,6 @@ if "data_addictions" not in st.session_state:
     else:
         st.session_state.data_addictions = pd.DataFrame(columns=cols_conso)
 
-# --- INITIALISATION ET CHARGEMENT (ROBUSTE) ---
-if "data_addictions" not in st.session_state:
-    # 1. Liste des colonnes attendues par votre application
-    cols_conso = ["Patient", "Date", "Heure", "Substance", "Type", "Intensité", "Pensées"]
-    
-    # 2. Création du tableau vide par défaut
-    df_final = pd.DataFrame(columns=cols_conso)
-
-    # 3. Tentative de chargement depuis le Cloud
-    try:
-        from connect_db import load_data
-        # ATTENTION : Le nom "Addictions" doit correspondre exactement au nom de l'onglet dans Google Sheet
-        data_cloud = load_data("Addictions") 
-        
-        if data_cloud:
-            df_cloud = pd.DataFrame(data_cloud)
-            
-            # 4. Remplissage intelligent (Tolérance aux noms de colonnes)
-            for col in cols_conso:
-                # Cas A : La colonne existe exactement (ex: "Intensité")
-                if col in df_cloud.columns:
-                    df_final[col] = df_cloud[col]
-                # Cas B : La colonne existe en minuscule/majuscule différente (ex: "intensite" vs "Intensité")
-                # On cherche une correspondance approximative
-                else:
-                    match = next((c for c in df_cloud.columns if c.lower() == col.lower()), None)
-                    if match:
-                        df_final[col] = df_cloud[match]
-
-            # 5. NETTOYAGE NUMÉRIQUE (CRUCIAL POUR LES GRAPHIQUES)
-            # On s'assure que l'intensité est bien un nombre, même si Excel envoie "2,5" (texte)
-            if "Intensité" in df_final.columns:
-                # Remplacement de la virgule par un point (format Python)
-                df_final["Intensité"] = df_final["Intensité"].astype(str).str.replace(',', '.')
-                # Conversion en nombre (les erreurs deviennent des cases vides)
-                df_final["Intensité"] = pd.to_numeric(df_final["Intensité"], errors='coerce')
-
-    except Exception as e:
-        # En cas d'erreur (ex: pas d'internet), on reste sur le tableau vide mais on prévient
-        # st.warning(f"Mode hors ligne : {e}") 
-        pass
-
-    # 6. Sauvegarde en mémoire
-    st.session_state.data_addictions = df_final
-
 # --- MEMOIRE INTELLIGENTE (Session State) ---
 # C'est ici qu'on définit les valeurs par défaut fixes (pas l'heure actuelle)
 if "memoire_heure" not in st.session_state:
