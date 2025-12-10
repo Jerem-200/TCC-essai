@@ -17,13 +17,13 @@ st.info("Une méthode structurée pour transformer un problème en plan d'action
 
 # A. CHARGEMENT DE L'HISTORIQUE DES PROBLÈMES
 if "data_problemes" not in st.session_state:
-    cols_pb = ["Date", "Problème", "Objectif", "Solution Choisie", "Plan Action", "Obstacles", "Ressources", "Date Évaluation"]
+    cols_pb = ["Patient", "Date", "Problème", "Objectif", "Solution Choisie", "Plan Action", "Obstacles", "Ressources", "Date Évaluation"]
     df_final = pd.DataFrame(columns=cols_pb)
     
     # 1. Tentative de chargement Cloud
     try:
         from connect_db import load_data
-        data_cloud = load_data("Plans_Action") # Vérifiez que l'onglet Excel s'appelle bien "Plans_Action"
+        data_cloud = load_data("Résolution_Problème") # Vérifiez que l'onglet Excel s'appelle bien "Résolution_Problème"
     except:
         data_cloud = []
 
@@ -268,7 +268,7 @@ with tab1:
             # Sauvegarde Cloud
             from connect_db import save_data
             patient = st.session_state.get("patient_id", "Anonyme")
-            save_data("Plans_Action", [patient, datetime.now().strftime("%Y-%m-%d"), probleme, objectif, solution_choisie, plan_texte_complet, obstacles, ressources, str(date_eval)])
+            save_data("Résolution_Problème", [patient, datetime.now().strftime("%Y-%m-%d"), probleme, objectif, solution_choisie, plan_texte_complet, obstacles, ressources, str(date_eval)])
             
             # On vide les mémoires pour repartir à zéro (sauf si on veut modifier, voir plus bas)
             st.session_state.analyse_detaillee = pd.DataFrame(columns=["Solution", "Type", "Terme", "Description", "Note", "Valeur"])
@@ -323,7 +323,7 @@ with tab2:
                 try:
                     from connect_db import delete_data_flexible
                     pid = st.session_state.get("patient_id", "Anonyme")
-                    delete_data_flexible("Plans_Action", {
+                    delete_data_flexible("Résolution_Problème", {
                         "Patient": pid,
                         "Date": str(row_to_del['Date']),
                         "Problème": row_to_del['Problème']
