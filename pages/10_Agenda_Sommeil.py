@@ -17,7 +17,7 @@ st.info("Remplissez ce formulaire chaque matin pour analyser la qualité de votr
 if "data_sommeil" not in st.session_state:
     # Colonnes officielles
     cols_sommeil = [
-        "Date", "Sieste", "Medicaments", "Heure Coucher", "Latence", "Eveil Nocturne", 
+        "Patient", "Date", "Sieste", "Medicaments", "Heure Coucher", "Latence", "Eveil", 
         "Heure Lever", "TTE", "TAL", "TTS", "Forme", "Qualité", "Efficacité"
     ]
     
