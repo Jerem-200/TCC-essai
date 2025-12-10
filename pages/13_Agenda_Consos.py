@@ -14,62 +14,65 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
 st.title("🍷 Agenda des Envies & Consommations")
 st.info("Notez vos envies (craving) et vos consommations pour identifier les déclencheurs.")
 
-# --- 1. GESTION DES SUBSTANCES & INITIALISATION ---
+# ==============================================================================
+# 1. INITIALISATION, CHARGEMENT & GESTION DES SUBSTANCES (TOUT EN UN)
+# ==============================================================================
 
-# A. On initialise la liste vide si elle n'existe pas
+# A. Liste des substances (vide au départ)
 if "liste_substances" not in st.session_state:
     st.session_state.liste_substances = []
 
-# B. CHARGEMENT DES DONNÉES ET RECUPERATION DES SUBSTANCES
+# B. Chargement des données et récupération des substances de l'historique
 if "data_addictions" not in st.session_state:
-    cols_conso = ["Date", "Heure", "Substance", "Type", "Intensité", "Pensées"]
+    cols_conso = ["Patient", "Date", "Heure", "Substance", "Type", "Intensité", "Pensées"]
+    df_final = pd.DataFrame(columns=cols_conso)
     
-    # 1. Tentative de chargement Cloud
+    # Tentative de chargement Cloud
     try:
         from connect_db import load_data
-        data_cloud = load_data("Addictions")
-    except:
-        data_cloud = []
-
-    if data_cloud:
-        df_cloud = pd.DataFrame(data_cloud)
-        df_final = pd.DataFrame(columns=cols_conso)
+        data_cloud = load_data("Addictions") # Vérifiez que l'onglet Excel s'appelle bien "Addictions"
         
-        # 2. Remplissage intelligent des colonnes
-        for col in cols_conso:
-            if col in df_cloud.columns:
-                df_final[col] = df_cloud[col]
-            elif col.lower() in df_cloud.columns:
-                df_final[col] = df_cloud[col.lower()]
-        
-        # 3. Nettoyage numérique
-        if "Intensité" in df_final.columns:
-            df_final["Intensité"] = df_final["Intensité"].astype(str).str.replace(',', '.')
-            df_final["Intensité"] = pd.to_numeric(df_final["Intensité"], errors='coerce')
+        if data_cloud:
+            df_cloud = pd.DataFrame(data_cloud)
             
-        st.session_state.data_addictions = df_final
-        
-        # --- C. LE CORRECTIF : On remplit la liste des substances automatiquement ---
-        if "Substance" in df_final.columns:
-            # On prend toutes les substances uniques qui sont dans le tableau
-            substances_existantes = df_final["Substance"].dropna().unique().tolist()
+            # Remplissage intelligent (Gestion Majuscules/Minuscules)
+            for col in cols_conso:
+                if col in df_cloud.columns:
+                    df_final[col] = df_cloud[col]
+                elif col.lower() in df_cloud.columns:
+                    df_final[col] = df_cloud[col.lower()]
             
-            # On les ajoute à la liste du menu déroulant
-            for s in substances_existantes:
-                if s and s not in st.session_state.liste_substances:
-                    st.session_state.liste_substances.append(s)
-                    
-    else:
-        st.session_state.data_addictions = pd.DataFrame(columns=cols_conso)
+            # Nettoyage numérique (Virgules -> Points)
+            if "Intensité" in df_final.columns:
+                df_final["Intensité"] = df_final["Intensité"].astype(str).str.replace(',', '.')
+                df_final["Intensité"] = pd.to_numeric(df_final["Intensité"], errors='coerce')
 
-# --- MEMOIRE INTELLIGENTE (Session State) ---
-# C'est ici qu'on définit les valeurs par défaut fixes (pas l'heure actuelle)
+    except Exception as e:
+        # st.warning(f"Info : Démarrage à vide ({e})")
+        pass
+
+    # Sauvegarde en mémoire
+    st.session_state.data_addictions = df_final
+
+    # C. MAGIE : On remplit la liste des substances à partir de l'historique chargé
+    if not df_final.empty and "Substance" in df_final.columns:
+        # On prend toutes les substances uniques non vides
+        subs_history = df_final["Substance"].dropna().unique().tolist()
+        
+        for s in subs_history:
+            s_propre = str(s).strip() # On enlève les espaces inutiles
+            if s_propre and s_propre not in st.session_state.liste_substances:
+                st.session_state.liste_substances.append(s_propre)
+
+# --- MEMOIRE INTELLIGENTE (Heure/Unité) ---
 if "memoire_heure" not in st.session_state:
-    st.session_state.memoire_heure = time(12, 00) # <--- Par défaut : 12h00
+    st.session_state.memoire_heure = time(12, 00)
 if "memoire_unite" not in st.session_state:
     st.session_state.memoire_unite = ""
 
-# Zone de sélection
+# ==============================================================================
+# ZONE DE SÉLECTION
+# ==============================================================================
 col_info, col_sel = st.columns([2, 2])
 with col_info:
     st.write("**De quoi voulez-vous faire le suivi ?**")
@@ -79,8 +82,9 @@ with col_sel:
     with st.popover("➕ Nouvelle Substance/Comportement"):
         new_sub = st.text_input("Nom (ex: Alcool, Tabac, Jeux...)")
         if st.button("Créer") and new_sub:
-            st.session_state.liste_substances.append(new_sub)
-            st.rerun()
+            if new_sub not in st.session_state.liste_substances:
+                st.session_state.liste_substances.append(new_sub)
+                st.rerun()
 
     # Sélection
     if st.session_state.liste_substances:
