@@ -126,20 +126,8 @@ with tab1:
     # Ce bloc ne s'affiche que si on a choisi "Consommé"
     if "CONSOMMÉ" in type_evt:
         st.info("Choisissez l'unité ci-dessous :")
-
-    # 3. LE FORMULAIRE (Date, Heure, Quantité...)
-    with st.form("form_addiction"):
-        st.write("---") # Séparateur visuel
-        c_date, c_heure = st.columns(2)
-        with c_date: 
-            date_evt = st.date_input("Date", datetime.now())
-        with c_heure: 
-            heure_evt = st.time_input("Heure", value=st.session_state.memoire_heure)
-            
-        valeur_numerique = 0.0
-        pensees = ""
-
-                # On fait 2 colonnes : gauche pour cocher, droite pour choisir/saisir
+        
+        # On fait 2 colonnes : gauche pour cocher, droite pour choisir/saisir
         col_check, col_input = st.columns([1, 2])
         
         with col_check:
@@ -164,6 +152,18 @@ with tab1:
                     idx_def = st.session_state.liste_unites.index(st.session_state.memoire_unite)
                     
                 unite_finale = st.selectbox("Unité standard", st.session_state.liste_unites, index=idx_def)
+
+    # 3. LE FORMULAIRE (Date, Heure, Quantité...)
+    with st.form("form_addiction"):
+        st.write("---") # Séparateur visuel
+        c_date, c_heure = st.columns(2)
+        with c_date: 
+            date_evt = st.date_input("Date", datetime.now())
+        with c_heure: 
+            heure_evt = st.time_input("Heure", value=st.session_state.memoire_heure)
+            
+        valeur_numerique = 0.0
+        pensees = ""
         
         # Bloc Contenu Spécifique
         if "ENVIE" in type_evt:
