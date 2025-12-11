@@ -283,7 +283,7 @@ with tab2:
             # On réutilise la liste 'options_history' définie plus haut
             sel_modif = st.selectbox("Choisir la balance à modifier :", list(options_history.keys()), key="select_modif")
             
-if st.button("🔄 Charger les données pour modification"):
+            if st.button("🔄 Charger les données pour modification"):
                 idx_to_load = options_history[sel_modif]
                 row_to_load = df_history.loc[idx_to_load]
                 
