@@ -6,20 +6,19 @@ st.set_page_config(page_title="Agenda du Sommeil", page_icon="🌙")
 
 # --- VIGILE ---
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
-    st.warning("⛔ Veuillez vous connecter sur la page d'accueil.")
-    st.switch_page("streamlit_app.py")
-    st.stop()
+    # st.warning("⛔ Veuillez vous connecter sur la page d'accueil.")
+    # st.switch_page("streamlit_app.py")
+    # st.stop()
+    pass
 
 st.title("🌙 Agenda du Sommeil")
 st.info("Remplissez ce formulaire chaque matin pour analyser la qualité de votre sommeil.")
 
 # --- INITIALISATION ET CHARGEMENT ---
 if "data_sommeil" not in st.session_state:
-    # MISE À JOUR DES COLONNES
+    # Colonnes officielles (Version Simple)
     cols_sommeil = [
-        "Patient", "Date", "Sieste", 
-        "Sport", "Cafeine", "Alcool", "Medic_Sommeil",
-        "Heure Coucher", "Latence", "Eveil", 
+        "Patient", "Date", "Sieste", "Medicaments", "Heure Coucher", "Latence", "Eveil", 
         "Heure Lever", "TTE", "TAL", "TTS", "Forme", "Qualité", "Efficacité"
     ]
     
@@ -39,7 +38,6 @@ if "data_sommeil" not in st.session_state:
     else:
         # Sinon vide
         st.session_state.data_sommeil = pd.DataFrame(columns=cols_sommeil)
-
 
 # --- FONCTIONS DE CALCUL (Le cerveau mathématique) ---
 def calculer_duree_minutes(heure_debut, heure_fin):
@@ -65,111 +63,69 @@ tab1, tab2 = st.tabs(["📝 Saisie du jour", "📊 Analyse & Moyennes"])
 
 # --- ONGLET 1 : FORMULAIRE ---
 with tab1:
-    st.subheader("📝 Saisie de la nuit dernière")
+    st.subheader("Saisie de la nuit dernière")
     
     with st.form("form_sommeil"):
-        # -- EN-TÊTE : DATE --
-        c_date, _ = st.columns([1, 2])
-        with c_date:
+        col_date, col_vide = st.columns([1, 1])
+        with col_date:
             date_nuit = st.date_input("Date du lever (Ce matin)", datetime.now())
 
-        st.divider()
+        st.write("---")
         
-        # =========================================================
-        # BLOC 1 : ACTIVITÉS DE LA JOURNÉE
-        # =========================================================
-        st.markdown("### 🌞 Activités & Sieste")
-        
-        # Préparation des listes
-        liste_heures_habitudes = ["Non"] + [f"{h}h00" for h in range(24)]
-        liste_heures_sieste = ["Non"] + [f"{h}h{m:02d}" for h in range(24) for m in (0, 15, 30, 45)]
-        liste_durees = ["10 min", "20 min", "30 min", "45 min", "1h00", "1h30", "2h00", "3h+"]
+        # 1 & 2 : Comportements
+        st.write("**Habitudes de la veille**")
+        c1, c2 = st.columns(2)
+        with c1:
+            sieste = st.text_input("1. Siestes hier (ex: 13h30 à 14h00)", placeholder="Heures")
+        with c2:
+            medics = st.text_input("2. Médicaments / Alcool (mg/verres)", placeholder="Détails")
 
-        # -- LIGNE SIESTE --
-        col_s1, col_s2, col_s3 = st.columns([1, 1, 2])
-        with col_s1:
-            h_sieste = st.selectbox("💤 Sieste (Début)", liste_heures_sieste, help="À quelle heure avez-vous fait la sieste ?")
-        with col_s2:
-            d_sieste = st.selectbox("⏳ Durée", liste_durees, label_visibility="visible")
-        with col_s3:
-            # Espace vide pour l'esthétique ou commentaire éventuel
-            st.empty()
-
-        st.write("") # Petit espace
+        st.write("---")
         
-        # -- LIGNE HABITUDES (4 COLONNES) --
-        st.markdown("### 🍷 Consommations & Habitudes (Heure limite)")
-        st.caption("Indiquez l'heure de la dernière prise ou 'Non'.")
+        # 3 & 4 & 5 & 6 : Les Heures
+        st.write("**Profil de sommeil**")
         
-        c_sport, c_cafe, c_alcool, c_med = st.columns(4)
-        
-        with c_sport:
-            sport = st.selectbox("🏋️ Sport", liste_heures_habitudes, help="Heure de fin de séance")
-        with c_cafe:
-            cafeine = st.selectbox("☕ Caféine", liste_heures_habitudes, help="Café, Thé, Cola...")
-        with c_alcool:
-            alcool = st.selectbox("🍷 Alcool", liste_heures_habitudes, help="Dernier verre")
-        with c_med:
-            med_dodo = st.selectbox("💊 Médicament", liste_heures_habitudes, help="Prise pour dormir")
-
-        st.divider()
-
-        # =========================================================
-        # BLOC 2 : LA NUIT
-        # =========================================================
-        st.markdown("### 🌙 Votre Nuit")
-        
-        # On utilise des containers pour grouper visuellement Coucher vs Lever
         col_coucher, col_lever = st.columns(2)
-        
         with col_coucher:
-            st.info("**Au Coucher**")
-            h_coucher = st.time_input("Heure au lit", time(23, 0))
-            latence = st.number_input("Temps pour s'endormir (min)", 0, 300, 15, step=5)
+            h_coucher = st.time_input("3. Heure de coucher (au lit)", time(23, 0))
+            latence = st.number_input("4. Temps pour s'endormir (Latence) en minutes", 0, 300, 15, step=5, help="Combien de temps avez-vous mis à dormir après avoir éteint ?")
         
         with col_lever:
-            st.success("**Au Lever**")
-            h_lever = st.time_input("Heure de sortie du lit", time(7, 0))
-            eveil_nocturne = st.number_input("Temps d'éveil nocturne (min)", 0, 300, 0, step=5)
+            h_lever = st.time_input("6. Heure de lever (sortie du lit)", time(7, 0))
+            eveil_nocturne = st.number_input("5. Temps d'éveil au milieu de la nuit (Minutes totales)", 0, 300, 0, step=5, help="Si vous vous êtes réveillé, combien de temps au total ?")
 
-        st.write("")
+        st.write("---")
         
-        # =========================================================
-        # BLOC 3 : RESSENTI
-        # =========================================================
-        st.markdown("### ⭐ Bilan au réveil")
-        
+        # 10 & 11 : Ressenti
+        st.write("**Ressenti**")
         c_forme, c_qualite = st.columns(2)
         with c_forme:
-            forme = st.slider("🔋 Forme physique (1=HS, 5=Top)", 1, 5, 3)
+            forme = st.slider("10. Forme au lever (1=Épuisé, 5=Reposé)", 1, 5, 3)
         with c_qualite:
-            qualite = st.slider("✨ Qualité du sommeil (1=Mauvais, 5=Top)", 1, 5, 3)
+            qualite = st.slider("11. Qualité du sommeil (1=Agité, 5=Profond)", 1, 5, 3)
 
-        st.write("")
-        
-        # BOUTON CENTRE (Astuce visuelle avec colonnes)
-        _, c_btn, _ = st.columns([1, 2, 1])
-        with c_btn:
-            submitted = st.form_submit_button("💾 Enregistrer ma nuit", use_container_width=True, type="primary")
+        # BOUTON CALCUL & ENREGISTREMENT
+        submitted = st.form_submit_button("Calculer et Enregistrer")
 
         if submitted:
-            # --- TRAITEMENT IDENTIQUE ---
-            if h_sieste == "Non":
-                sieste_finale = "Non"
-            else:
-                sieste_finale = f"{h_sieste} ({d_sieste})"
-
-            # Calculs
+            # --- CALCULS AUTOMATIQUES ---
+            
+            # 8. Temps au Lit (TAL) = Lever - Coucher
             tal_minutes = calculer_duree_minutes(h_coucher, h_lever)
+            
+            # 7. Temps Total Éveil (TTE) = Latence + Éveils nocturnes
             tte_minutes = latence + eveil_nocturne
+            
+            # 9. Temps Total Sommeil (TTS) = Au lit - Éveil
             tts_minutes = tal_minutes - tte_minutes
             
+            # 12. Efficacité (ES) = (Sommeil / Lit) * 100
             if tal_minutes > 0:
                 efficacite = round((tts_minutes / tal_minutes) * 100, 1)
             else:
                 efficacite = 0
 
-            # Affichage résultats
+            # Affichage immédiat des résultats pour le patient
             st.success("✅ Données enregistrées !")
             
             res1, res2, res3, res4 = st.columns(4)
@@ -183,8 +139,7 @@ with tab1:
             # Local
             new_row = {
                 "Date": str(date_nuit),
-                "Sieste": sieste_finale,
-                "Sport": sport, "Cafeine": cafeine, "Alcool": alcool, "Medic_Sommeil": med_dodo,
+                "Sieste": sieste, "Medicaments": medics,
                 "Heure Coucher": str(h_coucher)[:5], "Heure Lever": str(h_lever)[:5],
                 "Latence": latence, "Eveil": eveil_nocturne,
                 "TTE": format_minutes_en_h_m(tte_minutes),
@@ -199,9 +154,9 @@ with tab1:
                 from connect_db import save_data
                 patient = st.session_state.get("patient_id", "Anonyme")
                 
+                # Ordre pour Excel : Patient, Date, Sieste, Meds, Coucher, Latence, EveilNoc, Lever, TTE, TAL, TTS, Forme, Qualite, Efficacite
                 save_data("Sommeil", [
-                    patient, str(date_nuit), sieste_finale,
-                    sport, cafeine, alcool, med_dodo,
+                    patient, str(date_nuit), sieste, medics, 
                     str(h_coucher)[:5], latence, eveil_nocturne, str(h_lever)[:5],
                     format_minutes_en_h_m(tte_minutes),
                     format_minutes_en_h_m(tal_minutes),
@@ -209,7 +164,7 @@ with tab1:
                     forme, qualite, f"{efficacite}%"
                 ])
             except Exception as e:
-                st.error(f"Erreur de sauvegarde Cloud : {e}")
+                st.error(f"Erreur sauvegarde Cloud : {e}")
 
 # --- ONGLET 2 : ANALYSE ---
 with tab2:
@@ -225,16 +180,13 @@ with tab2:
         st.divider()
         
         # Calcul des Moyennes (Sécurisé)
-        # On vérifie qu'il y a bien des chiffres avant de calculer
         try:
-            # On revérifie la conversion au cas où
             eff_clean = pd.to_numeric(df["Efficacité"], errors='coerce')
             forme_clean = pd.to_numeric(df["Forme"], errors='coerce')
             
             avg_eff = eff_clean.mean()
             avg_forme = forme_clean.mean()
             
-            # Affichage si les calculs ont réussi (pas de NaN)
             if pd.notna(avg_eff) and pd.notna(avg_forme):
                 c1, c2 = st.columns(2)
                 c1.metric("Efficacité Moyenne", f"{avg_eff:.1f} %")
@@ -247,10 +199,8 @@ with tab2:
 
         st.write("### Évolution de l'efficacité du sommeil")
         
-        # --- GRAPHIQUE AVEC POINTS ---
         import altair as alt
         
-        # Le graphique simple mais avec des points (mark_point) sur la ligne (mark_line)
         chart = alt.Chart(df).mark_line(point=True).encode(
             x='Date',
             y='Efficacité',
@@ -259,45 +209,35 @@ with tab2:
         
         st.altair_chart(chart, use_container_width=True)
 
-# --- ZONE DE SUPPRESSION (ONGLET 2) ---
+        # ZONE DE SUPPRESSION
         st.divider()
         with st.expander("🗑️ Supprimer une entrée depuis l'historique"):
-            # 1. On trie les données (les plus récentes en haut)
             df_history = st.session_state.data_sommeil.sort_values(by="Date", ascending=False)
             
-            # 2. On crée les options pour le menu déroulant
             options_history = {f"{row['Date']} (Eff: {row['Efficacité']}%)": i for i, row in df_history.iterrows()}
             
-            # 3. Le menu de sélection
             choice_history = st.selectbox("Sélectionnez la nuit à supprimer :", list(options_history.keys()), key="del_tab2", index=None)
             
-            # 4. Le bouton de confirmation
             if st.button("Confirmer la suppression", key="btn_del_tab2") and choice_history:
-                # Retrouver la ligne à supprimer
                 idx_to_drop = options_history[choice_history]
                 row_to_delete = df_history.loc[idx_to_drop]
 
-                # --- A. SUPPRESSION CLOUD (Google Sheets) ---
                 try:
                     from connect_db import delete_data_flexible
                     pid = st.session_state.get("patient_id", "Anonyme")
                     
-                    # On appelle votre fonction avec les critères Patient + Date
-                    # Les clés "Patient" et "Date" doivent correspondre aux titres de votre Excel
                     success = delete_data_flexible("Sommeil", {
                         "Patient": pid,
                         "Date": str(row_to_delete['Date'])  
                     })
                     
                     if not success:
-                        st.warning("⚠️ Ligne introuvable dans le Cloud (Vérifiez les titres colonnes A et B dans Excel). Suppression locale effectuée.")
+                        st.warning("⚠️ Ligne introuvable Cloud.")
                         
                 except Exception as e:
                     st.warning(f"Erreur Cloud : {e}")
 
-                # --- B. SUPPRESSION LOCALE ---
                 st.session_state.data_sommeil = st.session_state.data_sommeil.drop(idx_to_drop).reset_index(drop=True)
-                
                 st.success("Entrée supprimée avec succès !")
                 st.rerun()
 
