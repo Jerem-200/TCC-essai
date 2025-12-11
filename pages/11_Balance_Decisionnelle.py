@@ -207,4 +207,162 @@ with tab1:
                         # 2. Update Cloud
                         try:
                             from connect_db import save_data
-                            patient_id = st.session_state
+                            patient_id = st.session_state.get("patient_id", "Anonyme")
+                            save_data("Balance_Decisionnelle", [
+                                patient_id, 
+                                new_entry["Date"], 
+                                new_entry["Sujet"], 
+                                new_entry["Option Gagnante"], 
+                                new_entry["Détail Arguments"], 
+                                new_entry["Score"]
+                            ])
+                            st.success("Sauvegarde réussie !")
+                            
+                            # Reset
+                            st.session_state.balance_args_current = pd.DataFrame(columns=["Option", "Type", "Description", "Intensité", "Score_Calc"])
+                            st.session_state.balance_options_list = []
+                            st.rerun()
+                            
+                        except Exception as e:
+                            st.error(f"Erreur de sauvegarde Cloud : {e}")
+
+    else:
+        st.warning("Ajoutez des options pour débloquer la saisie des arguments.")
+
+# ==============================================================================
+# ONGLET 2 : HISTORIQUE
+# ==============================================================================
+with tab2:
+    st.header("🗄️ Historique des décisions")
+    
+    df_history = st.session_state.data_balance
+    
+    if not df_history.empty:
+        if "Date" in df_history.columns:
+            df_history = df_history.sort_values(by="Date", ascending=False).reset_index(drop=True)
+
+        st.dataframe(df_history, use_container_width=True, hide_index=True)
+        
+        st.divider()
+
+        # Liste commune pour Suppression et Modification
+        options_history = {
+            f"{row['Date']} - {row['Sujet']}": idx 
+            for idx, row in df_history.iterrows()
+        }
+
+        # --- BLOC 1 : SUPPRESSION ---
+        with st.expander("🗑️ Supprimer une entrée"):
+            sel_suppr = st.selectbox("Choisir la ligne à supprimer :", list(options_history.keys()), key="select_suppr")
+            
+            if st.button("Confirmer la suppression"):
+                idx_to_drop = options_history[sel_suppr]
+                row_to_del = df_history.loc[idx_to_drop]
+
+                try:
+                    from connect_db import delete_data_flexible
+                    pid = st.session_state.get("patient_id", "Anonyme")
+                    delete_data_flexible("Balance_Decisionnelle", {
+                        "Patient": pid,
+                        "Date": str(row_to_del['Date']),
+                        "Sujet": row_to_del['Sujet']
+                    })
+                except:
+                    pass
+                
+                st.session_state.data_balance = df_history.drop(idx_to_drop).reset_index(drop=True)
+                st.success("Ligne supprimée !")
+                st.rerun()
+
+        # --- BLOC 2 : MODIFICATION (RECHARGER) ---
+        with st.expander("✏️ Modifier / Reprendre une balance"):
+            st.write("Sélectionnez une balance pour recharger ses données.")
+            
+            sel_modif = st.selectbox("Choisir la balance à modifier :", list(options_history.keys()), key="select_modif")
+            
+            if st.button("🔄 Charger les données pour modification"):
+                idx_to_load = options_history[sel_modif]
+                row_to_load = df_history.loc[idx_to_load]
+                
+                # 1. On stocke le titre dans la variable de transit (TOP LEVEL)
+                st.session_state.sujet_a_charger = row_to_load['Sujet']
+                
+                # 2. Parsing robuste du texte
+                raw_text = row_to_load['Détail Arguments']
+                
+                if pd.isna(raw_text) or str(raw_text) == "nan":
+                    lignes = []
+                else:
+                    lignes = str(raw_text).split('\n')
+                
+                new_data = []
+                loaded_options = []
+                
+                for ligne in lignes:
+                    ligne = ligne.strip()
+                    if not ligne: continue
+                    
+                    try:
+                        clean_line = ligne.replace("• ", "")
+                        
+                        # Parsing sécurisé
+                        if " : " in clean_line:
+                            parts = clean_line.split(" : ", 1)
+                            opt_name = parts[0].strip()
+                            reste = parts[1].strip()
+                        else:
+                            # Cas de secours si le format est différent
+                            opt_name = "Option Inconnue"
+                            reste = clean_line
+
+                        if opt_name not in loaded_options:
+                            loaded_options.append(opt_name)
+                        
+                        # Type
+                        if "🟢" in reste:
+                            type_arg = "Avantage (+)"
+                            reste = reste.replace("🟢 ", "").strip()
+                            score_mult = 1
+                        elif "🔴" in reste:
+                            type_arg = "Inconvénient (-)"
+                            reste = reste.replace("🔴 ", "").strip()
+                            score_mult = -1
+                        else:
+                            type_arg = "Avantage (+)" # Par défaut si pas d'emoji
+                            score_mult = 1
+                            
+                        # Note
+                        if "(" in reste and ")" in reste:
+                            last_paren_idx = reste.rfind("(")
+                            description = reste[:last_paren_idx].strip()
+                            try:
+                                intensite_part = reste[last_paren_idx+1:].replace(")", "") # "8/10"
+                                intensite_val = int(intensite_part.split("/")[0])
+                            except:
+                                intensite_val = 5
+                        else:
+                            description = reste
+                            intensite_val = 5
+
+                        new_data.append({
+                            "Option": opt_name,
+                            "Type": type_arg,
+                            "Description": description,
+                            "Intensité": intensite_val,
+                            "Score_Calc": intensite_val * score_mult
+                        })
+                    except Exception as e:
+                        print(f"Erreur parsing ligne: {ligne} - {e}")
+
+                # 3. Mise à jour
+                st.session_state.balance_options_list = loaded_options
+                st.session_state.balance_args_current = pd.DataFrame(new_data)
+                
+                # Notification visuelle importante
+                st.toast("✅ Données chargées ! Cliquez sur l'onglet 'Créer une balance' pour voir le résultat.", icon="🚀")
+                
+                # On force le rechargement pour afficher le titre
+                st.rerun()
+
+    else:
+        st.info("Aucune balance décisionnelle enregistrée.")
