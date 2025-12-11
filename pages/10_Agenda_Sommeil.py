@@ -15,31 +15,44 @@ st.title("🌙 Agenda du Sommeil")
 st.info("Remplissez ce formulaire chaque matin pour analyser la qualité de votre sommeil.")
 
 # ==============================================================================
-# 1. INITIALISATION ET CHARGEMENT
+# 1. INITIALISATION ET CHARGEMENT CLOUD
 # ==============================================================================
-
-# A. LISTE DES COLONNES (Version Complète)
-cols_sommeil = [
-    "Patient", "Date", "Sieste", 
-    "Sport", "Cafeine", "Alcool", "Medic_Sommeil",
-    "Heure Coucher", "Latence", "Eveil", 
-    "Heure Lever", "TTE", "TAL", "TTS", "Forme", "Qualité", "Efficacité"
-]
-
-# B. CHARGEMENT ROBUSTE
 if "data_sommeil" not in st.session_state:
+    # A. Vos en-têtes exactes Google Sheet
+    cols_sommeil = [
+        "Patient", "Date", "Sieste", 
+        "Sport", "Cafeine", "Alcool", "Medic_Sommeil",
+        "Heure Coucher", "Latence", "Eveil", 
+        "Heure Lever", "TTE", "TAL", "TTS", "Forme", "Qualité", "Efficacité"
+    ]
+    
+    # B. Création d'un DataFrame vide (sécurité)
     df_final = pd.DataFrame(columns=cols_sommeil)
+    
+    # C. Chargement des données
     try:
         from connect_db import load_data
+        # Attention : L'argument "Sommeil" doit être le nom exact de l'onglet en bas de votre Google Sheet
         data_cloud = load_data("Sommeil")
+        
         if data_cloud:
             df_cloud = pd.DataFrame(data_cloud)
-            # Fusion intelligente des colonnes
+            
+            # D. Remplissage intelligent
+            # On parcourt vos colonnes officielles et on cherche si elles existent dans le Cloud
             for col in cols_sommeil:
                 if col in df_cloud.columns:
                     df_final[col] = df_cloud[col]
+                # Optionnel : Gestion des synonymes si jamais le nom diffère légèrement
+                elif col == "Eveil" and "Eveil Nocturne" in df_cloud.columns:
+                    df_final[col] = df_cloud["Eveil Nocturne"]
+
     except Exception as e:
+        # En cas d'erreur de connexion, on ne bloque pas l'appli, on démarre vide
+        # st.error(f"Erreur de chargement : {e}") # Décommentez pour voir l'erreur
         pass
+
+    # E. Sauvegarde en mémoire pour la session
     st.session_state.data_sommeil = df_final
 
 # C. INITIALISATION DES UNITÉS
