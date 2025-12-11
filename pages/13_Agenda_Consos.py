@@ -342,8 +342,8 @@ with tab2:
         # On affiche toutes les colonnes demandées
         edited_df = st.data_editor(
             df_filtre, 
-            column_order=["Patient", "Date", "Heure", "Substance", "Type", "Intensité", "Pensées"], 
-            disabled=["Substance"], # On empêche de modifier ces 2 colonnes pour éviter les bugs de tri
+            column_order=["Date", "Heure", "Substance", "Type", "Intensité", "Pensées"], 
+            disabled=["Patient", "Substance"], # On empêche de modifier ces 2 colonnes pour éviter les bugs de tri
             use_container_width=True, 
             num_rows="dynamic",
             key=f"editor_{substance_active}"
