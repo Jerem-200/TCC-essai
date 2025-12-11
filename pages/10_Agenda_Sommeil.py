@@ -15,13 +15,13 @@ st.info("Remplissez ce formulaire chaque matin pour analyser la qualité de votr
 
 # --- INITIALISATION ET CHARGEMENT ---
 if "data_sommeil" not in st.session_state:
-    # ... (Votre code existant pour cols_sommeil et chargement cloud) ...
-    # ... (Laissez le bloc existant) ...
-    pass # (Ceci est juste pour repère, ne copiez pas pass)
-
-# --- NOUVEAU : LISTE DES UNITÉS POUR LE SOMMEIL ---
-if "sommeil_units" not in st.session_state:
-    st.session_state.sommeil_units = ["Tasses", "Verres", "mg", "Comprimés", "ml", "Pintes"]
+    # MISE À JOUR DES COLONNES
+    cols_sommeil = [
+        "Patient", "Date", "Sieste", 
+        "Sport", "Cafeine", "Alcool", "Medic_Sommeil",
+        "Heure Coucher", "Latence", "Eveil", 
+        "Heure Lever", "TTE", "TAL", "TTS", "Forme", "Qualité", "Efficacité"
+    ]
     
     # Tentative de chargement Cloud
     try:
@@ -39,6 +39,9 @@ if "sommeil_units" not in st.session_state:
     else:
         # Sinon vide
         st.session_state.data_sommeil = pd.DataFrame(columns=cols_sommeil)
+
+if "sommeil_units" not in st.session_state:
+    st.session_state.sommeil_units = ["Tasses", "Verres", "mg", "Comprimés", "ml", "Pintes"]
 
 # --- FONCTIONS DE CALCUL (Le cerveau mathématique) ---
 def calculer_duree_minutes(heure_debut, heure_fin):
@@ -253,7 +256,6 @@ with tab1:
                 ])
             except Exception as e:
                 st.error(f"Erreur de sauvegarde Cloud : {e}")
-
 
 # --- ONGLET 2 : ANALYSE ---
 with tab2:
