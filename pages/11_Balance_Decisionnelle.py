@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Balance Décisionnelle", page_icon="⚖️")
 
@@ -269,14 +268,11 @@ with tab2:
         
         st.divider()
 
-        # --- CORRECTION : GÉNÉRATION DES CLÉS UNIQUES ---
-        options_history = {}
-        for idx, row in df_history.iterrows():
-            # On ajoute (ID: {idx}) à la fin pour que chaque ligne soit unique
-            # même si le sujet et la date sont identiques.
-            label = f"{row['Date']} - {row['Sujet']} (ID: {idx})"
-            options_history[label] = idx
-        # ------------------------------------------------
+        # Liste commune pour Suppression et Modification
+        options_history = {
+            f"{row['Date']} - {row['Sujet']}": idx 
+            for idx, row in df_history.iterrows()
+        }
 
         # --- BLOC 1 : SUPPRESSION ---
         with st.expander("🗑️ Supprimer une entrée"):
@@ -301,14 +297,13 @@ with tab2:
                 st.success("Ligne supprimée !")
                 st.rerun()
 
-# --- BLOC 2 : MODIFICATION (RECHARGER) ---
+        # --- BLOC 2 : MODIFICATION (RECHARGER) ---
         with st.expander("✏️ Modifier / Reprendre une balance"):
             st.write("Sélectionnez une balance pour recharger ses données.")
             
             sel_modif = st.selectbox("Choisir la balance à modifier :", list(options_history.keys()), key="select_modif")
             
-            # CORRECTION ICI : Ajout de key="btn_charger_modif" pour éviter l'erreur DuplicateElementId
-            if st.button("🔄 Charger les données pour modification", key="btn_charger_modif"):
+            if st.button("🔄 Charger les données pour modification"):
                 idx_to_load = options_history[sel_modif]
                 row_to_load = df_history.loc[idx_to_load]
                 
@@ -339,6 +334,7 @@ with tab2:
                             opt_name = parts[0].strip()
                             reste = parts[1].strip()
                         else:
+                            # Cas de secours si le format est différent
                             opt_name = "Option Inconnue"
                             reste = clean_line
 
@@ -355,7 +351,7 @@ with tab2:
                             reste = reste.replace("🔴 ", "").strip()
                             score_mult = -1
                         else:
-                            type_arg = "Avantage (+)"
+                            type_arg = "Avantage (+)" # Par défaut si pas d'emoji
                             score_mult = 1
                             
                         # Note
@@ -363,7 +359,7 @@ with tab2:
                             last_paren_idx = reste.rfind("(")
                             description = reste[:last_paren_idx].strip()
                             try:
-                                intensite_part = reste[last_paren_idx+1:].replace(")", "")
+                                intensite_part = reste[last_paren_idx+1:].replace(")", "") # "8/10"
                                 intensite_val = int(intensite_part.split("/")[0])
                             except:
                                 intensite_val = 5
@@ -385,18 +381,11 @@ with tab2:
                 st.session_state.balance_options_list = loaded_options
                 st.session_state.balance_args_current = pd.DataFrame(new_data)
                 
-                st.toast("✅ Données chargées ! Redirection...", icon="🚀")
+                # Notification visuelle importante
+                st.toast("✅ Données chargées ! Cliquez sur l'onglet 'Créer une balance' pour voir le résultat.", icon="🚀")
                 
-                # --- REDIRECTION AUTOMATIQUE VERS L'ONGLET 1 ---
-                js_switch_tab = """
-                <script>
-                    var tabs = window.parent.document.querySelectorAll("[data-testid='stTabs'] button");
-                    if (tabs.length > 0) {
-                        tabs[0].click();
-                    }
-                </script>
-                """
-                components.html(js_switch_tab, height=0)
+                # On force le rechargement pour afficher le titre
+                st.rerun()
 
     else:
         st.info("Aucune balance décisionnelle enregistrée.")
