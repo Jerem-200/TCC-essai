@@ -183,4 +183,4 @@ with st.sidebar:
     st.page_link("pages/03_Ressources.py", label="📚 Ressources")
     st.page_link("pages/04_Historique.py", label="📜 Historique")
     st.page_link("pages/08_Export_Rapport.py", label="📩 Export PDF")
- 
+    st.page_link("pages/14_Balance_decisionnelle.py", label="⚖️ Balance décisionnelle")
