@@ -331,173 +331,132 @@ with tab2:
     
     # 1. FILTRAGE ET PRÉPARATION
     df_global = st.session_state.data_addictions
-    # On ne garde que les lignes de la substance active pour l'affichage
+    
+    # On filtre pour la substance active
     df_filtre = df_global[df_global["Substance"] == substance_active].sort_values(by=["Date", "Heure"], ascending=False).reset_index(drop=True)
     
     if not df_filtre.empty:
-        st.info("💡 Vous pouvez modifier les valeurs directement dans le tableau (double-cliquez sur une case).")
+        st.info("💡 Vous pouvez modifier les valeurs directement dans le tableau (sauf Patient et Substance).")
         
-        # 2. TABLEAU ÉDITABLE (Comme Agenda Sommeil)
-        # On cache la colonne Substance car on est déjà dans l'onglet de cette substance
+        # 2. TABLEAU ÉDITABLE COMPLET
+        # On affiche toutes les colonnes demandées
         edited_df = st.data_editor(
             df_filtre, 
-            column_order=["Date", "Heure", "Type", "Intensité", "Pensées"], 
+            column_order=["Patient", "Date", "Heure", "Substance", "Type", "Intensité", "Pensées"], 
+            disabled=["Patient", "Substance"], # On empêche de modifier ces 2 colonnes pour éviter les bugs de tri
             use_container_width=True, 
             num_rows="dynamic",
-            key=f"editor_{substance_active}" # Clé unique pour éviter les bugs entre substances
+            key=f"editor_{substance_active}"
         )
         
         # MISE À JOUR DE LA MÉMOIRE SI CHANGEMENT
-        # Si le tableau édité est différent de l'original affiché
         if not edited_df.equals(df_filtre):
-            # 1. On prend le DF global et on enlève les anciennes lignes de cette substance
+            # 1. On sépare ce qui n'a pas bougé (les autres substances)
             df_others = df_global[df_global["Substance"] != substance_active]
-            # 2. On remet la colonne "Substance" dans le DF édité (au cas où elle aurait sauté)
+            
+            # 2. On s'assure que la substance reste la bonne (sécurité)
             edited_df["Substance"] = substance_active
-            # 3. On fusionne les autres + les nouvelles lignes éditées
+            
+            # 3. On fusionne le tout
             st.session_state.data_addictions = pd.concat([df_others, edited_df], ignore_index=True)
             st.rerun()
-
-# ... (le code du tableau éditable reste au dessus) ...
 
         st.divider()
         st.write(f"### Évolution : {substance_active}")
 
-# --- PRÉPARATION DES DONNÉES (SÉCURISÉE) ---
+        # --- PRÉPARATION DES DONNÉES POUR LE GRAPHIQUE ---
         df_chart = edited_df.copy()
         
-        # 1. Conversion Date/Heure (Gestion des formats multiples)
+        # 1. Conversion Date/Heure
         try:
-            # On combine Date et Heure pour l'axe temporel
             df_chart['Full_Date'] = pd.to_datetime(
                 df_chart['Date'].astype(str) + ' ' + df_chart['Heure'].astype(str), 
-                format="%Y-%m-%d %H:%M", # On essaie le format standard d'abord
-                errors='coerce'
+                format="%Y-%m-%d %H:%M", errors='coerce'
             )
-            # Si ça échoue (NaN), on essaie de parser automatiquement
+            # Fallback si erreur
             mask_error = df_chart['Full_Date'].isna()
             if mask_error.any():
                  df_chart.loc[mask_error, 'Full_Date'] = pd.to_datetime(df_chart.loc[mask_error, 'Date'], errors='coerce')
         except:
             df_chart['Full_Date'] = pd.to_datetime(df_chart['Date'], errors='coerce')
 
-        # 2. Conversion Chiffres (Sécurité supplémentaire)
-        # On remplace les virgules par des points et on convertit
+        # 2. Conversion Chiffres
         if "Intensité" in df_chart.columns:
             df_chart['Intensité'] = df_chart['Intensité'].astype(str).str.replace(',', '.')
             df_chart['Intensité'] = pd.to_numeric(df_chart['Intensité'], errors='coerce')
         
-        # 1. Conversion Date/Heure
-        try:
-            df_chart['Full_Date'] = pd.to_datetime(df_chart['Date'].astype(str) + ' ' + df_chart['Heure'].astype(str), errors='coerce')
-        except:
-            df_chart['Full_Date'] = pd.to_datetime(df_chart['Date'])
-
-        # 2. Conversion Chiffres
-        df_chart['Intensité'] = pd.to_numeric(df_chart['Intensité'], errors='coerce')
-
-        # 3. SÉPARATION DES DEUX TYPES
-        # On filtre selon le texte contenu dans la colonne "Type"
+        # 3. SÉPARATION DES TYPES
         df_envie = df_chart[df_chart["Type"].str.contains("ENVIE", na=False)]
         df_conso = df_chart[df_chart["Type"].str.contains("CONSOMMÉ", na=False)]
 
-        # --- GRAPHIQUE 1 : LES ENVIES (COURBE) ---
+        # --- GRAPHIQUE 1 : LES ENVIES ---
         if not df_envie.empty:
             st.subheader("⚡ Évolution des Envies (Craving)")
-            st.caption("Intensité du besoin psychologique (0 à 10)")
-            
             chart_envie = alt.Chart(df_envie).mark_line(
-                point=alt.OverlayMarkDef(size=100, filled=True, color="#9B59B6") # Violet
+                point=alt.OverlayMarkDef(size=100, filled=True, color="#9B59B6")
             ).encode(
                 x=alt.X('Full_Date:T', title='Temps', axis=alt.Axis(format='%d/%m %H:%M')),
                 y=alt.Y('Intensité:Q', title='Intensité (0-10)', scale=alt.Scale(domain=[0, 10])),
-                color=alt.value("#9B59B6"), # Ligne Violette
+                color=alt.value("#9B59B6"),
                 tooltip=['Date', 'Heure', 'Intensité', 'Pensées']
             ).interactive()
-            
             st.altair_chart(chart_envie, use_container_width=True)
         
-        # --- GRAPHIQUE 2 : LES CONSOMMATIONS (BARRES) ---
+        # --- GRAPHIQUE 2 : LES CONSOMMATIONS ---
         if not df_conso.empty:
             st.subheader("🍷 Quantités Consommées")
-            st.caption("Volumes ou Unités réels")
-            
             chart_conso = alt.Chart(df_conso).mark_bar(
-                color="#E74C3C", # Rouge
-                size=15 # Largeur des barres
+                color="#E74C3C", size=15
             ).encode(
                 x=alt.X('Full_Date:T', title='Temps', axis=alt.Axis(format='%d/%m %H:%M')),
                 y=alt.Y('Intensité:Q', title='Quantité'),
                 tooltip=['Date', 'Heure', 'Intensité', 'Pensées']
             ).interactive()
-            
             st.altair_chart(chart_conso, use_container_width=True)
 
-        if df_envie.empty and df_conso.empty:
-            st.info("Pas assez de données pour afficher les graphiques.")
-
-# --- ZONE DE SUPPRESSION (ONGLET 2) ---
+        # --- ZONE DE SUPPRESSION ---
         st.divider()
         with st.expander("🗑️ Supprimer une entrée depuis l'historique"):
-            # 1. On trie les données (les plus récentes en haut)
             df_history = st.session_state.data_addictions.sort_values(by=["Date", "Heure"], ascending=False)
             
             if not df_history.empty:
-                # 2. CRÉATION DES ÉTIQUETTES DÉTAILLÉES
+                # Création des labels riches
                 options_history = {}
                 for idx, row in df_history.iterrows():
-                    # A. Icône et Type court
                     is_envie = "ENVIE" in str(row['Type'])
                     icone = "⚡" if is_envie else "🍷"
                     type_lbl = "Envie" if is_envie else "Conso"
                     
-                    # B. Gestion du texte "Pensées" (on coupe si c'est trop long)
                     raw_pensees = str(row.get('Pensées', ''))
-                    if pd.isna(raw_pensees) or raw_pensees == 'nan': 
-                        pensees_txt = ""
-                    else:
-                        # On garde les 30 premiers caractères pour l'aperçu
-                        pensees_txt = (raw_pensees[:30] + '...') if len(raw_pensees) > 30 else raw_pensees
+                    pensees_txt = (raw_pensees[:30] + '...') if len(raw_pensees) > 30 else raw_pensees
                     
-                    # C. Construction du label complet
-                    # Ex: 📅 2023-10-25 14:00 | 🍷 Conso | 📊 2.0 Verres | 📝 Avec des amis...
                     label = f"📅 {row['Date']} à {row['Heure']} | {icone} {type_lbl} | 📊 {row['Intensité']} | 📝 {pensees_txt}"
                     
-                    # D. Gestion des doublons parfaits (si deux lignes sont identiques)
                     if label in options_history:
                         label = f"{label} (ID: {idx})"
                         
                     options_history[label] = idx
                 
-                # 3. Menu de sélection avec le label riche
                 choice_history = st.selectbox("Sélectionnez l'entrée à supprimer :", list(options_history.keys()), key="del_tab2", index=None)
                 
-                # 4. Bouton de confirmation
                 if st.button("Confirmer la suppression", key="btn_del_tab2") and choice_history:
                     idx_to_drop = options_history[choice_history]
                     row_to_delete = df_history.loc[idx_to_drop]
 
-                    # --- A. SUPPRESSION CLOUD ---
                     try:
                         from connect_db import delete_data_flexible
                         pid = st.session_state.get("patient_id", "Anonyme")
-                        
-                        success = delete_data_flexible("Addictions", {
+                        delete_data_flexible("Addictions", {
                             "Patient": pid,
                             "Date": str(row_to_delete['Date']),
                             "Heure": str(row_to_delete['Heure']),
                             "Substance": str(row_to_delete['Substance'])
                         })
-                        
-                        if not success:
-                             st.warning("⚠️ Ligne introuvable sur le Cloud.")
-
                     except Exception as e:
-                        st.warning(f"Info Cloud : {e}")
+                        pass # Erreur silencieuse ou st.warning
 
-                    # --- B. SUPPRESSION LOCALE ---
                     st.session_state.data_addictions = st.session_state.data_addictions.drop(idx_to_drop).reset_index(drop=True)
-                    st.success("Entrée supprimée avec succès !")
+                    st.success("Entrée supprimée !")
                     st.rerun()
             else:
                 st.info("Historique vide.")
