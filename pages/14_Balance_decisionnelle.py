@@ -165,11 +165,15 @@ with tab1:
                         st.error("Veuillez indiquer le sujet de la décision en haut de page.")
                     else:
                         # Préparation des données pour le cloud
-                        # On crée un résumé texte des arguments pour qu'il tienne dans une cellule Excel
+                        # On crée une liste verticale propre sans calcul apparent
                         resume_args = ""
                         for idx, row in df_args.iterrows():
-                            signe = "+" if row['Score_Calc'] > 0 else "-"
-                            resume_args += f"[{row['Option']}] {signe} {row['Description']} ({row['Intensité']}) | "
+                            # On utilise des émojis pour distinguer visuellement Avantage/Inconvénient
+                            icone = "🟢" if "Avantage" in row['Type'] else "🔴"
+                            
+                            # Format : [Option] Emoji Description (Intensité/10)
+                            # Le \n force le retour à la ligne pour faire une liste
+                            resume_args += f"• [{row['Option']}] {icone} {row['Description']} ({row['Intensité']}/10)\n"
 
                         new_entry = {
                             "Date": datetime.now().strftime("%Y-%m-%d"),
