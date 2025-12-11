@@ -13,7 +13,6 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
     pass 
 
 # === GESTIONNAIRE DE CHARGEMENT (TOP LEVEL) ===
-# Permet d'injecter le sujet chargé dans le champ input au rechargement
 if "sujet_a_charger" in st.session_state:
     st.session_state.input_sujet_decision = st.session_state.sujet_a_charger
     del st.session_state.sujet_a_charger
@@ -248,16 +247,31 @@ with tab2:
         if "Date" in df_history.columns:
             df_history = df_history.sort_values(by="Date", ascending=False).reset_index(drop=True)
 
-        st.dataframe(df_history, use_container_width=True, hide_index=True)
+        # 1. MASQUER LA COLONNE PATIENT POUR L'AFFICHAGE
+        df_display = df_history.copy()
+        if "Patient" in df_display.columns:
+            df_display = df_display.drop(columns=["Patient"])
+        
+        st.dataframe(df_display, use_container_width=True, hide_index=True)
         
         st.divider()
 
-        # --- GESTION DES DOUBLONS (CLE UNIQUE) ---
-        # On ajoute l'ID à la fin pour distinguer deux entrées identiques
+        # --- GESTION DES DOUBLONS AVEC LABELS PARLANTS ---
         options_history = {}
         for idx, row in df_history.iterrows():
-            label = f"{row['Date']} - {row['Sujet']} (ID: {idx})"
-            options_history[label] = idx
+            # On construit un label qui contient le GAGNANT et le SCORE pour aider à différencier
+            gagnant = row.get('Option Gagnante', '?')
+            score = row.get('Score', 0)
+            
+            base_label = f"{row['Date']} - {row['Sujet']} | 🏆 {gagnant} ({score} pts)"
+            
+            # Si jamais ce label exact existe déjà (doublon parfait), on ajoute un compteur
+            if base_label in options_history:
+                final_label = f"{base_label} (Copie {idx})"
+            else:
+                final_label = base_label
+                
+            options_history[final_label] = idx
 
         # --- BLOC 1 : SUPPRESSION ---
         with st.expander("🗑️ Supprimer une entrée"):
@@ -288,7 +302,6 @@ with tab2:
             
             sel_modif = st.selectbox("Choisir la balance à modifier :", list(options_history.keys()), key="select_modif")
             
-            # Ajout du key pour éviter l'erreur DuplicateElementId
             if st.button("🔄 Charger les données pour modification", key="btn_charger_modif"):
                 idx_to_load = options_history[sel_modif]
                 row_to_load = df_history.loc[idx_to_load]
