@@ -57,6 +57,11 @@ def format_minutes_en_h_m(minutes):
     m = int(minutes % 60)
     return f"{h}h{m:02d}"
 
+# ==============================================================================
+# ONGLETS : SAISIE vs ANALYSE
+# ==============================================================================
+tab1, tab2 = st.tabs(["📝 Saisie du jour", "📊 Analyse & Moyennes"])
+
 # --- ONGLET 1 : FORMULAIRE ---
 with tab1:
     st.subheader("📝 Saisie de la nuit dernière")
@@ -204,7 +209,6 @@ with tab1:
                 ])
             except Exception as e:
                 st.error(f"Erreur de sauvegarde Cloud : {e}")
-
 
 # --- ONGLET 2 : ANALYSE ---
 with tab2:
