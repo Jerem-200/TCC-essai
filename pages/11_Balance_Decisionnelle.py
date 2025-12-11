@@ -269,11 +269,14 @@ with tab2:
         
         st.divider()
 
-        # Liste commune pour Suppression et Modification
-        options_history = {
-            f"{row['Date']} - {row['Sujet']}": idx 
-            for idx, row in df_history.iterrows()
-        }
+        # --- CORRECTION : GÉNÉRATION DES CLÉS UNIQUES ---
+        options_history = {}
+        for idx, row in df_history.iterrows():
+            # On ajoute (ID: {idx}) à la fin pour que chaque ligne soit unique
+            # même si le sujet et la date sont identiques.
+            label = f"{row['Date']} - {row['Sujet']} (ID: {idx})"
+            options_history[label] = idx
+        # ------------------------------------------------
 
         # --- BLOC 1 : SUPPRESSION ---
         with st.expander("🗑️ Supprimer une entrée"):
@@ -394,6 +397,6 @@ with tab2:
                 </script>
                 """
                 components.html(js_switch_tab, height=0)
-                
+
     else:
         st.info("Aucune balance décisionnelle enregistrée.")
