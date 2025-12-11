@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Balance Décisionnelle", page_icon="⚖️")
 
@@ -385,7 +386,31 @@ with tab2:
                 st.toast("✅ Données chargées ! Cliquez sur l'onglet 'Créer une balance' pour voir le résultat.", icon="🚀")
                 
                 # On force le rechargement pour afficher le titre
-                st.rerun()
+                if st.button("🔄 Charger les données pour modification"):
+                    idx_to_load = options_history[sel_modif]
+                    row_to_load = df_history.loc[idx_to_load]
+                    
+                    # ... (Tout votre code de parsing existant reste ici) ...
+                    # ... (On ne change rien à la logique de parsing) ...
+                    
+                    # Parsing ...
+                    # Mise à jour session_state ...
+
+                    # Notification visuelle
+                    st.toast("✅ Données chargées ! Redirection...", icon="🚀")
+                    
+                    # --- REMPLACER st.rerun() PAR CECI ---
+                    # On injecte du Javascript pour cliquer sur le 1er onglet (index 0)
+                    js_switch_tab = """
+                    <script>
+                        var tabs = window.parent.document.querySelectorAll("[data-testid='stTabs'] button");
+                        if (tabs.length > 0) {
+                            tabs[0].click();
+                        }
+                    </script>
+                    """
+                    components.html(js_switch_tab, height=0)
+                    # -------------------------------------
 
     else:
         st.info("Aucune balance décisionnelle enregistrée.")
