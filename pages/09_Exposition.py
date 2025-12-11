@@ -4,9 +4,14 @@ from datetime import datetime
 
 st.set_page_config(page_title="Exposition", page_icon="🧗")
 
-# --- VIGILE ---
+# --- VIGILE DE SÉCURITÉ SIMPLIFIÉ ---
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
-    st.switch_page("streamlit_app.py")
+    st.warning("🔒 Accès restreint. Veuillez entrer votre Code Patient sur l'accueil.")
+    st.page_link("streamlit_app.py", label="Retourner à l'accueil pour se connecter", icon="🏠")
+    st.stop() # Arrête le chargement du reste de la page
+
+# Récupération du code patient pour les sauvegardes
+patient_id = st.session_state.patient_id
 
 st.title("🧗 L'Exposition (Apprentissage Inhibiteur)")
 

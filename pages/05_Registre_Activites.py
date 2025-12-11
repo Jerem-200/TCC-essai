@@ -5,11 +5,14 @@ from datetime import datetime
 
 st.set_page_config(page_title="Registre des Activités", page_icon="📝")
 
-# --- 1. LE VIGILE DE SÉCURITÉ (Toujours en premier !) ---
+# --- VIGILE DE SÉCURITÉ SIMPLIFIÉ ---
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
-    st.warning("⛔ Veuillez vous connecter sur la page d'accueil.")
-    st.switch_page("streamlit_app.py")
-    st.stop()
+    st.warning("🔒 Accès restreint. Veuillez entrer votre Code Patient sur l'accueil.")
+    st.page_link("streamlit_app.py", label="Retourner à l'accueil pour se connecter", icon="🏠")
+    st.stop() # Arrête le chargement du reste de la page
+
+# Récupération du code patient pour les sauvegardes
+patient_id = st.session_state.patient_id
 
 st.title("📝 Registre des Activités")
 

@@ -5,11 +5,14 @@ from datetime import datetime, time, timedelta
 
 st.set_page_config(page_title="Agenda Consos", page_icon="🍷")
 
-# --- VIGILE DE SÉCURITÉ ---
+# --- VIGILE DE SÉCURITÉ SIMPLIFIÉ ---
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
-    st.warning("⛔ Veuillez vous connecter sur la page d'accueil.")
-    st.switch_page("streamlit_app.py")
-    st.stop()
+    st.warning("🔒 Accès restreint. Veuillez entrer votre Code Patient sur l'accueil.")
+    st.page_link("streamlit_app.py", label="Retourner à l'accueil pour se connecter", icon="🏠")
+    st.stop() # Arrête le chargement du reste de la page
+
+# Récupération du code patient pour les sauvegardes
+patient_id = st.session_state.patient_id
 
 st.title("🍷 Agenda des Envies & Consommations")
 st.info("Notez vos envies (craving) et vos consommations pour identifier les déclencheurs.")

@@ -1,80 +1,63 @@
 import streamlit as st
+import time
 
-st.set_page_config(page_title="Mon Compagnon TCC", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="TCC Companion", page_icon="🧠")
 
-# --- AUTHENTIFICATION ---
+st.title("🧠 Compagnon TCC")
+st.write("Bienvenue dans votre espace de travail thérapeutique.")
+
+# --- NOUVEAU SYSTÈME D'AUTHENTIFICATION PAR CODE UNIQUE ---
+
+# 1. Vérification si déjà connecté dans la session
 if "authentifie" not in st.session_state:
     st.session_state.authentifie = False
 if "patient_id" not in st.session_state:
     st.session_state.patient_id = ""
 
-def verifier_connexion():
-    if st.session_state.password_input == "TCC2025" and st.session_state.user_input.strip() != "":
-        st.session_state.authentifie = True
-        st.session_state.patient_id = st.session_state.user_input
-    elif st.session_state.password_input != "TCC2025":
-        st.error("Mot de passe incorrect")
-    else:
-        st.warning("Veuillez entrer votre Prénom.")
-
+# 2. Interface de connexion anonyme
 if not st.session_state.authentifie:
-    st.title("🔒 Espace Patient Sécurisé")
-    st.info("""
-    ℹ️ **Note de confidentialité :** Cette application est un outil d'accompagnement. 
-    Pour garantir votre anonymat, **n'utilisez pas votre nom de famille complet**. 
-    Utilisez un prénom ou un pseudonyme convenu avec votre thérapeute.
-    """)
+    st.info("🔒 Veuillez entrer le code d'accès fourni par votre thérapeute.")
     
-    # Onglets Connexion / Inscription
-    tab_login, tab_signup = st.tabs(["🔑 Se connecter", "📝 Créer un compte"])
-
-    with tab_login:
-        with st.form("login_form"):
-            user_login = st.text_input("Votre Identifiant")
-            pass_login = st.text_input("Votre Mot de passe", type="password")
-            submit_login = st.form_submit_button("Me connecter")
+    with st.form("login_form"):
+        code_input = st.text_input("Votre Code Patient", placeholder="Ex: A123", type="password")
+        submit_btn = st.form_submit_button("Accéder à mon espace")
         
-        if submit_login:
-            from connect_db import charger_utilisateurs
-            users_db = charger_utilisateurs()
-            compte_trouve = False
-            for u in users_db:
-                if str(u["Identifiant"]) == user_login and str(u["MotDePasse"]) == pass_login:
-                    compte_trouve = True
-                    break
-            if compte_trouve:
-                st.success("Connexion réussie !")
+        if submit_btn:
+            if code_input.strip(): # On vérifie juste que ce n'est pas vide
+                # On nettoie le code (enlever les espaces, mettre en majuscule)
+                clean_code = code_input.strip().upper()
+                
+                # Validation et Stockage en session
+                st.session_state.patient_id = clean_code
                 st.session_state.authentifie = True
-                st.session_state.patient_id = user_login
+                
+                st.success(f"Bienvenue ! Code actif : {clean_code}")
+                time.sleep(1)
                 st.rerun()
             else:
-                st.error("Identifiant ou mot de passe incorrect.")
+                st.error("❌ Le code ne peut pas être vide.")
 
-    with tab_signup:
-        st.write("Première fois ? Créez un compte.")
-        with st.form("signup_form"):
-            new_user = st.text_input("Choisissez un Identifiant")
-            new_pass = st.text_input("Choisissez un Mot de passe", type="password")
-            submit_signup = st.form_submit_button("Créer mon compte")
-        
-        if submit_signup:
-            if new_user and new_pass:
-                from connect_db import charger_utilisateurs, creer_compte
-                users_db = charger_utilisateurs()
-                pseudo_pris = False
-                for u in users_db:
-                    if str(u["Identifiant"]) == new_user:
-                        pseudo_pris = True
-                        break
-                if pseudo_pris:
-                    st.warning("Cet identifiant existe déjà.")
-                else:
-                    if creer_compte(new_user, new_pass):
-                        st.success("Compte créé ! Allez dans l'onglet 'Se connecter'.")
-                        st.balloons()
-            else:
-                st.warning("Remplissez tous les champs.")
-    st.stop()
+# 3. Affichage du menu une fois connecté
+else:
+    st.success(f"✅ Connecté (Code : {st.session_state.patient_id})")
+    
+    # Bouton de déconnexion
+    if st.button("Se déconnecter / Changer de code"):
+        st.session_state.authentifie = False
+        st.session_state.patient_id = ""
+        st.rerun()
+    
+    st.divider()
+    st.subheader("Vos outils disponibles :")
+    
+    # Liens vers les autres pages
+    col1, col2 = st.columns(2)
+    with col1:
+        st.page_link("pages/10_Registre_Activites.py", label="📝 Registre des Activités", icon="📝")
+        st.page_link("pages/11_Agenda_Consos.py", label="🍷 Agenda Consos", icon="🍷")
+    with col2:
+        st.page_link("pages/12_Colonnes_Beck.py", label="🧩 Colonnes de Beck", icon="🧩")
+        st.page_link("pages/13_Resolution_Problemes.py", label="💡 Résolution Problèmes", icon="💡")
 
 # --- ACCUEIL (TABLEAU DE BORD COMPLET) ---
 st.title(f"🧠 Bonjour {st.session_state.patient_id}")
