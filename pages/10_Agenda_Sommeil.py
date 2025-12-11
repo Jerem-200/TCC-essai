@@ -85,7 +85,7 @@ with tab1:
         liste_durees = ["10 min", "20 min", "30 min", "45 min", "1h00", "1h30", "2h00", "3h+"]
 
         # -- LIGNE SIESTE --
-        col_s1, col_s2, c_sport = st.columns([1, 1, 2])
+        col_s1, col_s2, c_sport = st.columns([1, 1, 1])
         with col_s1:
             h_sieste = st.selectbox("💤 Sieste (Début)", liste_heures_sieste, help="À quelle heure avez-vous fait la sieste ?")
         with col_s2:
@@ -98,7 +98,7 @@ with tab1:
         # -- LIGNE HABITUDES (4 COLONNES) --
         st.markdown("### Consommations de la veille")
         
-        c_cafe, c_alcool, c_med = st.columns(4)
+        c_cafe, c_alcool, c_med = st.columns(3)
         
         with c_cafe:
             cafeine = st.selectbox("☕ Caféine", liste_heures_habitudes, help="Café, Thé, Cola...")
