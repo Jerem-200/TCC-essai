@@ -4,6 +4,14 @@ from datetime import datetime
 
 st.set_page_config(page_title="Balance Décisionnelle", page_icon="⚖️")
 
+# --- AJOUT : GESTION DES TOASTS APRÈS RECHARGEMENT ---
+if "toast_msg" in st.session_state:
+    st.toast(st.session_state.toast_msg, icon="🚀")
+    del st.session_state.toast_msg
+# -----------------------------------------------------
+
+# ... Le reste du code (VIGILE DE SÉCURITÉ, etc.)
+
 # --- VIGILE DE SÉCURITÉ ---
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
     # Pour tester en local sans le fichier main, on commente ou on gère l'erreur
@@ -369,13 +377,15 @@ with tab2:
                         })
                     except Exception as e:
                         print(f"Erreur parsing ligne: {ligne} - {e}")
-
+                
                 # 3. Mise à jour
                 st.session_state.balance_options_list = loaded_options
                 st.session_state.balance_args_current = pd.DataFrame(new_data)
                 
-                # 4. Message et Rechargement
-                st.toast("✅ Données chargées ! Retournez sur l'onglet 'Créer une balance' pour modifier.", icon="🚀")
+                # --- MODIFICATION ICI ---
+                # Au lieu d'afficher le toast maintenant (qui serait tué par le rerun),
+                # on le stocke pour qu'il s'affiche au démarrage suivant.
+                st.session_state.toast_msg = "✅ Données chargées ! Retournez sur l'onglet 'Créer une balance' pour modifier."
                 st.rerun()
 
     else:
