@@ -7,120 +7,298 @@ st.set_page_config(page_title="Colonnes de Beck", page_icon="🧩")
 # --- VÉRIFICATION DE SÉCURITÉ ---
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.warning("⛔ Veuillez vous connecter sur la page d'accueil pour accéder à cet outil.")
-    st.switch_page("streamlit_app.py") # Renvoie vers le login
-    st.stop() # Arrête le chargement de la page
+    st.switch_page("streamlit_app.py")
+    st.stop()
 
 st.title("🧩 Colonnes de Beck")
+st.caption("Identifiez et restructurez vos pensées automatiques.")
 
-# --- 1. S'ASSURER QUE LA MÉMOIRE EXISTE ---
+# ==============================================================================
+# 1. INITIALISATION & CHARGEMENT DES DONNÉES CLOUD
+# ==============================================================================
+
+# Définition des colonnes
+COLS_BECK = [
+    "Patient", "Date", "Situation", "Émotion", "Intensité (Avant)", 
+    "Pensée Auto", "Croyance (Avant)", "Pensée Rationnelle", 
+    "Croyance (Rationnelle)", "Intensité (Après)", "Croyance (Après)"
+]
+
 if "data_beck" not in st.session_state:
-    st.session_state.data_beck = pd.DataFrame(columns=[
-        "Date", "Situation", "Émotion", "Intensité (Avant)", "Pensée Auto", 
-        "Croyance (Avant)", "Pensée Rationnelle", 
-        "Croyance (Rationnelle)", "Intensité (Après)", "Croyance (Après)"
-    ])
-
-# --- 2. LE FORMULAIRE ---
-with st.form("beck_form"):
-    # --- SITUATION ---
-    col1, col2 = st.columns(2)
-    with col1:
-        date_event = st.date_input("Date", datetime.now())
-    with col2:
-        lieu = st.text_input("Lieu / Contexte")
+    # Création du DataFrame vide
+    df_init = pd.DataFrame(columns=COLS_BECK)
     
-    # Info-bulle Situation
-    help_situation = """C'est le contexte dans lequel vous vous trouvez (horaire, lieu, personnes autour de toi...). Il est constitué d'éléments factuels, les plus précis possible.\n\nEx : Entretien d'embauche non concluant."""
-    
-    situation = st.text_area("Situation (Fait déclencheur)", help=help_situation)
-    
-    st.divider()
-    
-    # --- EMOTION ---
-    # Info-bulle Emotion
-    help_emotion = """Vous observez l'émotion que vous ressentez dans cette situation. En complément, prenez le temps d'évaluer l'intensité de votre émotion sur une échelle de 0 à 10.\n\nEx : Tristesse avec une intensité de 7/10."""
-    
-    emotion = st.text_input("Émotion (Nommez ce que vous ressentez)", help=help_emotion)
-    intensite_avant = st.slider("Intensité de l'émotion (0-10)", 0, 10, 7)
-    
-    st.divider()
-    
-    # --- PENSÉE AUTOMATIQUE ---
-    # Info-bulle Pensée Auto
-    help_pensee = """Une pensée automatique est comme une petite voix dans votre tête, qui commente tout ce que vous faites.\nIdentifiez-la puis prenez le temps d'évaluer votre niveau de croyance en cette pensée sur une échelle de 0 à 10.\n\nEx: "Je n'arrive jamais à rien." avec un degré de croyance de 7/10."""
-    
-    pensee_auto = st.text_area("Pensée Automatique (Ce qui vous traverse l'esprit)", help=help_pensee)
-    
-    # Changement du titre ici
-    croyance_auto = st.slider("Degré de croyance en la pensée automatique (0-10)", 0, 10, 8)
-    
-    st.divider()
-    
-    # --- PENSÉE RATIONNELLE ---
-    # Info-bulle Rationnelle
-    help_rationnel = """Essayez d'observer la situation sous un autre angle. Posez-vous par exemples les questions suivantes :\n• Si un-e proche s'était retrouvé-e dans cette situation, quelle aurait été sa réaction ?\n• Dans une période de ma vie où je me sentais mieux, qu'aurais-je pensé de cette situation ?\n\nÉvaluez le degré de croyance en cette pensée automatique de 0 à 10.\nEx : "J'ai déjà réussi des entretiens d'embauche par le passé." avec un degré de croyance de 8/10."""
-    
-    pensee_rat = st.text_area("Pensée Alternative / Rationnelle", help=help_rationnel)
-    croyance_rat = st.slider("Croyance dans la pensée rationnelle (0-10)", 0, 10, 5)
-    
-    st.divider()
-    
-    # --- RÉSULTATS ---
-    st.subheader("5. Ré-évaluation")
-    
-    # Info-bulle Résultats
-    help_resultat = """Réévaluez les émotions ressenties et votre degré de croyance vis-à-vis de la pensée automatique.\n\nEx :\nNouveau degré de croyance : 4/10\nNouvelle intensité de mon émotion: 5/10."""
-    
-    # Changement du titre ici
-    croyance_apres = st.slider("Nouveau degré de croyance en la pensée automatique (0-10)", 0, 10, 4, help=help_resultat)
-    intensite_apres = st.slider("Nouvelle intensité de l'émotion (0-10)", 0, 10, 4)
-    
-    submitted = st.form_submit_button("Enregistrer l'exercice")
-
-# ... (le code d'avant reste pareil)
-
-    if submitted:
-        # 1. Sauvegarde Locale (Session) - On garde pour l'affichage immédiat
-        new_row = {
-            "Date": str(date_event),
-            "Situation": f"{lieu} - {situation}",
-            "Émotion": emotion,
-            "Intensité (Avant)": intensite_avant,
-            "Pensée Auto": pensee_auto,
-            "Croyance (Avant)": croyance_auto,
-            "Pensée Rationnelle": pensee_rat,
-            "Croyance (Rationnelle)": croyance_rat,
-            "Intensité (Après)": intensite_apres,
-            "Croyance (Après)": croyance_apres
-        }
-        st.session_state.data_beck = pd.concat([st.session_state.data_beck, pd.DataFrame([new_row])], ignore_index=True)
+    # Tentative de chargement depuis le Cloud
+    try:
+        from connect_db import load_data
+        data_cloud = load_data("Beck") # Nom de l'onglet GSheet
         
-        # 2. SAUVEGARDE CLOUD (GOOGLE SHEETS) --- NOUVEAU !
-        from connect_db import save_data
-        
-        # On récupère l'ID du patient (ou "Inconnu" s'il y a un bug)
-        patient = st.session_state.get("patient_id", "Inconnu")
+        if data_cloud:
+            df_cloud = pd.DataFrame(data_cloud)
+            
+            # Mapping intelligent des colonnes (Gestion des majuscules/minuscules)
+            for col in COLS_BECK:
+                if col in df_cloud.columns:
+                    df_init[col] = df_cloud[col]
+                elif col.lower() in df_cloud.columns: # Si écrit en minuscule dans le sheet
+                    df_init[col] = df_cloud[col.lower()]
+            
+            # Nettoyage des chiffres (Conversion texte -> nombre pour les sliders)
+            numeric_cols = ["Intensité (Avant)", "Croyance (Avant)", "Croyance (Rationnelle)", "Intensité (Après)", "Croyance (Après)"]
+            for c in numeric_cols:
+                if c in df_init.columns:
+                    df_init[c] = pd.to_numeric(df_init[c], errors='coerce').fillna(0).astype(int)
 
-        # On prépare la liste simple pour Excel (l'ordre compte !)
-        liste_excel = [
-            patient,              # <--- ON AJOUTE L'ID EN PREMIER
-            str(date_event), 
-            f"{lieu} - {situation}", 
-            emotion, 
-            intensite_avant, 
-            pensee_auto, 
-            croyance_auto, 
-            pensee_rat, 
-            croyance_rat, 
-            intensite_apres, 
-            croyance_apres
-        ]
+    except Exception as e:
+        # En cas d'erreur (pas de connexion, etc.), on reste sur un tableau vide
+        pass
+
+    st.session_state.data_beck = df_init
+
+# ==============================================================================
+# CRÉATION DES ONGLETS
+# ==============================================================================
+tab1, tab2 = st.tabs(["📝 Nouvel Exercice", "🗂️ Historique & Modifications"])
+
+# ==============================================================================
+# ONGLET 1 : LE FORMULAIRE DE SAISIE
+# ==============================================================================
+with tab1:
+    st.subheader("Nouvelle entrée")
+    
+    with st.form("beck_form"):
+        # --- SITUATION ---
+        col1, col2 = st.columns(2)
+        with col1:
+            date_event = st.date_input("Date", datetime.now())
+        with col2:
+            lieu = st.text_input("Lieu / Contexte")
         
-        # On envoie vers l'onglet "Beck"
-        if save_data("Beck", liste_excel):
-            st.success("✅ Exercice enregistré dans le Cloud et l'Historique !")
-        else:
-            st.warning("⚠️ Enregistré en local seulement (Erreur connexion).")
+        help_situation = "Contexte factuel (horaire, lieu, personnes...).\nEx : Entretien d'embauche non concluant."
+        situation = st.text_area("Situation (Fait déclencheur)", help=help_situation)
+        
+        st.divider()
+        
+        # --- EMOTION ---
+        help_emotion = "Nommez l'émotion et son intensité (0-10)."
+        emotion = st.text_input("Émotion", help=help_emotion)
+        intensite_avant = st.slider("Intensité de l'émotion (0-10)", 0, 10, 7)
+        
+        st.divider()
+        
+        # --- PENSÉE AUTOMATIQUE ---
+        help_pensee = "La petite voix qui commente.\nEx: 'Je n'arrive jamais à rien'."
+        pensee_auto = st.text_area("Pensée Automatique", help=help_pensee)
+        croyance_auto = st.slider("Croyance en cette pensée (0-10)", 0, 10, 8)
+        
+        st.divider()
+        
+        # --- PENSÉE RATIONNELLE ---
+        help_rationnel = "Arguments contraires, vision d'un ami...\nEx : 'J'ai déjà réussi des choses'."
+        pensee_rat = st.text_area("Pensée Alternative / Rationnelle", help=help_rationnel)
+        croyance_rat = st.slider("Croyance rationnelle (0-10)", 0, 10, 5)
+        
+        st.divider()
+        
+        # --- RÉSULTATS ---
+        st.subheader("5. Ré-évaluation")
+        croyance_apres = st.slider("Nouveau degré de croyance pensée auto (0-10)", 0, 10, 4)
+        intensite_apres = st.slider("Nouvelle intensité de l'émotion (0-10)", 0, 10, 4)
+        
+        submitted = st.form_submit_button("Enregistrer l'exercice")
+
+        if submitted:
+            # Récupération ID Patient
+            patient_id = st.session_state.get("patient_id", "Inconnu")
+            
+            # Création de la ligne de données
+            new_row_dict = {
+                "Patient": patient_id,
+                "Date": str(date_event),
+                "Situation": f"{lieu} - {situation}",
+                "Émotion": emotion,
+                "Intensité (Avant)": intensite_avant,
+                "Pensée Auto": pensee_auto,
+                "Croyance (Avant)": croyance_auto,
+                "Pensée Rationnelle": pensee_rat,
+                "Croyance (Rationnelle)": croyance_rat,
+                "Intensité (Après)": intensite_apres,
+                "Croyance (Après)": croyance_apres
+            }
+            
+            # 1. Sauvegarde Locale
+            st.session_state.data_beck = pd.concat([st.session_state.data_beck, pd.DataFrame([new_row_dict])], ignore_index=True)
+            
+            # 2. Sauvegarde Cloud
+            try:
+                from connect_db import save_data
+                # Conversion dict -> list pour GSheet (Respecter l'ordre de COLS_BECK)
+                values_list = [new_row_dict[col] for col in COLS_BECK]
+                save_data("Beck", values_list)
+                st.success("✅ Enregistré avec succès !")
+            except Exception as e:
+                st.warning(f"⚠️ Enregistré en local uniquement ({e}).")
+
+# ==============================================================================
+# ONGLET 2 : HISTORIQUE, SUPPRESSION ET MODIFICATION
+# ==============================================================================
+with tab2:
+    st.header("🗂️ Historique & Actions")
+    
+    df_history = st.session_state.data_beck
+    
+    if not df_history.empty:
+        # A. TABLEAU RÉCAPITULATIF
+        st.dataframe(
+            df_history.sort_values(by="Date", ascending=False), 
+            use_container_width=True,
+            column_config={
+                "Date": st.column_config.DateColumn("Date", format="DD/MM/YYYY"),
+                "Situation": st.column_config.TextColumn("Situation", width="medium"),
+                "Pensée Auto": st.column_config.TextColumn("Pensée Auto", width="medium"),
+                "Pensée Rationnelle": st.column_config.TextColumn("Rationnel", width="medium"),
+            },
+            hide_index=True
+        )
+        
+        st.divider()
+        st.subheader("🛠️ Modifier ou Supprimer une entrée")
+
+        # B. SÉLECTEUR D'ENTRÉE
+        # On trie pour avoir les plus récents en premier
+        df_sorted = df_history.sort_values(by="Date", ascending=False)
+        
+        # Création d'un dictionnaire { "Label lisible" : index_original }
+        options_dict = {}
+        for idx, row in df_sorted.iterrows():
+            # On coupe le texte s'il est trop long pour le menu déroulant
+            sit_short = (str(row['Situation'])[:40] + '...') if len(str(row['Situation'])) > 40 else str(row['Situation'])
+            label = f"📅 {row['Date']} | {sit_short}"
+            options_dict[label] = idx
+
+        selected_label = st.selectbox(
+            "Sélectionnez l'exercice à modifier ou supprimer :", 
+            options=list(options_dict.keys()),
+            index=None,
+            placeholder="Choisissez une ligne..."
+        )
+
+        # C. ZONE D'ACTION (Si une ligne est sélectionnée)
+        if selected_label:
+            idx_sel = options_dict[selected_label]
+            row_sel = df_history.loc[idx_sel]
+
+            col_edit, col_delete = st.columns([1, 1])
+
+            # --- BOUTON SUPPRIMER ---
+            with col_delete:
+                if st.button("🗑️ Supprimer définitivement", type="primary"):
+                    # 1. Suppression Cloud
+                    try:
+                        from connect_db import delete_data_flexible
+                        pid = st.session_state.get("patient_id", "Inconnu")
+                        # On utilise Date et Situation comme clés pour identifier la ligne
+                        delete_data_flexible("Beck", {
+                            "Patient": pid,
+                            "Date": str(row_sel['Date']),
+                            "Situation": str(row_sel['Situation']) # On suppose que la situation est assez unique
+                        })
+                    except: pass
+                    
+                    # 2. Suppression Locale
+                    st.session_state.data_beck = df_history.drop(idx_sel).reset_index(drop=True)
+                    st.success("Entrée supprimée !")
+                    st.rerun()
+
+            # --- MODIFICATION (EXPANDER) ---
+            with st.expander("✏️ Modifier / Corriger cette entrée", expanded=True):
+                st.info("Modifiez les champs ci-dessous puis cliquez sur 'Valider les modifications'.")
+                
+                with st.form("edit_form"):
+                    # On pré-remplit les champs avec les valeurs actuelles (row_sel)
+                    
+                    # Date & Situation
+                    try:
+                        d_val = pd.to_datetime(row_sel['Date']).date()
+                    except:
+                        d_val = datetime.now()
+                        
+                    e_date = st.date_input("Date", value=d_val)
+                    e_sit = st.text_area("Situation", value=row_sel['Situation'])
+                    
+                    # Emotion
+                    c1, c2 = st.columns(2)
+                    with c1: e_emo = st.text_input("Émotion", value=row_sel['Émotion'])
+                    with c2: e_int_avt = st.slider("Intensité (Avant)", 0, 10, int(row_sel['Intensité (Avant)']))
+                    
+                    # Pensées
+                    e_auto = st.text_area("Pensée Automatique", value=row_sel['Pensée Auto'])
+                    e_croy_avt = st.slider("Croyance (Avant)", 0, 10, int(row_sel['Croyance (Avant)']))
+                    
+                    e_rat = st.text_area("Pensée Rationnelle", value=row_sel['Pensée Rationnelle'])
+                    e_croy_rat = st.slider("Croyance (Rationnelle)", 0, 10, int(row_sel['Croyance (Rationnelle)']))
+                    
+                    # Après
+                    st.markdown("**Ré-évaluation**")
+                    c3, c4 = st.columns(2)
+                    with c3: e_int_apr = st.slider("Intensité (Après)", 0, 10, int(row_sel['Intensité (Après)']))
+                    with c4: e_croy_apr = st.slider("Croyance (Après)", 0, 10, int(row_sel['Croyance (Après)']))
+                    
+                    btn_save_edit = st.form_submit_button("💾 Valider les modifications")
+
+                    if btn_save_edit:
+                        # LOGIQUE DE MISE À JOUR : On supprime l'ancien et on crée le nouveau
+                        
+                        # 1. Suppression de l'ancienne version (Cloud)
+                        try:
+                            from connect_db import delete_data_flexible, save_data
+                            pid = st.session_state.get("patient_id", "Inconnu")
+                            delete_data_flexible("Beck", {
+                                "Patient": pid,
+                                "Date": str(row_sel['Date']),
+                                "Situation": str(row_sel['Situation'])
+                            })
+                            
+                            # 2. Création de la nouvelle ligne
+                            updated_row = {
+                                "Patient": pid,
+                                "Date": str(e_date),
+                                "Situation": e_sit,
+                                "Émotion": e_emo,
+                                "Intensité (Avant)": e_int_avt,
+                                "Pensée Auto": e_auto,
+                                "Croyance (Avant)": e_croy_avt,
+                                "Pensée Rationnelle": e_rat,
+                                "Croyance (Rationnelle)": e_croy_rat,
+                                "Intensité (Après)": e_int_apr,
+                                "Croyance (Après)": e_croy_apr
+                            }
+                            
+                            # 3. Sauvegarde de la nouvelle version (Cloud)
+                            # Conversion dict -> list
+                            values_list = [updated_row[col] for col in COLS_BECK]
+                            save_data("Beck", values_list)
+                            
+                        except Exception as e:
+                            st.error(f"Erreur Cloud: {e}")
+                        
+                        # 4. Mise à jour Locale (On remplace dans le dataframe)
+                        st.session_state.data_beck.loc[idx_sel, "Date"] = str(e_date)
+                        st.session_state.data_beck.loc[idx_sel, "Situation"] = e_sit
+                        st.session_state.data_beck.loc[idx_sel, "Émotion"] = e_emo
+                        st.session_state.data_beck.loc[idx_sel, "Intensité (Avant)"] = e_int_avt
+                        st.session_state.data_beck.loc[idx_sel, "Pensée Auto"] = e_auto
+                        st.session_state.data_beck.loc[idx_sel, "Croyance (Avant)"] = e_croy_avt
+                        st.session_state.data_beck.loc[idx_sel, "Pensée Rationnelle"] = e_rat
+                        st.session_state.data_beck.loc[idx_sel, "Croyance (Rationnelle)"] = e_croy_rat
+                        st.session_state.data_beck.loc[idx_sel, "Intensité (Après)"] = e_int_apr
+                        st.session_state.data_beck.loc[idx_sel, "Croyance (Après)"] = e_croy_apr
+                        
+                        st.success("Modification enregistrée !")
+                        st.rerun()
+
+    else:
+        st.info("Aucun exercice enregistré pour le moment. Commencez par l'onglet 'Nouvel Exercice'.")
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
