@@ -213,43 +213,47 @@ with tab1:
                     st.error(f"Erreur sauvegarde : {e}")
 
     # ---------------------------------------------------------
-    # ZONE DE GESTION DES UNITÉS (Hors Formulaire)
+    # ZONE DE GESTION DES UNITÉS (VERSION EXPANDER)
     # ---------------------------------------------------------
     if "CONSOMMÉ" in type_evt:
-        # La case à cocher pour déplier le menu
-        gerer_unites = st.checkbox("⚙️ Gérer les unités (Ajout / Suppression)")
-        
-        if gerer_unites:
-            with st.container(border=True):
-                st.markdown("**Configuration des unités**")
-                c_add, c_del = st.columns(2)
-                
-                # BLOC AJOUTER
-                with c_add:
-                    new_unit_name = st.text_input("Nouvelle unité à créer :", placeholder="ex: Pintes", label_visibility="collapsed")
-                    if st.button("➕ Ajouter", key="btn_add_unit"):
-                        if new_unit_name and new_unit_name not in st.session_state.liste_unites:
+        # On utilise un expander au lieu d'une checkbox
+        with st.expander("⚙️ Gérer les unités personnalisées (Ajout / Suppression)"):
+            st.caption("Ajoutez une nouvelle unité à la liste ou supprimez-en une existante.")
+            
+            c_add, c_del = st.columns(2)
+            
+            # BLOC AJOUTER
+            with c_add:
+                st.markdown("**Ajouter**")
+                new_unit_name = st.text_input("Nom de l'unité :", placeholder="ex: Pintes", label_visibility="collapsed")
+                if st.button("➕ Créer", key="btn_add_unit"):
+                    if new_unit_name:
+                        if new_unit_name not in st.session_state.liste_unites:
                             st.session_state.liste_unites.append(new_unit_name)
                             st.success(f"'{new_unit_name}' ajouté !")
                             st.rerun()
-                        elif new_unit_name in st.session_state.liste_unites:
-                            st.warning("Existe déjà.")
-
-                # BLOC SUPPRIMER
-                with c_del:
-                    if st.session_state.liste_unites:
-                        del_unit_name = st.selectbox("Unité à supprimer :", st.session_state.liste_unites, label_visibility="collapsed")
-                        if st.button("🗑️ Supprimer", key="btn_del_unit"):
-                            if del_unit_name in st.session_state.liste_unites:
-                                st.session_state.liste_unites.remove(del_unit_name)
-                                # Si on supprime l'unité en mémoire, on reset la mémoire
-                                if st.session_state.memoire_unite == del_unit_name:
-                                    st.session_state.memoire_unite = ""
-                                st.success(f"'{del_unit_name}' supprimé !")
-                                st.rerun()
+                        else:
+                            st.warning("Cette unité existe déjà.")
                     else:
-                        st.info("Liste vide.")
-            st.divider()
+                        st.warning("Veuillez écrire un nom.")
+
+            # BLOC SUPPRIMER
+            with c_del:
+                st.markdown("**Supprimer**")
+                if st.session_state.liste_unites:
+                    del_unit_name = st.selectbox("Choisir l'unité :", st.session_state.liste_unites, label_visibility="collapsed")
+                    if st.button("🗑️ Effacer", key="btn_del_unit"):
+                        if del_unit_name in st.session_state.liste_unites:
+                            st.session_state.liste_unites.remove(del_unit_name)
+                            
+                            # Si on supprime l'unité qui était en mémoire par défaut, on vide la mémoire
+                            if st.session_state.memoire_unite == del_unit_name:
+                                st.session_state.memoire_unite = ""
+                                
+                            st.success(f"'{del_unit_name}' supprimé !")
+                            st.rerun()
+                else:
+                    st.info("La liste est vide.")
     # ---------------------------------------------------------
 
 # --- ZONE DE SUPPRESSION (Reste inchangée) ---
