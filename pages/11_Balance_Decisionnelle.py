@@ -232,30 +232,31 @@ with tab2:
     if not df_history.empty:
         # Tri par date
         if "Date" in df_history.columns:
-            df_history = df_history.sort_values(by="Date", ascending=False)
+            df_history = df_history.sort_values(by="Date", ascending=False).reset_index(drop=True)
 
         st.dataframe(df_history, use_container_width=True, hide_index=True)
         
         st.divider()
-        
-        # SUPPRESSION
+
+        # --- DÉFINITION DE LA LISTE (CRUCIALE POUR LES 2 BLOCS) ---
+        # On crée la liste ici pour qu'elle serve à la Suppression ET à la Modification
+        options_history = {
+            f"{row['Date']} - {row['Sujet']}": idx 
+            for idx, row in df_history.iterrows()
+        }
+
+        # --- BLOC 1 : SUPPRESSION ---
         with st.expander("🗑️ Supprimer une entrée"):
-            options_suppr = {
-                f"{row['Date']} - {row['Sujet']}": idx 
-                for idx, row in df_history.iterrows()
-            }
-            
-            sel_suppr = st.selectbox("Choisir la ligne à supprimer :", list(options_suppr.keys()))
+            sel_suppr = st.selectbox("Choisir la ligne à supprimer :", list(options_history.keys()), key="select_suppr")
             
             if st.button("Confirmer la suppression"):
-                idx_to_drop = options_suppr[sel_suppr]
+                idx_to_drop = options_history[sel_suppr]
                 row_to_del = df_history.loc[idx_to_drop]
 
                 # Suppression Cloud
                 try:
                     from connect_db import delete_data_flexible
                     pid = st.session_state.get("patient_id", "Anonyme")
-                    # On identifie la ligne par Patient + Date + Sujet
                     delete_data_flexible("Balance_Decisionnelle", {
                         "Patient": pid,
                         "Date": str(row_to_del['Date']),
@@ -268,17 +269,16 @@ with tab2:
                 st.session_state.data_balance = df_history.drop(idx_to_drop).reset_index(drop=True)
                 st.success("Ligne supprimée !")
                 st.rerun()
-        
-            # --- MODIFICATION (RECHARGER UNE BALANCE) ---
-        st.divider()
+
+        # --- BLOC 2 : MODIFICATION (RECHARGER) ---
         with st.expander("✏️ Modifier / Reprendre une balance"):
             st.write("Sélectionnez une balance pour recharger ses données dans l'onglet de création.")
             
-            # On reprend la liste des options créée pour la suppression
-            sel_modif = st.selectbox("Choisir la balance à modifier :", list(options_suppr.keys()), key="select_modif")
+            # On réutilise la liste 'options_history' définie plus haut
+            sel_modif = st.selectbox("Choisir la balance à modifier :", list(options_history.keys()), key="select_modif")
             
             if st.button("🔄 Charger les données pour modification"):
-                idx_to_load = options_suppr[sel_modif]
+                idx_to_load = options_history[sel_modif]
                 row_to_load = df_history.loc[idx_to_load]
                 
                 # 1. Charger le Sujet
@@ -286,7 +286,11 @@ with tab2:
                 
                 # 2. Analyser le texte "Détail Arguments" pour recréer le tableau
                 raw_text = row_to_load['Détail Arguments']
-                lignes = raw_text.split('\n')
+                # On gère le cas où le texte serait vide ou null
+                if pd.isna(raw_text) or str(raw_text) == "nan":
+                    lignes = []
+                else:
+                    lignes = str(raw_text).split('\n')
                 
                 new_data = []
                 loaded_options = []
@@ -301,7 +305,8 @@ with tab2:
                         clean_line = ligne.replace("• ", "")
                         
                         # On sépare l'Option du reste (séparateur " : ")
-                        parts = clean_line.split(" : ")
+                        # split(" : ", 1) permet de ne couper qu'à la première occurrence
+                        parts = clean_line.split(" : ", 1)
                         opt_name = parts[0].strip()
                         reste = parts[1].strip()
                         
@@ -312,7 +317,6 @@ with tab2:
                         # Détection du Type via l'émoji
                         if "🟢" in reste:
                             type_arg = "Avantage (+)"
-                            # On enlève l'émoji
                             reste = reste.replace("🟢 ", "").strip()
                             score_mult = 1
                         else:
@@ -323,11 +327,16 @@ with tab2:
                         # Séparation Description et Intensité
                         # On cherche la dernière parenthèse ouvrante pour isoler (X/10)
                         last_paren_idx = reste.rfind("(")
-                        description = reste[:last_paren_idx].strip()
-                        
-                        intensite_part = reste[last_paren_idx+1:] # Donne "X/10)"
-                        intensite_val = int(intensite_part.split("/")[0]) # Prend le X
-                        
+                        if last_paren_idx != -1:
+                            description = reste[:last_paren_idx].strip()
+                            intensite_part = reste[last_paren_idx+1:] # Donne "X/10)"
+                            # On extrait juste le chiffre avant le /
+                            intensite_val = int(intensite_part.split("/")[0]) 
+                        else:
+                            # Cas de secours si le format est cassé
+                            description = reste
+                            intensite_val = 5
+
                         # Ajout à la liste temporaire
                         new_data.append({
                             "Option": opt_name,
@@ -338,17 +347,13 @@ with tab2:
                         })
                         
                     except Exception as e:
-                        st.warning(f"Impossible de lire la ligne : {ligne} ({e})")
+                        print(f"Ligne ignorée : {ligne} ({e})")
 
                 # 3. Mise à jour des Session State
                 st.session_state.balance_options_list = loaded_options
                 st.session_state.balance_args_current = pd.DataFrame(new_data)
                 
                 st.success(f"Données chargées ! Retournez dans l'onglet '⚖️ Créer une balance' pour modifier.")
-                
-                # Optionnel : Supprimer l'ancienne version pour éviter les doublons ?
-                # Pour l'instant, on laisse l'utilisateur supprimer manuellement s'il le souhaite.
+
     else:
         st.info("Aucune balance décisionnelle enregistrée.")
-
-    
