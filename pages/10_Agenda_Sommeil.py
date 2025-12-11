@@ -57,97 +57,103 @@ def format_minutes_en_h_m(minutes):
     m = int(minutes % 60)
     return f"{h}h{m:02d}"
 
-# ==============================================================================
-# ONGLETS : SAISIE vs ANALYSE
-# ==============================================================================
-tab1, tab2 = st.tabs(["📝 Saisie du jour", "📊 Analyse & Moyennes"])
-
 # --- ONGLET 1 : FORMULAIRE ---
 with tab1:
-    st.subheader("Saisie de la nuit dernière")
+    st.subheader("📝 Saisie de la nuit dernière")
     
     with st.form("form_sommeil"):
-        col_date, col_vide = st.columns([1, 1])
-        with col_date:
+        # -- EN-TÊTE : DATE --
+        c_date, _ = st.columns([1, 2])
+        with c_date:
             date_nuit = st.date_input("Date du lever (Ce matin)", datetime.now())
 
-        st.write("---")
+        st.divider()
         
-        # --- BLOC HABITUDES ---
-        st.write("**Habitudes de la veille**")
+        # =========================================================
+        # BLOC 1 : ACTIVITÉS DE LA JOURNÉE
+        # =========================================================
+        st.markdown("### 🌞 Activités & Sieste")
         
-        # Listes pour les menus déroulants
-        # 1. Heures pour habitudes (0h à 23h)
+        # Préparation des listes
         liste_heures_habitudes = ["Non"] + [f"{h}h00" for h in range(24)]
-        
-        # 2. Heures pour Sieste (par quarts d'heure)
         liste_heures_sieste = ["Non"] + [f"{h}h{m:02d}" for h in range(24) for m in (0, 15, 30, 45)]
-        
-        # 3. Durées Sieste
         liste_durees = ["10 min", "20 min", "30 min", "45 min", "1h00", "1h30", "2h00", "3h+"]
 
-        c1, c2 = st.columns(2)
-        
-        # COLONNE GAUCHE
-        with c1:
-            st.write("1. Siestes")
-            # On divise la ligne sieste en 2 pour Début et Durée
-            cs_debut, cs_duree = st.columns(2)
-            with cs_debut:
-                h_sieste = st.selectbox("Début", liste_heures_sieste, help="Heure de début")
-            with cs_duree:
-                d_sieste = st.selectbox("Durée", liste_durees, help="Durée estimée")
+        # -- LIGNE SIESTE --
+        col_s1, col_s2, col_s3 = st.columns([1, 1, 2])
+        with col_s1:
+            h_sieste = st.selectbox("💤 Sieste (Début)", liste_heures_sieste, help="À quelle heure avez-vous fait la sieste ?")
+        with col_s2:
+            d_sieste = st.selectbox("⏳ Durée", liste_durees, label_visibility="visible")
+        with col_s3:
+            # Espace vide pour l'esthétique ou commentaire éventuel
+            st.empty()
 
-            # Sport et Caféine
-            sport = st.selectbox("🏋️ Exercice physique", liste_heures_habitudes, index=0, help="Heure de la séance")
-            cafeine = st.selectbox("☕ Caféine (Café, Thé, Cola)", liste_heures_habitudes, index=0, help="Heure de la dernière tasse")
-
-        # COLONNE DROITE
-        with c2:
-            # On met un espace vide pour aligner visuellement avec le bloc sieste qui prend de la place
-            st.write("") 
-            st.write("")
-            st.write("") # Petits sauts de ligne pour l'alignement
-            
-            alcool = st.selectbox("🍷 Consommation d'alcool", liste_heures_habitudes, index=0, help="Heure du dernier verre")
-            med_dodo = st.selectbox("💊 Médicament pour dormir", liste_heures_habitudes, index=0, help="Heure de la prise")
-
-        st.write("---")
+        st.write("") # Petit espace
         
-        # 3 & 4 & 5 & 6 : Les Heures
-        st.write("**Profil de sommeil**")
+        # -- LIGNE HABITUDES (4 COLONNES) --
+        st.markdown("### 🍷 Consommations & Habitudes (Heure limite)")
+        st.caption("Indiquez l'heure de la dernière prise ou 'Non'.")
         
+        c_sport, c_cafe, c_alcool, c_med = st.columns(4)
+        
+        with c_sport:
+            sport = st.selectbox("🏋️ Sport", liste_heures_habitudes, help="Heure de fin de séance")
+        with c_cafe:
+            cafeine = st.selectbox("☕ Caféine", liste_heures_habitudes, help="Café, Thé, Cola...")
+        with c_alcool:
+            alcool = st.selectbox("🍷 Alcool", liste_heures_habitudes, help="Dernier verre")
+        with c_med:
+            med_dodo = st.selectbox("💊 Médicament", liste_heures_habitudes, help="Prise pour dormir")
+
+        st.divider()
+
+        # =========================================================
+        # BLOC 2 : LA NUIT
+        # =========================================================
+        st.markdown("### 🌙 Votre Nuit")
+        
+        # On utilise des containers pour grouper visuellement Coucher vs Lever
         col_coucher, col_lever = st.columns(2)
+        
         with col_coucher:
-            h_coucher = st.time_input("3. Heure de coucher (au lit)", time(23, 0))
-            latence = st.number_input("4. Temps pour s'endormir (Latence) en minutes", 0, 300, 15, step=5)
+            st.info("**Au Coucher**")
+            h_coucher = st.time_input("Heure au lit", time(23, 0))
+            latence = st.number_input("Temps pour s'endormir (min)", 0, 300, 15, step=5)
         
         with col_lever:
-            h_lever = st.time_input("6. Heure de lever (sortie du lit)", time(7, 0))
-            eveil_nocturne = st.number_input("5. Temps d'éveil au milieu de la nuit (Minutes totales)", 0, 300, 0, step=5)
+            st.success("**Au Lever**")
+            h_lever = st.time_input("Heure de sortie du lit", time(7, 0))
+            eveil_nocturne = st.number_input("Temps d'éveil nocturne (min)", 0, 300, 0, step=5)
 
-        st.write("---")
+        st.write("")
         
-        # 10 & 11 : Ressenti
-        st.write("**Ressenti**")
+        # =========================================================
+        # BLOC 3 : RESSENTI
+        # =========================================================
+        st.markdown("### ⭐ Bilan au réveil")
+        
         c_forme, c_qualite = st.columns(2)
         with c_forme:
-            forme = st.slider("10. Forme au lever (1=Épuisé, 5=Reposé)", 1, 5, 3)
+            forme = st.slider("🔋 Forme physique (1=HS, 5=Top)", 1, 5, 3)
         with c_qualite:
-            qualite = st.slider("11. Qualité du sommeil (1=Agité, 5=Profond)", 1, 5, 3)
+            qualite = st.slider("✨ Qualité du sommeil (1=Mauvais, 5=Top)", 1, 5, 3)
 
-        # BOUTON
-        submitted = st.form_submit_button("Calculer et Enregistrer")
+        st.write("")
+        
+        # BOUTON CENTRE (Astuce visuelle avec colonnes)
+        _, c_btn, _ = st.columns([1, 2, 1])
+        with c_btn:
+            submitted = st.form_submit_button("💾 Enregistrer ma nuit", use_container_width=True, type="primary")
 
         if submitted:
-            # --- TRAITEMENT DE LA SIESTE ---
-            # On combine l'heure et la durée en une seule phrase pour la base de données
+            # --- TRAITEMENT IDENTIQUE ---
             if h_sieste == "Non":
                 sieste_finale = "Non"
             else:
                 sieste_finale = f"{h_sieste} ({d_sieste})"
 
-            # --- CALCULS AUTOMATIQUES ---
+            # Calculs
             tal_minutes = calculer_duree_minutes(h_coucher, h_lever)
             tte_minutes = latence + eveil_nocturne
             tts_minutes = tal_minutes - tte_minutes
@@ -157,6 +163,7 @@ with tab1:
             else:
                 efficacite = 0
 
+            # Affichage résultats
             st.success("✅ Données enregistrées !")
             
             res1, res2, res3, res4 = st.columns(4)
@@ -170,7 +177,7 @@ with tab1:
             # Local
             new_row = {
                 "Date": str(date_nuit),
-                "Sieste": sieste_finale, # On utilise la variable combinée
+                "Sieste": sieste_finale,
                 "Sport": sport, "Cafeine": cafeine, "Alcool": alcool, "Medic_Sommeil": med_dodo,
                 "Heure Coucher": str(h_coucher)[:5], "Heure Lever": str(h_lever)[:5],
                 "Latence": latence, "Eveil": eveil_nocturne,
@@ -187,7 +194,7 @@ with tab1:
                 patient = st.session_state.get("patient_id", "Anonyme")
                 
                 save_data("Sommeil", [
-                    patient, str(date_nuit), sieste_finale, # On envoie la variable combinée
+                    patient, str(date_nuit), sieste_finale,
                     sport, cafeine, alcool, med_dodo,
                     str(h_coucher)[:5], latence, eveil_nocturne, str(h_lever)[:5],
                     format_minutes_en_h_m(tte_minutes),
