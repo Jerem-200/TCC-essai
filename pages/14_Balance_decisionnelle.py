@@ -164,17 +164,19 @@ with tab1:
                     if not sujet_decision:
                         st.error("Veuillez indiquer le sujet de la décision en haut de page.")
                     else:
-                        # Préparation des données pour le cloud
-                        # On crée une liste verticale propre sans calcul apparent
-                        resume_args = ""
+                        # --- MODIFICATION ICI : Formatage avec retour à la ligne ---
+                        liste_lignes = []
                         for idx, row in df_args.iterrows():
-                            # On utilise des émojis pour distinguer visuellement Avantage/Inconvénient
+                            # Choix de l'icône
                             icone = "🟢" if "Avantage" in row['Type'] else "🔴"
                             
-                            # Format : [Option] Emoji Description (Intensité/10)
-                            # Le \n force le retour à la ligne pour faire une liste
-                            resume_args += f"• [{row['Option']}] {icone} {row['Description']} ({row['Intensité']}/10)\n"
+                            # Création de la ligne : "• Option : Icone Description (Intensité)"
+                            ligne = f"• {row['Option']} : {icone} {row['Description']} ({row['Intensité']}/10)"
+                            liste_lignes.append(ligne)
 
+                        # On joint toutes les lignes avec un saut de ligne (\n)
+                        resume_args = "\n".join(liste_lignes)
+                        # -----------------------------------------------------------
                         new_entry = {
                             "Date": datetime.now().strftime("%Y-%m-%d"),
                             "Sujet": sujet_decision,
