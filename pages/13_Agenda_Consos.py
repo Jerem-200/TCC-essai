@@ -105,9 +105,7 @@ tab1, tab2 = st.tabs(["📝 Saisie (Journal)", "📊 Bilan & Historique"])
 # ==============================================================================
 # ONGLET 1 : SAISIE ADAPTATIVE
 # ==============================================================================
-# ==============================================================================
-# ONGLET 1 : SAISIE ADAPTATIVE
-# ==============================================================================
+
 with tab1:
     st.header(f"Journal : {substance_active}")
     
@@ -125,7 +123,6 @@ with tab1:
     
     # Ce bloc ne s'affiche que si on a choisi "Consommé"
     if "CONSOMMÉ" in type_evt:
-        st.info("Choisissez l'unité ci-dessous :")
         
         # On fait 2 colonnes : gauche pour cocher, droite pour choisir/saisir
         col_check, col_input = st.columns([1, 2])
@@ -155,7 +152,6 @@ with tab1:
 
     # 3. LE FORMULAIRE (Date, Heure, Quantité...)
     with st.form("form_addiction"):
-        st.write("---") # Séparateur visuel
         c_date, c_heure = st.columns(2)
         with c_date: 
             date_evt = st.date_input("Date", datetime.now())
