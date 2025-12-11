@@ -105,114 +105,106 @@ tab1, tab2 = st.tabs(["📝 Saisie (Journal)", "📊 Bilan & Historique"])
 # ==============================================================================
 # ONGLET 1 : SAISIE ADAPTATIVE
 # ==============================================================================
+# ==============================================================================
+# ONGLET 1 : SAISIE ADAPTATIVE
+# ==============================================================================
 with tab1:
     st.header(f"Journal : {substance_active}")
     
-    # On sort le choix du type du formulaire pour que l'interface change instantanément
+    # 1. LE TYPE D'ÉVÉNEMENT
     type_evt = st.radio(
         "Qu'est-ce qui s'est passé ?", 
         ["⚡ J'ai eu une ENVIE (Craving)", "🍷 J'ai CONSOMMÉ"], 
         horizontal=True
     )
     
-# Important : Pas de clear_on_submit ici
+    # 2. LOGIQUE UNITÉ (Placée AVANT le formulaire pour être réactive)
+    # On initialise la variable pour qu'elle existe quoi qu'il arrive
+    unite_finale = "" 
+    ajout_unite = False
+    
+    # Ce bloc ne s'affiche que si on a choisi "Consommé"
+    if "CONSOMMÉ" in type_evt:
+        st.info("Choisissez l'unité ci-dessous :")
+        
+        # On fait 2 colonnes : gauche pour cocher, droite pour choisir/saisir
+        col_check, col_input = st.columns([1, 2])
+        
+        with col_check:
+            # LA CASE À COCHER QUE VOUS VOULIEZ
+            # Le fait d'être hors du form permet l'affichage instantané du champ à droite
+            ajout_unite = st.checkbox("➕ Ajouter une nouvelle unité")
+        
+        with col_input:
+            if ajout_unite:
+                # Si coché : Champ texte libre qui apparaît instantanément
+                unite_finale = st.text_input("Nom de la nouvelle unité", placeholder="ex: Pintes, Litres...")
+            else:
+                # Sinon : Menu déroulant standard avec mémoire intelligente
+                
+                # Petite sécurité : si la mémoire n'est pas dans la liste, on l'ajoute temporairement
+                if st.session_state.memoire_unite and st.session_state.memoire_unite not in st.session_state.liste_unites:
+                     st.session_state.liste_unites.append(st.session_state.memoire_unite)
+                
+                # On trouve l'index par défaut
+                idx_def = 0
+                if st.session_state.memoire_unite in st.session_state.liste_unites:
+                    idx_def = st.session_state.liste_unites.index(st.session_state.memoire_unite)
+                    
+                unite_finale = st.selectbox("Unité standard", st.session_state.liste_unites, index=idx_def)
+
+    # 3. LE FORMULAIRE (Date, Heure, Quantité...)
     with st.form("form_addiction"):
+        st.write("---") # Séparateur visuel
         c_date, c_heure = st.columns(2)
         with c_date: 
             date_evt = st.date_input("Date", datetime.now())
         with c_heure: 
-            # --- MODIFIER CETTE LIGNE ---
-            # On utilise la valeur en mémoire au lieu de datetime.now()
             heure_evt = st.time_input("Heure", value=st.session_state.memoire_heure)
             
-        st.divider()
-        
-        # --- BLOC DYNAMIQUE ---
         valeur_numerique = 0.0
-        info_unite = ""
+        pensees = ""
         
+        # Bloc Contenu Spécifique
         if "ENVIE" in type_evt:
             st.markdown("#### Évaluation de l'envie")
-            valeur_numerique = st.slider("Intensité du craving (0 = Nulle, 10 = Irrépressible)", 0, 10, 5)
-            # Info-bulle pédagogique (Expander pour ne pas prendre trop de place mais être lisible)
-            with st.expander("ℹ️ Aide : Les 3 types de pensées à repérer"):
-                st.markdown("""
-                * **🟢 Pensées Permissives :** Autorisations qu'on se donne.  
-                *Ex: "Juste un seul, ça ne compte pas", "C'est l'occasion ou jamais".*
-                * **🔵 Pensées Soulageantes :** Croyance que le produit est le seul remède.  
-                *Ex: "Ça va me calmer", "J'ai besoin de décompresser", "Je ne tiendrai pas sans".*
-                * **🟡 Attentes Positives :** Idéalisation des effets.  
-                *Ex: "Je serai plus drôle", "Je dormirai mieux", "La soirée sera nulle sans ça".*
-                """)
-
-            pensees = st.text_area("Pensées associées / Contexte / Déclencheurs :", placeholder="J'étais avec des amis, je me sentais stressé...")
+            valeur_numerique = st.slider("Intensité (0-10)", 0, 10, 5)
             
+            with st.expander("ℹ️ Aide : Les types de pensées"):
+                st.markdown("* **Permissives** (Juste un...)\n* **Soulageantes** (Ça va calmer...)\n* **Positives** (Je serai mieux...)")
+            
+            pensees = st.text_area("Pensées / Contexte :")
 
         else: # CONSOMMATION
-            st.markdown("#### Mesure de la consommation")
-            st.write("Indiquez la quantité exacte.")
-
-            c_val, c_unit = st.columns([1, 1])
-            with c_val:
-                valeur_numerique = st.number_input("Chiffre", min_value=0.0, step=0.5)
+            st.markdown("#### Quantité")
+            # On demande le chiffre. L'unité est déjà choisie au-dessus du formulaire.
+            # J'ai ajouté un label dynamique pour que ce soit plus joli (ex: Combien de Verres ?)
+            label_qte = f"Combien de **{unite_finale if unite_finale else '...'}** ?"
+            valeur_numerique = st.number_input(label_qte, min_value=0.0, step=0.5)
             
-            with c_unit:
-                # --- LOGIQUE INTELLIGENTE DES UNITÉS ---
-                # 1. On vérifie si la mémoire est dans la liste, sinon on l'ajoute temporairement pour éviter une erreur
-                if st.session_state.memoire_unite and st.session_state.memoire_unite not in st.session_state.liste_unites:
-                    st.session_state.liste_unites.append(st.session_state.memoire_unite)
-                
-                # 2. On détermine l'index par défaut
-                try:
-                    idx_defaut = st.session_state.liste_unites.index(st.session_state.memoire_unite)
-                except:
-                    idx_defaut = 0
-
-                # 3. Le Menu Déroulant avec option de création
-                options_unites = st.session_state.liste_unites + ["➕ Autre / Nouveau..."]
-                choix_unite = st.selectbox("Unité", options_unites, index=idx_defaut if st.session_state.memoire_unite else None)
-                
-                # 4. Si l'utilisateur choisit "Autre", on affiche le champ texte
-                if choix_unite == "➕ Autre / Nouveau...":
-                    unite_txt = st.text_input("Précisez la nouvelle unité :", placeholder="ex: Litres")
-                else:
-                    unite_txt = choix_unite
-                # ---------------------------------------
-
-            # On prépare le texte de l'unité pour la sauvegarde
-            if unite_txt:
-                # J'ai ajouté le nom de l'unité dans la variable 'pensees' pour qu'elle soit sauvegardée en base de données
-                # car votre base n'a pas de colonne "Unité" dédiée.
-                pensees = f"Consommation : {valeur_numerique} {unite_txt}"
+            # On formate le texte pour l'historique
+            if unite_finale:
+                pensees = f"Consommation : {valeur_numerique} {unite_finale}"
             else:
                 pensees = f"Consommation : {valeur_numerique}"
 
-            pensees = ""
-
         st.divider()
-
         submitted = st.form_submit_button("💾 Enregistrer")
         
         if submitted:
-            # 1. GESTION LISTE UNITÉS (AJOUT)
-            # Si c'était une nouvelle unité, on l'ajoute à la liste pour la prochaine fois
-            if choix_unite == "➕ Autre / Nouveau..." and unite_txt:
-                if unite_txt not in st.session_state.liste_unites:
-                    st.session_state.liste_unites.append(unite_txt)
+            # A. GESTION LISTE (Si c'était une nouvelle unité, on l'ajoute définitivement)
+            if "CONSOMMÉ" in type_evt and ajout_unite and unite_finale:
+                if unite_finale not in st.session_state.liste_unites:
+                    st.session_state.liste_unites.append(unite_finale)
             
-            # ... (Le reste de votre code de sauvegarde existant ci-dessous) ...
-            
-            # CORRECTION BUG CLOUD : Ajout des secondes (:00)
+            # B. FORMATAGE & MÉMOIRE
             heure_str = heure_evt.strftime("%H:%M")
-            
-            # MÉMOIRE : On sauvegarde l'unité choisie pour qu'elle revienne par défaut
             st.session_state.memoire_heure = heure_evt
-            if 'unite_txt' in locals() and unite_txt:
-                 st.session_state.memoire_unite = unite_txt
             
-            # ... suite du code (new_row, save_data...)
+            if "CONSOMMÉ" in type_evt and unite_finale:
+                 st.session_state.memoire_unite = unite_finale
             
-            # Local
+            # C. SAUVEGARDE
             new_row = {
                 "Date": str(date_evt),
                 "Heure": heure_str,
@@ -224,68 +216,51 @@ with tab1:
             st.session_state.data_addictions = pd.concat([st.session_state.data_addictions, pd.DataFrame([new_row])], ignore_index=True)
             
             # Cloud
-            from connect_db import save_data
-            patient = st.session_state.get("patient_id", "Anonyme")
-            
-            # Ordre : Patient, Date, Heure, Substance, Type, Intensité, Pensées
-            save_data("Addictions", [
-                patient, str(date_evt), heure_str, substance_active, 
-                type_evt, valeur_numerique, pensees
-            ])
-            
-            st.success("Enregistré !")
+            try:
+                from connect_db import save_data
+                patient = st.session_state.get("patient_id", "Anonyme")
+                save_data("Addictions", [
+                    patient, str(date_evt), heure_str, substance_active, 
+                    type_evt, valeur_numerique, pensees
+                ])
+                st.success("Enregistré !")
+                
+                # Si on a créé une nouvelle unité, on recharge la page pour qu'elle 
+                # apparaisse directement dans la liste déroulante au prochain coup
+                if ajout_unite:
+                    st.rerun()
+                    
+            except Exception as e:
+                st.error(f"Erreur sauvegarde : {e}")
 
 # --- ZONE DE SUPPRESSION (ONGLET 1) ---
-    with st.expander("🗑️ Supprimer une entrée (Gestion des erreurs)"):
-        # 1. On récupère les données de la substance active
+    with st.expander("🗑️ Supprimer une entrée récente"):
         df_actuel = st.session_state.data_addictions
         df_substance = df_actuel[df_actuel["Substance"] == substance_active].sort_values(by=["Date", "Heure"], ascending=False)
         
         if not df_substance.empty:
-            # 2. Création des labels
             options_suppr = {f"{row['Date']} à {row['Heure']} : {row['Type']} ({row['Intensité']})": i for i, row in df_substance.iterrows()}
+            choix_suppr = st.selectbox("Choisir la ligne à effacer :", list(options_suppr.keys()), key="select_suppr_tab1", index=None)
             
-            # 3. Menu Déroulant
-            choix_suppr = st.selectbox(
-                "Choisir la ligne à effacer :", 
-                list(options_suppr.keys()), 
-                key="select_suppr_tab1",
-                index=None,
-                placeholder="Sélectionnez..."
-            )
-            
-            # 4. Bouton Suppression
             if st.button("❌ Supprimer définitivement", key="btn_suppr_tab1") and choix_suppr:
-                # Retrouver la ligne originale
                 idx_to_drop = options_suppr[choix_suppr]
                 row_to_delete = df_substance.loc[idx_to_drop]
-                
-                # --- SUPPRESSION CLOUD ---
                 try:
                     from connect_db import delete_data_flexible
                     pid = st.session_state.get("patient_id", "Anonyme")
-                    
-                    # On utilise Patient + Date + Heure + Substance pour être sûr de trouver la ligne unique
-                    success = delete_data_flexible("Addictions", {
-                        "Patient": pid,
+                    delete_data_flexible("Addictions", {
+                        "Patient": pid, 
                         "Date": str(row_to_delete["Date"]),
                         "Heure": str(row_to_delete["Heure"]),
                         "Substance": str(row_to_delete["Substance"])
                     })
-                    
-                    if not success:
-                        st.warning("⚠️ Cloud : Ligne introuvable (Vérifiez que les colonnes Excel sont bien 'Patient', 'Date', 'Heure', 'Substance')")
-                    
-                except Exception as e:
-                    st.warning(f"Info Cloud : {e}")
+                except: pass
                 
-                # --- SUPPRESSION LOCALE ---
-                # On supprime par index dans le dataframe global
                 st.session_state.data_addictions = st.session_state.data_addictions.drop(idx_to_drop).reset_index(drop=True)
                 st.success("Entrée supprimée !")
                 st.rerun()
         else:
-            st.info("Aucune donnée à supprimer pour cette substance.")
+            st.info("Aucune donnée récente.")
 
 # ==============================================================================
 # ONGLET 2 : BILAN (TABLEAU ÉDITABLE + GRAPHIQUE ÉVOLUTION)
