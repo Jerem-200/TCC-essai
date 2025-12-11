@@ -409,14 +409,36 @@ with tab2:
         st.divider()
         with st.expander("🗑️ Supprimer une entrée depuis l'historique"):
             # 1. On trie les données (les plus récentes en haut)
-            # On utilise le DF global pour avoir accès à tout
             df_history = st.session_state.data_addictions.sort_values(by=["Date", "Heure"], ascending=False)
             
             if not df_history.empty:
-                # 2. Création des options
-                options_history = {f"{row['Date']} - {row['Heure']} : {row['Substance']} ({row['Type']})": i for i, row in df_history.iterrows()}
+                # 2. CRÉATION DES ÉTIQUETTES DÉTAILLÉES
+                options_history = {}
+                for idx, row in df_history.iterrows():
+                    # A. Icône et Type court
+                    is_envie = "ENVIE" in str(row['Type'])
+                    icone = "⚡" if is_envie else "🍷"
+                    type_lbl = "Envie" if is_envie else "Conso"
+                    
+                    # B. Gestion du texte "Pensées" (on coupe si c'est trop long)
+                    raw_pensees = str(row.get('Pensées', ''))
+                    if pd.isna(raw_pensees) or raw_pensees == 'nan': 
+                        pensees_txt = ""
+                    else:
+                        # On garde les 30 premiers caractères pour l'aperçu
+                        pensees_txt = (raw_pensees[:30] + '...') if len(raw_pensees) > 30 else raw_pensees
+                    
+                    # C. Construction du label complet
+                    # Ex: 📅 2023-10-25 14:00 | 🍷 Conso | 📊 2.0 Verres | 📝 Avec des amis...
+                    label = f"📅 {row['Date']} à {row['Heure']} | {icone} {type_lbl} | 📊 {row['Intensité']} | 📝 {pensees_txt}"
+                    
+                    # D. Gestion des doublons parfaits (si deux lignes sont identiques)
+                    if label in options_history:
+                        label = f"{label} (ID: {idx})"
+                        
+                    options_history[label] = idx
                 
-                # 3. Menu de sélection
+                # 3. Menu de sélection avec le label riche
                 choice_history = st.selectbox("Sélectionnez l'entrée à supprimer :", list(options_history.keys()), key="del_tab2", index=None)
                 
                 # 4. Bouton de confirmation
