@@ -10,9 +10,10 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
     # st.warning("⛔ Veuillez vous connecter sur la page d'accueil.")
     # st.switch_page("streamlit_app.py")
     # st.stop()
-    pass # Je mets pass pour que le code fonctionne seul pour le test, réactivez les lignes au-dessus si besoin
+    pass 
 
 # === GESTIONNAIRE DE CHARGEMENT (TOP LEVEL) ===
+# Permet d'injecter le sujet chargé dans le champ input au rechargement
 if "sujet_a_charger" in st.session_state:
     st.session_state.input_sujet_decision = st.session_state.sujet_a_charger
     del st.session_state.sujet_a_charger
@@ -50,17 +51,16 @@ if "balance_args_current" not in st.session_state:
 if "balance_options_list" not in st.session_state:
     st.session_state.balance_options_list = []
 
-# --- FONCTION DE CALLBACK (CORRECTION ICI) ---
+# --- FONCTION DE CALLBACK ---
 def ajouter_argument_callback():
     """
     Cette fonction s'exécute AVANT le rechargement de la page.
     Elle gère l'ajout de l'argument et le nettoyage des champs input.
     """
-    # Récupération sécurisée des valeurs via session_state
     desc_arg = st.session_state.get("input_desc_arg", "")
     intensite = st.session_state.get("input_intensite_arg", 5)
-    opt_select = st.session_state.get("sel_opt_arg") # Ajout d'une key sur le selectbox plus bas
-    type_arg = st.session_state.get("sel_type_arg") # Ajout d'une key sur le selectbox plus bas
+    opt_select = st.session_state.get("sel_opt_arg") 
+    type_arg = st.session_state.get("sel_type_arg")
 
     if desc_arg and opt_select and type_arg:
         score_calc = intensite if "Avantage" in type_arg else -intensite
@@ -73,21 +73,17 @@ def ajouter_argument_callback():
             "Score_Calc": score_calc
         }
         
-        # Ajout au dataframe
         st.session_state.balance_args_current = pd.concat(
             [st.session_state.balance_args_current, pd.DataFrame([new_arg])], 
             ignore_index=True
         )
         
-        # Feedback utilisateur (Toast est mieux qu'un success dans un callback)
         st.toast("✅ Argument ajouté avec succès !", icon="👍")
         
-        # RESET DES CHAMPS (C'est ici que l'erreur est corrigée)
-        # On peut modifier le state ici car le widget n'est pas encore redessiné
+        # RESET DES CHAMPS
         st.session_state["input_desc_arg"] = ""
         st.session_state["input_intensite_arg"] = 5
     else:
-        # Si la description est vide, on envoie un toast d'erreur
         st.toast("⚠️ Veuillez mettre une description.", icon="🚫")
 
 
@@ -100,7 +96,6 @@ tab1, tab2 = st.tabs(["⚖️ Créer une balance", "🗄️ Historique"])
 with tab1:
     st.header("1. Le Sujet")
     
-    # Initialisation de la clé si elle n'existe pas
     if "input_sujet_decision" not in st.session_state:
         st.session_state.input_sujet_decision = ""
 
@@ -139,7 +134,6 @@ with tab1:
             with c_del:
                 if st.button("🗑️", key=f"del_opt_{i}"):
                     st.session_state.balance_options_list.pop(i)
-                    # On nettoie aussi les arguments liés
                     if not st.session_state.balance_args_current.empty:
                         st.session_state.balance_args_current = st.session_state.balance_args_current[
                             st.session_state.balance_args_current["Option"] != opt
@@ -154,22 +148,16 @@ with tab1:
     st.header("3. Peser le pour et le contre")
     
     if len(st.session_state.balance_options_list) >= 1:
-        # clear_on_submit=False obligatoire ici car on gère le reset manuellement dans le callback
         with st.form("ajout_argument_balance", clear_on_submit=False):
             c1, c2 = st.columns(2)
             with c1: 
-                # AJOUT D'UNE KEY pour le callback
                 opt_select = st.selectbox("Concerne l'option :", st.session_state.balance_options_list, key="sel_opt_arg")
             with c2: 
-                # AJOUT D'UNE KEY pour le callback
                 type_arg = st.selectbox("C'est un :", ["Avantage (+)", "Inconvénient (-)"], key="sel_type_arg")
             
-            # Les champs qui doivent être vidés
             desc_arg = st.text_input("Description de l'argument :", key="input_desc_arg")
             intensite = st.slider("Intensité / Importance (1 à 10)", 1, 10, 5, key="input_intensite_arg")
 
-            # BOUTON AVEC CALLBACK
-            # On n'utilise plus "if st.form_submit_button:", mais le paramètre on_click
             st.form_submit_button("Ajouter l'argument", on_click=ajouter_argument_callback)
 
         # --- TABLEAU COMPARATIF ---
@@ -207,7 +195,6 @@ with tab1:
                     if not sujet_decision:
                         st.error("Veuillez indiquer le sujet de la décision en haut de page.")
                     else:
-                        # Création du texte formaté pour Excel
                         liste_lignes = []
                         for idx, row in df_args.iterrows():
                             icone = "🟢" if "Avantage" in row['Type'] else "🔴"
@@ -224,10 +211,8 @@ with tab1:
                             "Score": int(winner['Score Total'])
                         }
                         
-                        # 1. Update Local
                         st.session_state.data_balance = pd.concat([st.session_state.data_balance, pd.DataFrame([new_entry])], ignore_index=True)
                         
-                        # 2. Update Cloud
                         try:
                             from connect_db import save_data
                             patient_id = st.session_state.get("patient_id", "Anonyme")
@@ -241,7 +226,6 @@ with tab1:
                             ])
                             st.success("Sauvegarde réussie !")
                             
-                            # Reset
                             st.session_state.balance_args_current = pd.DataFrame(columns=["Option", "Type", "Description", "Intensité", "Score_Calc"])
                             st.session_state.balance_options_list = []
                             st.rerun()
@@ -268,11 +252,12 @@ with tab2:
         
         st.divider()
 
-        # Liste commune pour Suppression et Modification
-        options_history = {
-            f"{row['Date']} - {row['Sujet']}": idx 
-            for idx, row in df_history.iterrows()
-        }
+        # --- GESTION DES DOUBLONS (CLE UNIQUE) ---
+        # On ajoute l'ID à la fin pour distinguer deux entrées identiques
+        options_history = {}
+        for idx, row in df_history.iterrows():
+            label = f"{row['Date']} - {row['Sujet']} (ID: {idx})"
+            options_history[label] = idx
 
         # --- BLOC 1 : SUPPRESSION ---
         with st.expander("🗑️ Supprimer une entrée"):
@@ -303,14 +288,15 @@ with tab2:
             
             sel_modif = st.selectbox("Choisir la balance à modifier :", list(options_history.keys()), key="select_modif")
             
-            if st.button("🔄 Charger les données pour modification"):
+            # Ajout du key pour éviter l'erreur DuplicateElementId
+            if st.button("🔄 Charger les données pour modification", key="btn_charger_modif"):
                 idx_to_load = options_history[sel_modif]
                 row_to_load = df_history.loc[idx_to_load]
                 
-                # 1. On stocke le titre dans la variable de transit (TOP LEVEL)
+                # 1. Transfert du sujet
                 st.session_state.sujet_a_charger = row_to_load['Sujet']
                 
-                # 2. Parsing robuste du texte
+                # 2. Parsing
                 raw_text = row_to_load['Détail Arguments']
                 
                 if pd.isna(raw_text) or str(raw_text) == "nan":
@@ -324,24 +310,19 @@ with tab2:
                 for ligne in lignes:
                     ligne = ligne.strip()
                     if not ligne: continue
-                    
                     try:
                         clean_line = ligne.replace("• ", "")
-                        
-                        # Parsing sécurisé
                         if " : " in clean_line:
                             parts = clean_line.split(" : ", 1)
                             opt_name = parts[0].strip()
                             reste = parts[1].strip()
                         else:
-                            # Cas de secours si le format est différent
                             opt_name = "Option Inconnue"
                             reste = clean_line
 
                         if opt_name not in loaded_options:
                             loaded_options.append(opt_name)
                         
-                        # Type
                         if "🟢" in reste:
                             type_arg = "Avantage (+)"
                             reste = reste.replace("🟢 ", "").strip()
@@ -351,15 +332,14 @@ with tab2:
                             reste = reste.replace("🔴 ", "").strip()
                             score_mult = -1
                         else:
-                            type_arg = "Avantage (+)" # Par défaut si pas d'emoji
+                            type_arg = "Avantage (+)"
                             score_mult = 1
                             
-                        # Note
                         if "(" in reste and ")" in reste:
                             last_paren_idx = reste.rfind("(")
                             description = reste[:last_paren_idx].strip()
                             try:
-                                intensite_part = reste[last_paren_idx+1:].replace(")", "") # "8/10"
+                                intensite_part = reste[last_paren_idx+1:].replace(")", "")
                                 intensite_val = int(intensite_part.split("/")[0])
                             except:
                                 intensite_val = 5
@@ -381,10 +361,8 @@ with tab2:
                 st.session_state.balance_options_list = loaded_options
                 st.session_state.balance_args_current = pd.DataFrame(new_data)
                 
-                # Notification visuelle importante
-                st.toast("✅ Données chargées ! Cliquez sur l'onglet 'Créer une balance' pour voir le résultat.", icon="🚀")
-                
-                # On force le rechargement pour afficher le titre
+                # 4. Message et Rechargement
+                st.toast("✅ Données chargées ! Retournez sur l'onglet 'Créer une balance' pour modifier.", icon="🚀")
                 st.rerun()
 
     else:
