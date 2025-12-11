@@ -260,23 +260,50 @@ with tab2:
         ).interactive()
         st.altair_chart(chart, use_container_width=True)
 
-        # Suppression
+# Suppression
         st.divider()
         with st.expander("🗑️ Supprimer une entrée"):
+            # 1. Tri par date décroissante
             df_h = st.session_state.data_sommeil.sort_values(by="Date", ascending=False)
-            opt = {f"{row['Date']} (Eff: {row['Efficacité']}%)": i for i, row in df_h.iterrows()}
-            choix = st.selectbox("Nuit à supprimer :", list(opt.keys()), key="del_t2", index=None)
             
-            if st.button("Confirmer", key="btn_del"):
-                idx = opt[choix]
-                row = df_h.loc[idx]
-                try:
-                    from connect_db import delete_data_flexible
-                    pid = st.session_state.get("patient_id", "Anonyme")
-                    delete_data_flexible("Sommeil", {"Patient": pid, "Date": str(row['Date'])})
-                except: pass
-                st.session_state.data_sommeil = st.session_state.data_sommeil.drop(idx).reset_index(drop=True)
-                st.rerun()
+            # 2. CRÉATION DES ÉTIQUETTES DÉTAILLÉES
+            options_history = {}
+            for i, row in df_h.iterrows():
+                # On construit une phrase complète pour identifier la nuit
+                date_lbl = row['Date']
+                coucher = str(row.get('Heure Coucher', '?'))
+                lever = str(row.get('Heure Lever', '?'))
+                eff = row.get('Efficacité', '?')
+                forme = row.get('Forme', '?')
+                
+                # Format : 📅 Date | 🌙 23:00 ➝ ☀️ 07:00 | 🔋 3/5 | 🏆 85%
+                label = f"📅 {date_lbl} | 🌙 {coucher} ➝ ☀️ {lever} | 🔋 Forme: {forme}/5 | 🏆 Eff: {eff}"
+                
+                options_history[label] = i
+            
+            # 3. Menu de sélection avec le label détaillé
+            choix = st.selectbox("Sélectionnez la nuit à supprimer :", list(options_history.keys()), key="del_t2", index=None)
+            
+            # 4. Bouton de confirmation
+            if st.button("Confirmer la suppression", key="btn_del"):
+                if choix:
+                    idx = options_history[choix]
+                    row = df_h.loc[idx]
+                    
+                    # Suppression Cloud
+                    try:
+                        from connect_db import delete_data_flexible
+                        pid = st.session_state.get("patient_id", "Anonyme")
+                        delete_data_flexible("Sommeil", {"Patient": pid, "Date": str(row['Date'])})
+                    except: 
+                        pass
+                    
+                    # Suppression Locale
+                    st.session_state.data_sommeil = st.session_state.data_sommeil.drop(idx).reset_index(drop=True)
+                    st.success("Entrée supprimée !")
+                    st.rerun()
+                else:
+                    st.warning("Veuillez sélectionner une ligne.")
     else:
         st.info("Aucune donnée.")
 
