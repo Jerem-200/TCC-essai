@@ -168,8 +168,15 @@ with tab1:
             st.markdown("#### Évaluation de l'envie")
             valeur_numerique = st.slider("Intensité (0-10)", 0, 10, 5)
             
-            with st.expander("ℹ️ Aide : Les types de pensées"):
-                st.markdown("* **Permissives** (Juste un...)\n* **Soulageantes** (Ça va calmer...)\n* **Positives** (Je serai mieux...)")
+            with st.expander("ℹ️ Aide : Les 3 types de pensées à repérer"):
+                st.markdown("""
+                * **🟢 Pensées Permissives :** Autorisations qu'on se donne.  
+                *Ex: "Juste un seul, ça ne compte pas".*
+                * **🔵 Pensées Soulageantes :** Croyance que le produit aide.  
+                *Ex: "Ça va me calmer".*
+                * **🟡 Attentes Positives :** Idéalisation des effets.  
+                *Ex: "Je serai plus drôle".*
+                """)
             
             pensees = st.text_area("Pensées / Contexte :")
 
@@ -217,7 +224,7 @@ with tab1:
     # ---------------------------------------------------------
     if "CONSOMMÉ" in type_evt:
         # On utilise un expander au lieu d'une checkbox
-        with st.expander("⚙️ Gérer les unités personnalisées (Ajout / Suppression)"):
+        with st.expander("⚙️ Gérer les unités (Ajout / Suppression)"):
             st.caption("Ajoutez une nouvelle unité à la liste ou supprimez-en une existante.")
             
             c_add, c_del = st.columns(2)
