@@ -298,13 +298,14 @@ with tab2:
                 st.success("Ligne supprimée !")
                 st.rerun()
 
-        # --- BLOC 2 : MODIFICATION (RECHARGER) ---
+# --- BLOC 2 : MODIFICATION (RECHARGER) ---
         with st.expander("✏️ Modifier / Reprendre une balance"):
             st.write("Sélectionnez une balance pour recharger ses données.")
             
             sel_modif = st.selectbox("Choisir la balance à modifier :", list(options_history.keys()), key="select_modif")
             
-            if st.button("🔄 Charger les données pour modification"):
+            # CORRECTION ICI : Ajout de key="btn_charger_modif" pour éviter l'erreur DuplicateElementId
+            if st.button("🔄 Charger les données pour modification", key="btn_charger_modif"):
                 idx_to_load = options_history[sel_modif]
                 row_to_load = df_history.loc[idx_to_load]
                 
@@ -335,7 +336,6 @@ with tab2:
                             opt_name = parts[0].strip()
                             reste = parts[1].strip()
                         else:
-                            # Cas de secours si le format est différent
                             opt_name = "Option Inconnue"
                             reste = clean_line
 
@@ -352,7 +352,7 @@ with tab2:
                             reste = reste.replace("🔴 ", "").strip()
                             score_mult = -1
                         else:
-                            type_arg = "Avantage (+)" # Par défaut si pas d'emoji
+                            type_arg = "Avantage (+)"
                             score_mult = 1
                             
                         # Note
@@ -360,7 +360,7 @@ with tab2:
                             last_paren_idx = reste.rfind("(")
                             description = reste[:last_paren_idx].strip()
                             try:
-                                intensite_part = reste[last_paren_idx+1:].replace(")", "") # "8/10"
+                                intensite_part = reste[last_paren_idx+1:].replace(")", "")
                                 intensite_val = int(intensite_part.split("/")[0])
                             except:
                                 intensite_val = 5
@@ -382,35 +382,18 @@ with tab2:
                 st.session_state.balance_options_list = loaded_options
                 st.session_state.balance_args_current = pd.DataFrame(new_data)
                 
-                # Notification visuelle importante
-                st.toast("✅ Données chargées ! Cliquez sur l'onglet 'Créer une balance' pour voir le résultat.", icon="🚀")
+                st.toast("✅ Données chargées ! Redirection...", icon="🚀")
                 
-                # On force le rechargement pour afficher le titre
-                if st.button("🔄 Charger les données pour modification"):
-                    idx_to_load = options_history[sel_modif]
-                    row_to_load = df_history.loc[idx_to_load]
-                    
-                    # ... (Tout votre code de parsing existant reste ici) ...
-                    # ... (On ne change rien à la logique de parsing) ...
-                    
-                    # Parsing ...
-                    # Mise à jour session_state ...
-
-                    # Notification visuelle
-                    st.toast("✅ Données chargées ! Redirection...", icon="🚀")
-                    
-                    # --- REMPLACER st.rerun() PAR CECI ---
-                    # On injecte du Javascript pour cliquer sur le 1er onglet (index 0)
-                    js_switch_tab = """
-                    <script>
-                        var tabs = window.parent.document.querySelectorAll("[data-testid='stTabs'] button");
-                        if (tabs.length > 0) {
-                            tabs[0].click();
-                        }
-                    </script>
-                    """
-                    components.html(js_switch_tab, height=0)
-                    # -------------------------------------
-
+                # --- REDIRECTION AUTOMATIQUE VERS L'ONGLET 1 ---
+                js_switch_tab = """
+                <script>
+                    var tabs = window.parent.document.querySelectorAll("[data-testid='stTabs'] button");
+                    if (tabs.length > 0) {
+                        tabs[0].click();
+                    }
+                </script>
+                """
+                components.html(js_switch_tab, height=0)
+                
     else:
         st.info("Aucune balance décisionnelle enregistrée.")
