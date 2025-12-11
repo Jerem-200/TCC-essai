@@ -100,7 +100,7 @@ else:
         st.write("Respiration & Détente")
         st.page_link("pages/07_Relaxation.py", label="Lancer", icon="➡️")
     with c5:
-        st.error("### 💡 Résolution Problème")
+        st.error("### 💡 Résolution de problème")
         st.write("Trouver des solutions")
         # Attention au nom exact du fichier (singulier ou pluriel ?)
         st.page_link("pages/06_Resolution_Probleme.py", label="Lancer", icon="➡️")
