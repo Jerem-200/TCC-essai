@@ -30,43 +30,45 @@ if "liste_unites" not in st.session_state:
 
 # B. Chargement des données et récupération des substances de l'historique
 if "data_addictions" not in st.session_state:
-    cols_conso = ["Patient", "Date", "Heure", "Substance", "Type", "Intensité", "Pensées"]
+    # --- CHANGEMENT ICI : AJOUT DE QUANTITÉ ET UNITÉ ---
+    cols_conso = ["Patient", "Date", "Heure", "Substance", "Type", "Intensité", "Quantité", "Unité", "Pensées"]
     df_final = pd.DataFrame(columns=cols_conso)
     
     # Tentative de chargement Cloud
     try:
         from connect_db import load_data
-        data_cloud = load_data("Addictions") # Vérifiez que l'onglet Excel s'appelle bien "Addictions"
+        data_cloud = load_data("Addictions")
         
         if data_cloud:
             df_cloud = pd.DataFrame(data_cloud)
             
-            # Remplissage intelligent (Gestion Majuscules/Minuscules)
+            # Remplissage intelligent
             for col in cols_conso:
+                # On vérifie les variations de noms (minuscule/majuscule)
                 if col in df_cloud.columns:
                     df_final[col] = df_cloud[col]
                 elif col.lower() in df_cloud.columns:
                     df_final[col] = df_cloud[col.lower()]
+                # Si la colonne n'existe pas dans le cloud (anciennes données), on met des valeurs vides
+                else:
+                    df_final[col] = None 
             
-            # Nettoyage numérique (Virgules -> Points)
-            if "Intensité" in df_final.columns:
-                df_final["Intensité"] = df_final["Intensité"].astype(str).str.replace(',', '.')
-                df_final["Intensité"] = pd.to_numeric(df_final["Intensité"], errors='coerce')
+            # Nettoyage numérique
+            for col_num in ["Intensité", "Quantité"]:
+                if col_num in df_final.columns:
+                    df_final[col_num] = df_final[col_num].astype(str).str.replace(',', '.')
+                    df_final[col_num] = pd.to_numeric(df_final[col_num], errors='coerce')
 
     except Exception as e:
-        # st.warning(f"Info : Démarrage à vide ({e})")
         pass
 
-    # Sauvegarde en mémoire
     st.session_state.data_addictions = df_final
 
-    # C. MAGIE : On remplit la liste des substances à partir de l'historique chargé
+    # C. MAGIE : Remplissage liste substances
     if not df_final.empty and "Substance" in df_final.columns:
-        # On prend toutes les substances uniques non vides
         subs_history = df_final["Substance"].dropna().unique().tolist()
-        
         for s in subs_history:
-            s_propre = str(s).strip() # On enlève les espaces inutiles
+            s_propre = str(s).strip()
             if s_propre and s_propre not in st.session_state.liste_substances:
                 st.session_state.liste_substances.append(s_propre)
 
@@ -186,7 +188,7 @@ with tab1:
         if submitted:
             # Vérification simple
             if "CONSOMMÉ" in type_evt and not unite_finale:
-                st.error("⚠️ Veuillez sélectionner une unité (utilisez la gestion des unités si la liste est vide).")
+                st.error("⚠️ Veuillez sélectionner une unité.")
             else:
                 # B. FORMATAGE & MÉMOIRE
                 heure_str = heure_evt.strftime("%H:%M")
@@ -194,25 +196,39 @@ with tab1:
                 
                 if "CONSOMMÉ" in type_evt:
                      st.session_state.memoire_unite = unite_finale
+                     
+                     # --- NOUVELLE LOGIQUE ---
+                     # Conso : Intensité est vide (ou 0), on remplit Quantité/Unité
+                     val_intensite = None 
+                     val_quantite = valeur_numerique
+                     val_unite = unite_finale
+                else:
+                    # Envie : On remplit Intensité, Quantité/Unité sont vides
+                    val_intensite = valeur_numerique
+                    val_quantite = None
+                    val_unite = None
                 
-                # C. SAUVEGARDE
+                # C. SAUVEGARDE LOCALE
                 new_row = {
                     "Date": str(date_evt),
                     "Heure": heure_str,
                     "Substance": substance_active,
                     "Type": type_evt,
-                    "Intensité": valeur_numerique,
-                    "Pensées" : pensees
+                    "Intensité": val_intensite,
+                    "Quantité": val_quantite,   # Nouvelle colonne
+                    "Unité": val_unite,         # Nouvelle colonne
+                    "Pensées" : pensees         # Ne contient plus que le texte !
                 }
                 st.session_state.data_addictions = pd.concat([st.session_state.data_addictions, pd.DataFrame([new_row])], ignore_index=True)
                 
-                # Cloud
+                # D. SAUVEGARDE CLOUD
                 try:
                     from connect_db import save_data
                     patient = st.session_state.get("patient_id", "Anonyme")
+                    # Attention l'ordre doit correspondre à vos colonnes Excel
                     save_data("Addictions", [
                         patient, str(date_evt), heure_str, substance_active, 
-                        type_evt, valeur_numerique, pensees
+                        type_evt, val_intensite, val_quantite, val_unite, pensees
                     ])
                     st.success("Enregistré !")
                     
@@ -329,91 +345,94 @@ with tab1:
 with tab2:
     st.header(f"Historique : {substance_active}")
     
-    # 1. FILTRAGE ET PRÉPARATION
+# 1. FILTRAGE
     df_global = st.session_state.data_addictions
-    
-    # On filtre pour la substance active
     df_filtre = df_global[df_global["Substance"] == substance_active].sort_values(by=["Date", "Heure"], ascending=False).reset_index(drop=True)
     
     if not df_filtre.empty:
-        st.info("💡 Vous pouvez modifier les valeurs directement dans le tableau (sauf Patient et Substance).")
+        st.info("💡 Vous pouvez modifier les valeurs directement.")
         
-        # 2. TABLEAU ÉDITABLE COMPLET
-        # On affiche toutes les colonnes demandées
+        # 2. TABLEAU ÉDITABLE (Avec les nouvelles colonnes)
         edited_df = st.data_editor(
             df_filtre, 
-            column_order=["Date", "Heure", "Substance", "Type", "Intensité", "Pensées"], 
-            disabled=["Patient", "Substance"], # On empêche de modifier ces 2 colonnes pour éviter les bugs de tri
+            # On affiche tout proprement
+            column_order=["Date", "Heure", "Substance", "Type", "Intensité", "Quantité", "Unité", "Pensées"], 
+            disabled=["Patient", "Substance"],
             use_container_width=True, 
             num_rows="dynamic",
             key=f"editor_{substance_active}"
         )
         
-        # MISE À JOUR DE LA MÉMOIRE SI CHANGEMENT
         if not edited_df.equals(df_filtre):
-            # 1. On sépare ce qui n'a pas bougé (les autres substances)
             df_others = df_global[df_global["Substance"] != substance_active]
-            
-            # 2. On s'assure que la substance reste la bonne (sécurité)
             edited_df["Substance"] = substance_active
-            
-            # 3. On fusionne le tout
             st.session_state.data_addictions = pd.concat([df_others, edited_df], ignore_index=True)
             st.rerun()
 
         st.divider()
         st.write(f"### Évolution : {substance_active}")
 
-        # --- PRÉPARATION DES DONNÉES POUR LE GRAPHIQUE ---
+        # --- PRÉPARATION DES DONNÉES ---
         df_chart = edited_df.copy()
         
-        # 1. Conversion Date/Heure
+        # Création colonne Date complète pour Altair
         try:
             df_chart['Full_Date'] = pd.to_datetime(
                 df_chart['Date'].astype(str) + ' ' + df_chart['Heure'].astype(str), 
                 format="%Y-%m-%d %H:%M", errors='coerce'
             )
-            # Fallback si erreur
-            mask_error = df_chart['Full_Date'].isna()
-            if mask_error.any():
-                 df_chart.loc[mask_error, 'Full_Date'] = pd.to_datetime(df_chart.loc[mask_error, 'Date'], errors='coerce')
         except:
             df_chart['Full_Date'] = pd.to_datetime(df_chart['Date'], errors='coerce')
 
-        # 2. Conversion Chiffres
-        if "Intensité" in df_chart.columns:
-            df_chart['Intensité'] = df_chart['Intensité'].astype(str).str.replace(',', '.')
-            df_chart['Intensité'] = pd.to_numeric(df_chart['Intensité'], errors='coerce')
-        
-        # 3. SÉPARATION DES TYPES
+        # Séparation
         df_envie = df_chart[df_chart["Type"].str.contains("ENVIE", na=False)]
         df_conso = df_chart[df_chart["Type"].str.contains("CONSOMMÉ", na=False)]
 
         # --- GRAPHIQUE 1 : LES ENVIES ---
         if not df_envie.empty:
-            st.subheader("⚡ Évolution des Envies (Craving)")
+            st.subheader("⚡ Évolution des Envies")
             chart_envie = alt.Chart(df_envie).mark_line(
                 point=alt.OverlayMarkDef(size=100, filled=True, color="#9B59B6")
             ).encode(
-                x=alt.X('Full_Date:T', title='Temps', axis=alt.Axis(format='%d/%m %H:%M')),
+                x=alt.X('Full_Date:T', title='Temps'),
                 y=alt.Y('Intensité:Q', title='Intensité (0-10)', scale=alt.Scale(domain=[0, 10])),
                 color=alt.value("#9B59B6"),
                 tooltip=['Date', 'Heure', 'Intensité', 'Pensées']
             ).interactive()
             st.altair_chart(chart_envie, use_container_width=True)
         
-        # --- GRAPHIQUE 2 : LES CONSOMMATIONS ---
+        # --- GRAPHIQUE 2 : LES CONSOMMATIONS (SIMPLIFIÉ GRÂCE AUX COLONNES) ---
         if not df_conso.empty:
             st.subheader("🍷 Quantités Consommées")
-            chart_conso = alt.Chart(df_conso).mark_bar(
-                color="#E74C3C", size=15
-            ).encode(
-                x=alt.X('Full_Date:T', title='Temps', axis=alt.Axis(format='%d/%m %H:%M')),
-                y=alt.Y('Intensité:Q', title='Quantité'),
-                tooltip=['Date', 'Heure', 'Intensité', 'Pensées']
-            ).interactive()
-            st.altair_chart(chart_conso, use_container_width=True)
+            
+            # 1. Menu déroulant pour l'unité (basé sur la vraie colonne Unité)
+            unites_dispo = df_conso['Unité'].dropna().unique().tolist()
+            
+            # Gestion des cas où 'Unité' serait vide dans les vieilles données
+            if not unites_dispo:
+                unites_dispo = ["Inconnu"]
+            
+            choix_unite = st.radio("Unité :", options=["Tout voir"] + unites_dispo, horizontal=True)
 
+            # 2. Filtre
+            if choix_unite != "Tout voir":
+                data_plot = df_conso[df_conso['Unité'] == choix_unite]
+                title_y = f"Quantité ({choix_unite})"
+            else:
+                data_plot = df_conso
+                title_y = "Quantité (Toutes unités)"
+
+            # 3. Chart
+            if not data_plot.empty:
+                chart_conso = alt.Chart(data_plot).mark_bar(color="#E74C3C").encode(
+                    x=alt.X('Full_Date:T', title='Temps'),
+                    # On utilise la colonne QUANTITÉ maintenant
+                    y=alt.Y('Quantité:Q', title=title_y),
+                    tooltip=['Date', 'Heure', 'Quantité', 'Unité', 'Pensées']
+                ).interactive()
+                st.altair_chart(chart_conso, use_container_width=True)
+
+                
         # --- ZONE DE SUPPRESSION ---
         st.divider()
         with st.expander("🗑️ Supprimer une entrée depuis l'historique"):
