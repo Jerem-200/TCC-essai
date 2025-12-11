@@ -345,8 +345,17 @@ with tab1:
 with tab2:
     st.header(f"Historique : {substance_active}")
     
-# 1. FILTRAGE
+    # 1. RECUPERATION ET SECURISATION DES DONNEES
     df_global = st.session_state.data_addictions
+
+    if "Quantité" not in df_global.columns:
+        df_global["Quantité"] = 0.0
+    if "Unité" not in df_global.columns:
+        df_global["Unité"] = "" # ou "Inconnu"
+        
+    st.session_state.data_addictions = df_global 
+    
+    # On filtre pour la substance active
     df_filtre = df_global[df_global["Substance"] == substance_active].sort_values(by=["Date", "Heure"], ascending=False).reset_index(drop=True)
     
     if not df_filtre.empty:
@@ -432,7 +441,7 @@ with tab2:
                 ).interactive()
                 st.altair_chart(chart_conso, use_container_width=True)
 
-                
+
         # --- ZONE DE SUPPRESSION ---
         st.divider()
         with st.expander("🗑️ Supprimer une entrée depuis l'historique"):
