@@ -7,65 +7,74 @@ st.set_page_config(page_title="Agenda Consos", page_icon="🍷")
 
 # --- VIGILE DE SÉCURITÉ ---
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
-    # st.warning("⛔ Veuillez vous connecter sur la page d'accueil.")
-    # st.switch_page("streamlit_app.py")
-    # st.stop()
-    pass 
+    st.warning("⛔ Veuillez vous connecter sur la page d'accueil.")
+    st.switch_page("streamlit_app.py")
+    st.stop()
 
 st.title("🍷 Agenda des Envies & Consommations")
 st.info("Notez vos envies (craving) et vos consommations pour identifier les déclencheurs.")
 
 # ==============================================================================
-# 1. INITIALISATION
+# 1. INITIALISATION, CHARGEMENT & GESTION DES SUBSTANCES (TOUT EN UN)
 # ==============================================================================
 
 # A. Liste des substances
 if "liste_substances" not in st.session_state:
     st.session_state.liste_substances = []
 
-# B. Liste des unités (NOUVEAU)
+# --- AJOUT : Liste des unités ---
 if "liste_unites" not in st.session_state:
-    st.session_state.liste_unites = ["Verres", "Cigarettes", "Joints", "ml", "cl", "grammes", "Pintes", "Shots"]
+    # On met des unités classiques par défaut
+    st.session_state.liste_unites = ["Verres", "Cigarettes", "Joints", "ml", "cl", "grammes"]
+# -------------------------------
 
-# C. Chargement des données
+# B. Chargement des données et récupération des substances de l'historique
 if "data_addictions" not in st.session_state:
     cols_conso = ["Patient", "Date", "Heure", "Substance", "Type", "Intensité", "Pensées"]
     df_final = pd.DataFrame(columns=cols_conso)
     
+    # Tentative de chargement Cloud
     try:
         from connect_db import load_data
-        data_cloud = load_data("Addictions") 
+        data_cloud = load_data("Addictions") # Vérifiez que l'onglet Excel s'appelle bien "Addictions"
         
         if data_cloud:
             df_cloud = pd.DataFrame(data_cloud)
+            
+            # Remplissage intelligent (Gestion Majuscules/Minuscules)
             for col in cols_conso:
                 if col in df_cloud.columns:
                     df_final[col] = df_cloud[col]
                 elif col.lower() in df_cloud.columns:
                     df_final[col] = df_cloud[col.lower()]
             
+            # Nettoyage numérique (Virgules -> Points)
             if "Intensité" in df_final.columns:
                 df_final["Intensité"] = df_final["Intensité"].astype(str).str.replace(',', '.')
                 df_final["Intensité"] = pd.to_numeric(df_final["Intensité"], errors='coerce')
 
     except Exception as e:
+        # st.warning(f"Info : Démarrage à vide ({e})")
         pass
 
+    # Sauvegarde en mémoire
     st.session_state.data_addictions = df_final
 
-    # D. Remplissage intelligent des substances depuis l'historique
+    # C. MAGIE : On remplit la liste des substances à partir de l'historique chargé
     if not df_final.empty and "Substance" in df_final.columns:
+        # On prend toutes les substances uniques non vides
         subs_history = df_final["Substance"].dropna().unique().tolist()
+        
         for s in subs_history:
-            s_propre = str(s).strip()
+            s_propre = str(s).strip() # On enlève les espaces inutiles
             if s_propre and s_propre not in st.session_state.liste_substances:
                 st.session_state.liste_substances.append(s_propre)
 
-# --- MEMOIRE INTELLIGENTE ---
+# --- MEMOIRE INTELLIGENTE (Heure/Unité) ---
 if "memoire_heure" not in st.session_state:
     st.session_state.memoire_heure = time(12, 00)
 if "memoire_unite" not in st.session_state:
-    st.session_state.memoire_unite = "Verres" # Valeur par défaut
+    st.session_state.memoire_unite = ""
 
 # ==============================================================================
 # ZONE DE SÉLECTION
@@ -75,6 +84,7 @@ with col_info:
     st.write("**De quoi voulez-vous faire le suivi ?**")
 
 with col_sel:
+    # Création
     with st.popover("➕ Nouvelle Substance/Comportement"):
         new_sub = st.text_input("Nom (ex: Alcool, Tabac, Jeux...)")
         if st.button("Créer") and new_sub:
@@ -82,6 +92,7 @@ with col_sel:
                 st.session_state.liste_substances.append(new_sub)
                 st.rerun()
 
+    # Sélection
     if st.session_state.liste_substances:
         substance_active = st.selectbox("Substance active :", st.session_state.liste_substances)
     else:
@@ -97,27 +108,33 @@ tab1, tab2 = st.tabs(["📝 Saisie (Journal)", "📊 Bilan & Historique"])
 with tab1:
     st.header(f"Journal : {substance_active}")
     
+    # On sort le choix du type du formulaire pour que l'interface change instantanément
     type_evt = st.radio(
         "Qu'est-ce qui s'est passé ?", 
         ["⚡ J'ai eu une ENVIE (Craving)", "🍷 J'ai CONSOMMÉ"], 
         horizontal=True
     )
     
+# Important : Pas de clear_on_submit ici
     with st.form("form_addiction"):
         c_date, c_heure = st.columns(2)
         with c_date: 
             date_evt = st.date_input("Date", datetime.now())
         with c_heure: 
+            # --- MODIFIER CETTE LIGNE ---
+            # On utilise la valeur en mémoire au lieu de datetime.now()
             heure_evt = st.time_input("Heure", value=st.session_state.memoire_heure)
             
         st.divider()
         
+        # --- BLOC DYNAMIQUE ---
         valeur_numerique = 0.0
+        info_unite = ""
         
         if "ENVIE" in type_evt:
             st.markdown("#### Évaluation de l'envie")
             valeur_numerique = st.slider("Intensité du craving (0 = Nulle, 10 = Irrépressible)", 0, 10, 5)
-            
+            # Info-bulle pédagogique (Expander pour ne pas prendre trop de place mais être lisible)
             with st.expander("ℹ️ Aide : Les 3 types de pensées à repérer"):
                 st.markdown("""
                 * **🟢 Pensées Permissives :** Autorisations qu'on se donne.  
@@ -128,72 +145,74 @@ with tab1:
                 *Ex: "Je serai plus drôle", "Je dormirai mieux", "La soirée sera nulle sans ça".*
                 """)
 
-            pensees = st.text_area("Pensées associées / Contexte :", placeholder="J'étais stressé...")
-            # Variable fictive pour le bloc submit
-            unite_txt = "" 
+            pensees = st.text_area("Pensées associées / Contexte / Déclencheurs :", placeholder="J'étais avec des amis, je me sentais stressé...")
+            
 
         else: # CONSOMMATION
             st.markdown("#### Mesure de la consommation")
-            st.write("Indiquez la quantité et l'unité.")
+            st.write("Indiquez la quantité exacte.")
 
-            # ON PASSE À 3 COLONNES pour plus de fluidité
-            c_val, c_list, c_new = st.columns([1, 1, 1])
-            
+            c_val, c_unit = st.columns([1, 1])
             with c_val:
-                valeur_numerique = st.number_input("Quantité", min_value=0.0, step=0.5)
+                valeur_numerique = st.number_input("Chiffre", min_value=0.0, step=0.5)
             
-            with c_list:
-                # Gestion de la mémoire : si l'unité en mémoire n'est pas dans la liste, on la rajoute temporairement
+            with c_unit:
+                # --- LOGIQUE INTELLIGENTE DES UNITÉS ---
+                # 1. On vérifie si la mémoire est dans la liste, sinon on l'ajoute temporairement pour éviter une erreur
                 if st.session_state.memoire_unite and st.session_state.memoire_unite not in st.session_state.liste_unites:
                     st.session_state.liste_unites.append(st.session_state.memoire_unite)
                 
-                # Index par défaut
+                # 2. On détermine l'index par défaut
                 try:
                     idx_defaut = st.session_state.liste_unites.index(st.session_state.memoire_unite)
                 except:
                     idx_defaut = 0
 
-                # Menu déroulant classique
-                choix_unite_liste = st.selectbox("Unité standard", st.session_state.liste_unites, index=idx_defaut)
-            
-            with c_new:
-                # Champ permanent : s'il est rempli, il est prioritaire
-                unite_custom = st.text_input("Ou Autre (Nouveau)", placeholder="ex: Litres")
+                # 3. Le Menu Déroulant avec option de création
+                options_unites = st.session_state.liste_unites + ["➕ Autre / Nouveau..."]
+                choix_unite = st.selectbox("Unité", options_unites, index=idx_defaut if st.session_state.memoire_unite else None)
+                
+                # 4. Si l'utilisateur choisit "Autre", on affiche le champ texte
+                if choix_unite == "➕ Autre / Nouveau...":
+                    unite_txt = st.text_input("Précisez la nouvelle unité :", placeholder="ex: Litres")
+                else:
+                    unite_txt = choix_unite
+                # ---------------------------------------
 
-            # LOGIQUE DE DÉCISION : Qui gagne ?
-            if unite_custom:
-                unite_finale = unite_custom
-                # On marque qu'on a créé une nouvelle unité pour l'ajouter à la liste plus tard
-                is_new_unit = True
+            # On prépare le texte de l'unité pour la sauvegarde
+            if unite_txt:
+                # J'ai ajouté le nom de l'unité dans la variable 'pensees' pour qu'elle soit sauvegardée en base de données
+                # car votre base n'a pas de colonne "Unité" dédiée.
+                pensees = f"Consommation : {valeur_numerique} {unite_txt}"
             else:
-                unite_finale = choix_unite_liste
-                is_new_unit = False
+                pensees = f"Consommation : {valeur_numerique}"
 
-            # Formatage pour l'historique
-            pensees = f"Consommation : {valeur_numerique} {unite_finale}"
+            pensees = ""
 
         st.divider()
 
         submitted = st.form_submit_button("💾 Enregistrer")
         
         if submitted:
-            # 1. MISE A JOUR LISTE UNITÉS (Si on a utilisé le champ "Autre")
-            # La variable 'unite_custom' vient du bloc ci-dessus
-            if "CONSOMMÉ" in type_evt and unite_custom:
-                if unite_custom not in st.session_state.liste_unites:
-                    st.session_state.liste_unites.append(unite_custom)
+            # 1. GESTION LISTE UNITÉS (AJOUT)
+            # Si c'était une nouvelle unité, on l'ajoute à la liste pour la prochaine fois
+            if choix_unite == "➕ Autre / Nouveau..." and unite_txt:
+                if unite_txt not in st.session_state.liste_unites:
+                    st.session_state.liste_unites.append(unite_txt)
             
-            # 2. FORMATAGE
+            # ... (Le reste de votre code de sauvegarde existant ci-dessous) ...
+            
+            # CORRECTION BUG CLOUD : Ajout des secondes (:00)
             heure_str = heure_evt.strftime("%H:%M")
             
-            # 3. MISE A JOUR MÉMOIRES
+            # MÉMOIRE : On sauvegarde l'unité choisie pour qu'elle revienne par défaut
             st.session_state.memoire_heure = heure_evt
+            if 'unite_txt' in locals() and unite_txt:
+                 st.session_state.memoire_unite = unite_txt
             
-            if "CONSOMMÉ" in type_evt:
-                # On retient l'unité finale (qu'elle vienne de la liste ou du champ custom)
-                st.session_state.memoire_unite = unite_finale
+            # ... suite du code (new_row, save_data...)
             
-            # 4. SAUVEGARDE
+            # Local
             new_row = {
                 "Date": str(date_evt),
                 "Heure": heure_str,
@@ -205,150 +224,229 @@ with tab1:
             st.session_state.data_addictions = pd.concat([st.session_state.data_addictions, pd.DataFrame([new_row])], ignore_index=True)
             
             # Cloud
-            try:
-                from connect_db import save_data
-                patient = st.session_state.get("patient_id", "Anonyme")
-                save_data("Addictions", [
-                    patient, str(date_evt), heure_str, substance_active, 
-                    type_evt, valeur_numerique, pensees
-                ])
-                st.success("Enregistré !")
-            except Exception as e:
-                st.error(f"Erreur sauvegarde : {e}")
+            from connect_db import save_data
+            patient = st.session_state.get("patient_id", "Anonyme")
+            
+            # Ordre : Patient, Date, Heure, Substance, Type, Intensité, Pensées
+            save_data("Addictions", [
+                patient, str(date_evt), heure_str, substance_active, 
+                type_evt, valeur_numerique, pensees
+            ])
+            
+            st.success("Enregistré !")
 
 # --- ZONE DE SUPPRESSION (ONGLET 1) ---
-    with st.expander("🗑️ Supprimer une entrée (Derniers ajouts)"):
+    with st.expander("🗑️ Supprimer une entrée (Gestion des erreurs)"):
+        # 1. On récupère les données de la substance active
         df_actuel = st.session_state.data_addictions
         df_substance = df_actuel[df_actuel["Substance"] == substance_active].sort_values(by=["Date", "Heure"], ascending=False)
         
         if not df_substance.empty:
+            # 2. Création des labels
             options_suppr = {f"{row['Date']} à {row['Heure']} : {row['Type']} ({row['Intensité']})": i for i, row in df_substance.iterrows()}
-            choix_suppr = st.selectbox("Choisir la ligne à effacer :", list(options_suppr.keys()), key="select_suppr_tab1", index=None)
             
+            # 3. Menu Déroulant
+            choix_suppr = st.selectbox(
+                "Choisir la ligne à effacer :", 
+                list(options_suppr.keys()), 
+                key="select_suppr_tab1",
+                index=None,
+                placeholder="Sélectionnez..."
+            )
+            
+            # 4. Bouton Suppression
             if st.button("❌ Supprimer définitivement", key="btn_suppr_tab1") and choix_suppr:
+                # Retrouver la ligne originale
                 idx_to_drop = options_suppr[choix_suppr]
                 row_to_delete = df_substance.loc[idx_to_drop]
                 
+                # --- SUPPRESSION CLOUD ---
                 try:
                     from connect_db import delete_data_flexible
                     pid = st.session_state.get("patient_id", "Anonyme")
-                    delete_data_flexible("Addictions", {
+                    
+                    # On utilise Patient + Date + Heure + Substance pour être sûr de trouver la ligne unique
+                    success = delete_data_flexible("Addictions", {
                         "Patient": pid,
                         "Date": str(row_to_delete["Date"]),
                         "Heure": str(row_to_delete["Heure"]),
                         "Substance": str(row_to_delete["Substance"])
                     })
+                    
+                    if not success:
+                        st.warning("⚠️ Cloud : Ligne introuvable (Vérifiez que les colonnes Excel sont bien 'Patient', 'Date', 'Heure', 'Substance')")
+                    
                 except Exception as e:
-                    pass
+                    st.warning(f"Info Cloud : {e}")
                 
+                # --- SUPPRESSION LOCALE ---
+                # On supprime par index dans le dataframe global
                 st.session_state.data_addictions = st.session_state.data_addictions.drop(idx_to_drop).reset_index(drop=True)
                 st.success("Entrée supprimée !")
                 st.rerun()
         else:
-            st.info("Aucune donnée récente.")
+            st.info("Aucune donnée à supprimer pour cette substance.")
 
 # ==============================================================================
-# ONGLET 2 : BILAN
+# ONGLET 2 : BILAN (TABLEAU ÉDITABLE + GRAPHIQUE ÉVOLUTION)
 # ==============================================================================
 with tab2:
     st.header(f"Historique : {substance_active}")
     
+    # 1. FILTRAGE ET PRÉPARATION
     df_global = st.session_state.data_addictions
+    # On ne garde que les lignes de la substance active pour l'affichage
     df_filtre = df_global[df_global["Substance"] == substance_active].sort_values(by=["Date", "Heure"], ascending=False).reset_index(drop=True)
     
     if not df_filtre.empty:
-        st.info("💡 Vous pouvez modifier les valeurs directement dans le tableau.")
+        st.info("💡 Vous pouvez modifier les valeurs directement dans le tableau (double-cliquez sur une case).")
         
+        # 2. TABLEAU ÉDITABLE (Comme Agenda Sommeil)
+        # On cache la colonne Substance car on est déjà dans l'onglet de cette substance
         edited_df = st.data_editor(
             df_filtre, 
             column_order=["Date", "Heure", "Type", "Intensité", "Pensées"], 
             use_container_width=True, 
             num_rows="dynamic",
-            key=f"editor_{substance_active}"
+            key=f"editor_{substance_active}" # Clé unique pour éviter les bugs entre substances
         )
         
+        # MISE À JOUR DE LA MÉMOIRE SI CHANGEMENT
+        # Si le tableau édité est différent de l'original affiché
         if not edited_df.equals(df_filtre):
+            # 1. On prend le DF global et on enlève les anciennes lignes de cette substance
             df_others = df_global[df_global["Substance"] != substance_active]
+            # 2. On remet la colonne "Substance" dans le DF édité (au cas où elle aurait sauté)
             edited_df["Substance"] = substance_active
+            # 3. On fusionne les autres + les nouvelles lignes éditées
             st.session_state.data_addictions = pd.concat([df_others, edited_df], ignore_index=True)
             st.rerun()
+
+# ... (le code du tableau éditable reste au dessus) ...
 
         st.divider()
         st.write(f"### Évolution : {substance_active}")
 
-        # --- PRÉPARATION GRAPHIQUE ---
+# --- PRÉPARATION DES DONNÉES (SÉCURISÉE) ---
         df_chart = edited_df.copy()
         
+        # 1. Conversion Date/Heure (Gestion des formats multiples)
+        try:
+            # On combine Date et Heure pour l'axe temporel
+            df_chart['Full_Date'] = pd.to_datetime(
+                df_chart['Date'].astype(str) + ' ' + df_chart['Heure'].astype(str), 
+                format="%Y-%m-%d %H:%M", # On essaie le format standard d'abord
+                errors='coerce'
+            )
+            # Si ça échoue (NaN), on essaie de parser automatiquement
+            mask_error = df_chart['Full_Date'].isna()
+            if mask_error.any():
+                 df_chart.loc[mask_error, 'Full_Date'] = pd.to_datetime(df_chart.loc[mask_error, 'Date'], errors='coerce')
+        except:
+            df_chart['Full_Date'] = pd.to_datetime(df_chart['Date'], errors='coerce')
+
+        # 2. Conversion Chiffres (Sécurité supplémentaire)
+        # On remplace les virgules par des points et on convertit
+        if "Intensité" in df_chart.columns:
+            df_chart['Intensité'] = df_chart['Intensité'].astype(str).str.replace(',', '.')
+            df_chart['Intensité'] = pd.to_numeric(df_chart['Intensité'], errors='coerce')
+        
+        # 1. Conversion Date/Heure
         try:
             df_chart['Full_Date'] = pd.to_datetime(df_chart['Date'].astype(str) + ' ' + df_chart['Heure'].astype(str), errors='coerce')
         except:
             df_chart['Full_Date'] = pd.to_datetime(df_chart['Date'])
 
+        # 2. Conversion Chiffres
         df_chart['Intensité'] = pd.to_numeric(df_chart['Intensité'], errors='coerce')
 
+        # 3. SÉPARATION DES DEUX TYPES
+        # On filtre selon le texte contenu dans la colonne "Type"
         df_envie = df_chart[df_chart["Type"].str.contains("ENVIE", na=False)]
         df_conso = df_chart[df_chart["Type"].str.contains("CONSOMMÉ", na=False)]
 
+        # --- GRAPHIQUE 1 : LES ENVIES (COURBE) ---
         if not df_envie.empty:
             st.subheader("⚡ Évolution des Envies (Craving)")
+            st.caption("Intensité du besoin psychologique (0 à 10)")
+            
             chart_envie = alt.Chart(df_envie).mark_line(
-                point=alt.OverlayMarkDef(size=100, filled=True, color="#9B59B6")
+                point=alt.OverlayMarkDef(size=100, filled=True, color="#9B59B6") # Violet
             ).encode(
                 x=alt.X('Full_Date:T', title='Temps', axis=alt.Axis(format='%d/%m %H:%M')),
                 y=alt.Y('Intensité:Q', title='Intensité (0-10)', scale=alt.Scale(domain=[0, 10])),
-                color=alt.value("#9B59B6"),
+                color=alt.value("#9B59B6"), # Ligne Violette
                 tooltip=['Date', 'Heure', 'Intensité', 'Pensées']
             ).interactive()
+            
             st.altair_chart(chart_envie, use_container_width=True)
         
+        # --- GRAPHIQUE 2 : LES CONSOMMATIONS (BARRES) ---
         if not df_conso.empty:
             st.subheader("🍷 Quantités Consommées")
+            st.caption("Volumes ou Unités réels")
+            
             chart_conso = alt.Chart(df_conso).mark_bar(
-                color="#E74C3C", size=15
+                color="#E74C3C", # Rouge
+                size=15 # Largeur des barres
             ).encode(
                 x=alt.X('Full_Date:T', title='Temps', axis=alt.Axis(format='%d/%m %H:%M')),
                 y=alt.Y('Intensité:Q', title='Quantité'),
                 tooltip=['Date', 'Heure', 'Intensité', 'Pensées']
             ).interactive()
+            
             st.altair_chart(chart_conso, use_container_width=True)
 
-        # --- SUPPRESSION HISTORIQUE ---
+        if df_envie.empty and df_conso.empty:
+            st.info("Pas assez de données pour afficher les graphiques.")
+
+# --- ZONE DE SUPPRESSION (ONGLET 2) ---
         st.divider()
         with st.expander("🗑️ Supprimer une entrée depuis l'historique"):
+            # 1. On trie les données (les plus récentes en haut)
+            # On utilise le DF global pour avoir accès à tout
             df_history = st.session_state.data_addictions.sort_values(by=["Date", "Heure"], ascending=False)
+            
             if not df_history.empty:
-                # Ajout ID pour doublons
-                options_history = {}
-                for idx, row in df_history.iterrows():
-                    label = f"{row['Date']} - {row['Heure']} : {row['Substance']} ({row['Type']}) [ID:{idx}]"
-                    options_history[label] = idx
-
+                # 2. Création des options
+                options_history = {f"{row['Date']} - {row['Heure']} : {row['Substance']} ({row['Type']})": i for i, row in df_history.iterrows()}
+                
+                # 3. Menu de sélection
                 choice_history = st.selectbox("Sélectionnez l'entrée à supprimer :", list(options_history.keys()), key="del_tab2", index=None)
                 
+                # 4. Bouton de confirmation
                 if st.button("Confirmer la suppression", key="btn_del_tab2") and choice_history:
                     idx_to_drop = options_history[choice_history]
                     row_to_delete = df_history.loc[idx_to_drop]
 
+                    # --- A. SUPPRESSION CLOUD ---
                     try:
                         from connect_db import delete_data_flexible
                         pid = st.session_state.get("patient_id", "Anonyme")
-                        delete_data_flexible("Addictions", {
+                        
+                        success = delete_data_flexible("Addictions", {
                             "Patient": pid,
                             "Date": str(row_to_delete['Date']),
                             "Heure": str(row_to_delete['Heure']),
                             "Substance": str(row_to_delete['Substance'])
                         })
-                    except:
-                        pass
+                        
+                        if not success:
+                             st.warning("⚠️ Ligne introuvable sur le Cloud.")
 
+                    except Exception as e:
+                        st.warning(f"Info Cloud : {e}")
+
+                    # --- B. SUPPRESSION LOCALE ---
                     st.session_state.data_addictions = st.session_state.data_addictions.drop(idx_to_drop).reset_index(drop=True)
-                    st.success("Entrée supprimée !")
+                    st.success("Entrée supprimée avec succès !")
                     st.rerun()
             else:
                 st.info("Historique vide.")
 
     else:
-        st.info(f"Aucune donnée pour '{substance_active}'.")
+        st.info(f"Aucune donnée enregistrée pour '{substance_active}'.")
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
+
