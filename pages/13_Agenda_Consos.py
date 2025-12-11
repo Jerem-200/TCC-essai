@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
-from datetime import datetime, time 
+from datetime import datetime, time, timedelta
 
 st.set_page_config(page_title="Agenda Consos", page_icon="🍷")
 
@@ -381,10 +381,10 @@ with tab2:
         st.divider()
         st.write(f"### Évolution : {substance_active}")
 
-        # --- PRÉPARATION DES DONNÉES ---
+        # --- A. PRÉPARATION DES DONNÉES ---
         df_chart = edited_df.copy()
         
-        # Création colonne Date complète pour Altair
+        # Création colonne Date complète (indispensable pour le filtrage)
         try:
             df_chart['Full_Date'] = pd.to_datetime(
                 df_chart['Date'].astype(str) + ' ' + df_chart['Heure'].astype(str), 
@@ -392,54 +392,108 @@ with tab2:
             )
         except:
             df_chart['Full_Date'] = pd.to_datetime(df_chart['Date'], errors='coerce')
+        
+        # On s'assure qu'il n'y a pas de NaT (Not a Time)
+        df_chart = df_chart.dropna(subset=['Full_Date'])
 
-        # Séparation
+        # --- B. FILTRE TEMPOREL (NOUVEAU) ---
+        st.markdown("##### 📅 Période d'analyse")
+        col_vue, col_date = st.columns([1, 2])
+        
+        with col_vue:
+            vue_temporelle = st.selectbox(
+                "Vue :", 
+                ["Tout l'historique", "Journée", "Semaine", "Mois"],
+                label_visibility="collapsed"
+            )
+
+        with col_date:
+            date_ref = st.date_input("Choisir la date :", datetime.now(), label_visibility="collapsed")
+
+        # Application du filtre
+        if vue_temporelle == "Journée":
+            # On garde uniquement les entrées de la date choisie
+            df_chart = df_chart[df_chart['Full_Date'].dt.date == date_ref]
+            msg_filtre = f"Zoom sur la journée du {date_ref.strftime('%d/%m/%Y')}"
+
+        elif vue_temporelle == "Semaine":
+            # On calcule le début (Lundi) et la fin (Dimanche) de la semaine de la date choisie
+            start_week = date_ref - timedelta(days=date_ref.weekday())
+            end_week = start_week + timedelta(days=6)
+            
+            df_chart = df_chart[
+                (df_chart['Full_Date'].dt.date >= start_week) & 
+                (df_chart['Full_Date'].dt.date <= end_week)
+            ]
+            msg_filtre = f"Semaine du {start_week.strftime('%d/%m')} au {end_week.strftime('%d/%m')}"
+
+        elif vue_temporelle == "Mois":
+            # On filtre sur le mois et l'année de la date choisie
+            df_chart = df_chart[
+                (df_chart['Full_Date'].dt.month == date_ref.month) & 
+                (df_chart['Full_Date'].dt.year == date_ref.year)
+            ]
+            msg_filtre = f"Mois de {date_ref.strftime('%B %Y')}"
+            
+        else:
+            msg_filtre = "Historique complet"
+
+        # Petit texte discret pour confirmer la vue
+        st.caption(f"🔎 {msg_filtre} ({len(df_chart)} entrées trouvées)")
+
+        # --- C. SÉPARATION ENVIES / CONSO ---
+        # Maintenant que df_chart est filtré, on sépare les types
         df_envie = df_chart[df_chart["Type"].str.contains("ENVIE", na=False)]
         df_conso = df_chart[df_chart["Type"].str.contains("CONSOMMÉ", na=False)]
 
         # --- GRAPHIQUE 1 : LES ENVIES ---
         if not df_envie.empty:
-            st.subheader("⚡ Évolution des Envies")
+            st.subheader("⚡ Intensité des Envies")
+            
+            # Paramètres dynamiques du graphique selon la vue
+            # Si c'est une journée, on formate l'axe X en Heures:Minutes, sinon Date complète
+            format_x = '%H:%M' if vue_temporelle == "Journée" else '%d/%m %H:%M'
+            
             chart_envie = alt.Chart(df_envie).mark_line(
                 point=alt.OverlayMarkDef(size=100, filled=True, color="#9B59B6")
             ).encode(
-                x=alt.X('Full_Date:T', title='Temps'),
+                x=alt.X('Full_Date:T', title='Temps', axis=alt.Axis(format=format_x)),
                 y=alt.Y('Intensité:Q', title='Intensité (0-10)', scale=alt.Scale(domain=[0, 10])),
                 color=alt.value("#9B59B6"),
                 tooltip=['Date', 'Heure', 'Intensité', 'Pensées']
             ).interactive()
             st.altair_chart(chart_envie, use_container_width=True)
+        elif vue_temporelle != "Tout l'historique" and "ENVIE" in str(st.session_state.data_addictions['Type'].values):
+            st.info(f"Aucune envie enregistrée sur cette période ({msg_filtre}).")
         
-        # --- GRAPHIQUE 2 : LES CONSOMMATIONS (SIMPLIFIÉ GRÂCE AUX COLONNES) ---
+        # --- GRAPHIQUE 2 : LES CONSOMMATIONS ---
         if not df_conso.empty:
             st.subheader("🍷 Quantités Consommées")
             
-            # 1. Menu déroulant pour l'unité (basé sur la vraie colonne Unité)
+            # Menu déroulant Unité
             unites_dispo = df_conso['Unité'].dropna().unique().tolist()
-            
-            # Gestion des cas où 'Unité' serait vide dans les vieilles données
-            if not unites_dispo:
-                unites_dispo = ["Inconnu"]
+            if not unites_dispo: unites_dispo = ["Inconnu"]
             
             choix_unite = st.radio("Unité :", options=["Tout voir"] + unites_dispo, horizontal=True)
 
-            # 2. Filtre
             if choix_unite != "Tout voir":
                 data_plot = df_conso[df_conso['Unité'] == choix_unite]
                 title_y = f"Quantité ({choix_unite})"
             else:
                 data_plot = df_conso
                 title_y = "Quantité (Toutes unités)"
+                
+            format_x = '%H:%M' if vue_temporelle == "Journée" else '%d/%m %H:%M'
 
-            # 3. Chart
             if not data_plot.empty:
                 chart_conso = alt.Chart(data_plot).mark_bar(color="#E74C3C").encode(
-                    x=alt.X('Full_Date:T', title='Temps'),
-                    # On utilise la colonne QUANTITÉ maintenant
+                    x=alt.X('Full_Date:T', title='Temps', axis=alt.Axis(format=format_x)),
                     y=alt.Y('Quantité:Q', title=title_y),
                     tooltip=['Date', 'Heure', 'Quantité', 'Unité', 'Pensées']
                 ).interactive()
                 st.altair_chart(chart_conso, use_container_width=True)
+            else:
+                st.warning(f"Pas de consommation en '{choix_unite}' sur cette période.")
 
 
         # --- ZONE DE SUPPRESSION ---
