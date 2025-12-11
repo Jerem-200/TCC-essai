@@ -134,15 +134,16 @@ with tab1:
 
         else: # CONSOMMATION
             st.markdown("#### Mesure de la consommation")
-            st.write("Indiquez la quantité exacte.")
+            st.write("Indiquez la quantité et l'unité.")
 
-            c_val, c_unit = st.columns([1, 1])
-            with c_val:
-                valeur_numerique = st.number_input("Chiffre", min_value=0.0, step=0.5)
+            # ON PASSE À 3 COLONNES pour plus de fluidité
+            c_val, c_list, c_new = st.columns([1, 1, 1])
             
-            with c_unit:
-                # --- LOGIQUE UNITÉS ---
-                # Sécurité : Si la mémoire n'est pas dans la liste, on l'ajoute
+            with c_val:
+                valeur_numerique = st.number_input("Quantité", min_value=0.0, step=0.5)
+            
+            with c_list:
+                # Gestion de la mémoire : si l'unité en mémoire n'est pas dans la liste, on la rajoute temporairement
                 if st.session_state.memoire_unite and st.session_state.memoire_unite not in st.session_state.liste_unites:
                     st.session_state.liste_unites.append(st.session_state.memoire_unite)
                 
@@ -152,39 +153,45 @@ with tab1:
                 except:
                     idx_defaut = 0
 
-                # Selectbox avec option d'ajout
-                options_unites = st.session_state.liste_unites + ["➕ Autre / Nouveau..."]
-                choix_unite = st.selectbox("Unité", options_unites, index=idx_defaut)
-                
-                # Champ texte si "Autre"
-                if choix_unite == "➕ Autre / Nouveau...":
-                    unite_txt = st.text_input("Précisez la nouvelle unité :", placeholder="ex: Litres")
-                else:
-                    unite_txt = choix_unite
+                # Menu déroulant classique
+                choix_unite_liste = st.selectbox("Unité standard", st.session_state.liste_unites, index=idx_defaut)
+            
+            with c_new:
+                # Champ permanent : s'il est rempli, il est prioritaire
+                unite_custom = st.text_input("Ou Autre (Nouveau)", placeholder="ex: Litres")
 
-            # On formate la colonne Pensées pour inclure l'unité (IMPORTANT pour la relecture)
-            if unite_txt:
-                pensees = f"Consommation : {valeur_numerique} {unite_txt}"
+            # LOGIQUE DE DÉCISION : Qui gagne ?
+            if unite_custom:
+                unite_finale = unite_custom
+                # On marque qu'on a créé une nouvelle unité pour l'ajouter à la liste plus tard
+                is_new_unit = True
             else:
-                pensees = f"Consommation : {valeur_numerique}"
+                unite_finale = choix_unite_liste
+                is_new_unit = False
+
+            # Formatage pour l'historique
+            pensees = f"Consommation : {valeur_numerique} {unite_finale}"
 
         st.divider()
 
         submitted = st.form_submit_button("💾 Enregistrer")
         
         if submitted:
-            # 1. MISE A JOUR LISTE UNITÉS
-            if choix_unite == "➕ Autre / Nouveau..." and unite_txt:
-                if unite_txt not in st.session_state.liste_unites:
-                    st.session_state.liste_unites.append(unite_txt)
+            # 1. MISE A JOUR LISTE UNITÉS (Si on a utilisé le champ "Autre")
+            # La variable 'unite_custom' vient du bloc ci-dessus
+            if "CONSOMMÉ" in type_evt and unite_custom:
+                if unite_custom not in st.session_state.liste_unites:
+                    st.session_state.liste_unites.append(unite_custom)
             
             # 2. FORMATAGE
             heure_str = heure_evt.strftime("%H:%M")
             
             # 3. MISE A JOUR MÉMOIRES
             st.session_state.memoire_heure = heure_evt
-            if "CONSOMMÉ" in type_evt and unite_txt:
-                 st.session_state.memoire_unite = unite_txt
+            
+            if "CONSOMMÉ" in type_evt:
+                # On retient l'unité finale (qu'elle vienne de la liste ou du champ custom)
+                st.session_state.memoire_unite = unite_finale
             
             # 4. SAUVEGARDE
             new_row = {
