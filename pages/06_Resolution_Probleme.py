@@ -278,66 +278,136 @@ with tab1:
             st.success("Plan enregistré avec succès ! Retrouvez-le dans l'Historique.")
 
 # ==============================================================================
-# ONGLET 2 : TABLEAU RÉCAPITULATIF (NOUVEAU)
+# ONGLET 2 : HISTORIQUE & MODIFICATIONS (TYPE BECK)
 # ==============================================================================
 with tab2:
-    st.header("📊 Tableau Récapitulatif")
-    st.write("Voici la liste de tous les problèmes traités et des plans d'action associés.")
-
+    st.header("🗂️ Historique & Actions")
+    
     df_history = st.session_state.data_problemes
-
+    
     if not df_history.empty:
-        # Tri décroissant par date si possible
-        df_history = df_history.sort_values(by="Date", ascending=False).reset_index(drop=True)
+        # 1. TABLEAU RÉCAPITULATIF
+        st.dataframe(
+            df_history.sort_values(by="Date", ascending=False),
+            use_container_width=True,
+            column_config={
+                "Plan Action": st.column_config.TextColumn("Plan", width="large"),
+                "Date": st.column_config.DateColumn("Date", format="DD/MM/YYYY"),
+            },
+            hide_index=True
+        )
+        
+        st.divider()
+        st.subheader("🛠️ Modifier ou Supprimer")
 
-        # Affichage interactif
-        edited_history = st.data_editor(
-            df_history, 
-            use_container_width=True, 
-            num_rows="dynamic",
-            key="history_editor_pb"
+        # 2. SÉLECTION D'UNE ENTRÉE
+        # On crée des labels lisibles pour le menu déroulant
+        df_sorted = df_history.sort_values(by="Date", ascending=False)
+        options_map = {}
+        for idx, row in df_sorted.iterrows():
+            prob_court = (str(row['Problème'])[:50] + '...') if len(str(row['Problème'])) > 50 else str(row['Problème'])
+            label = f"📅 {row['Date']} | {prob_court}"
+            options_map[label] = idx
+            
+        selected_entry = st.selectbox(
+            "Sélectionnez le problème à gérer :", 
+            list(options_map.keys()), 
+            index=None, 
+            placeholder="Cliquez pour choisir..."
         )
 
-        # Sauvegarde des modifications manuelles dans le tableau
-        if not edited_history.equals(df_history):
-            st.session_state.data_problemes = edited_history
-            st.rerun()
-
-        st.divider()
-
-        # SUPPRESSION
-        with st.expander("🗑️ Supprimer un plan d'action"):
-            # Liste déroulante pour suppression propre
-            options_suppr = {
-                f"{row['Date']} : {row['Problème']}": idx 
-                for idx, row in df_history.iterrows()
-            }
+        # 3. ACTIONS
+        if selected_entry:
+            idx_sel = options_map[selected_entry]
+            row_sel = df_history.loc[idx_sel]
             
-            sel_suppr = st.selectbox("Choisir le plan à supprimer :", list(options_suppr.keys()), index=None)
+            col_edit, col_del = st.columns([1, 1])
             
-            if st.button("Confirmer la suppression") and sel_suppr:
-                idx_to_drop = options_suppr[sel_suppr]
-                row_to_del = df_history.loc[idx_to_drop]
+            # A. SUPPRESSION
+            with col_del:
+                if st.button("🗑️ Supprimer définitivement", type="primary"):
+                    # Cloud
+                    try:
+                        from connect_db import delete_data_flexible
+                        pid = st.session_state.get("patient_id", "Anonyme")
+                        delete_data_flexible("Résolution_Problème", {
+                            "Patient": pid,
+                            "Date": str(row_sel["Date"]),
+                            "Problème": str(row_sel["Problème"])
+                        })
+                    except: pass
+                    
+                    # Local
+                    st.session_state.data_problemes = df_history.drop(idx_sel).reset_index(drop=True)
+                    st.success("Plan supprimé !")
+                    st.rerun()
 
-                # Suppression Cloud
-                try:
-                    from connect_db import delete_data_flexible
-                    pid = st.session_state.get("patient_id", "Anonyme")
-                    delete_data_flexible("Résolution_Problème", {
-                        "Patient": pid,
-                        "Date": str(row_to_del['Date']),
-                        "Problème": row_to_del['Problème']
-                    })
-                except:
-                    pass
+            # B. MODIFICATION (Formulaire pré-rempli)
+            with st.expander("✏️ Modifier / Mettre à jour", expanded=True):
+                st.info("Vous pouvez ajuster le plan d'action ou corriger le problème ici.")
                 
-                # Suppression Locale
-                st.session_state.data_problemes = df_history.drop(idx_to_drop).reset_index(drop=True)
-                st.success("Ligne supprimée !")
-                st.rerun()
+                with st.form("edit_pb_form"):
+                    # Récupération sécurisée des valeurs
+                    def get_val(col): return str(row_sel.get(col, ""))
+                    
+                    # Champs
+                    m_date = st.date_input("Date initiale", value=pd.to_datetime(row_sel['Date']).date())
+                    m_prob = st.text_area("Problème", value=get_val("Problème"))
+                    m_obj = st.text_area("Objectif", value=get_val("Objectif"))
+                    m_sol = st.text_input("Solution Choisie", value=get_val("Solution Choisie"))
+                    
+                    # Le plan d'action est édité comme un texte complet
+                    st.markdown("**Plan d'action (Éditable)**")
+                    m_plan = st.text_area("Étapes (Modifiez directement le texte)", value=get_val("Plan Action"), height=150)
+                    
+                    c_m1, c_m2 = st.columns(2)
+                    with c_m1: m_obs = st.text_area("Obstacles", value=get_val("Obstacles"))
+                    with c_m2: m_ress = st.text_area("Ressources", value=get_val("Ressources"))
+                    
+                    try:
+                        d_eval_init = pd.to_datetime(row_sel['Date Évaluation']).date()
+                    except:
+                        d_eval_init = datetime.now().date()
+                    m_eval = st.date_input("Date Évaluation", value=d_eval_init)
+                    
+                    # Validation
+                    if st.form_submit_button("💾 Valider les modifications"):
+                        # 1. Suppression Cloud (Ancienne version)
+                        try:
+                            from connect_db import delete_data_flexible, save_data
+                            pid = st.session_state.get("patient_id", "Anonyme")
+                            delete_data_flexible("Résolution_Problème", {
+                                "Patient": pid,
+                                "Date": str(row_sel["Date"]),
+                                "Problème": str(row_sel["Problème"])
+                            })
+                            
+                            # 2. Création Nouvelle version
+                            updated_row = {
+                                "Patient": pid,
+                                "Date": str(m_date),
+                                "Problème": m_prob, "Objectif": m_obj,
+                                "Solution Choisie": m_sol, "Plan Action": m_plan,
+                                "Obstacles": m_obs, "Ressources": m_ress,
+                                "Date Évaluation": str(m_eval)
+                            }
+                            
+                            # 3. Sauvegarde Cloud (Nouvelle version)
+                            save_data("Résolution_Problème", [updated_row[c] for c in COLS_PB])
+                            
+                        except Exception as e:
+                            st.warning(f"Erreur Cloud: {e}")
+                            
+                        # 4. Mise à jour Locale (Directe dans le dataframe)
+                        for k, v in updated_row.items():
+                            if k in st.session_state.data_problemes.columns:
+                                st.session_state.data_problemes.loc[idx_sel, k] = v
+                                
+                        st.success("Mise à jour réussie !")
+                        st.rerun()
 
     else:
-        st.info("Aucun plan d'action enregistré pour le moment.")
+        st.info("Aucun historique disponible.")
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
