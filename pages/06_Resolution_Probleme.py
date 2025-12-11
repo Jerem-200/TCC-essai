@@ -65,7 +65,7 @@ with tab1:
     with st.expander("🛑 Lire les consignes de départ (Important)", expanded=True):
         st.markdown("""
         **1. Stop :**
-        On doit d’abord réaliser que l’on a un problème qui n’est pas facile à résoudre et mérite qu’on prenne un peu de temps pour bien y réfléchir. 
+        On doit d’abord réaliser que l’on a un problème qui n’est pas facile à résoudre et qui mérite qu’on prenne un peu de temps pour bien y réfléchir. 
         
         **2. Attitude constructive :**
         Il est important d’adopter une orientation constructive face au problème. Il s’agit de voir le problème comme une **occasion ou un défi** plutôt que comme une menace. 
