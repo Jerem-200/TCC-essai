@@ -53,7 +53,15 @@ tab1, tab2 = st.tabs(["⚖️ Créer une balance", "🗄️ Historique"])
 # ==============================================================================
 with tab1:
     st.header("1. Le Sujet")
-    sujet_decision = st.text_input("Quelle décision devez-vous prendre ?", placeholder="Ex: Déménager à Paris ou rester à Lyon ?")
+    # AJOUT D'UNE CLÉ (key) POUR POUVOIR LE REMPLIR AUTOMATIQUEMENT
+    if "input_sujet_decision" not in st.session_state:
+        st.session_state.input_sujet_decision = ""
+
+    sujet_decision = st.text_input(
+        "Quelle décision devez-vous prendre ?", 
+        placeholder="Ex: Déménager à Paris ou rester à Lyon ?",
+        key="input_sujet_decision" 
+    )
 
     st.divider()
 
@@ -260,5 +268,87 @@ with tab2:
                 st.session_state.data_balance = df_history.drop(idx_to_drop).reset_index(drop=True)
                 st.success("Ligne supprimée !")
                 st.rerun()
+        
+            # --- MODIFICATION (RECHARGER UNE BALANCE) ---
+        st.divider()
+        with st.expander("✏️ Modifier / Reprendre une balance"):
+            st.write("Sélectionnez une balance pour recharger ses données dans l'onglet de création.")
+            
+            # On reprend la liste des options créée pour la suppression
+            sel_modif = st.selectbox("Choisir la balance à modifier :", list(options_suppr.keys()), key="select_modif")
+            
+            if st.button("🔄 Charger les données pour modification"):
+                idx_to_load = options_suppr[sel_modif]
+                row_to_load = df_history.loc[idx_to_load]
+                
+                # 1. Charger le Sujet
+                st.session_state.input_sujet_decision = row_to_load['Sujet']
+                
+                # 2. Analyser le texte "Détail Arguments" pour recréer le tableau
+                raw_text = row_to_load['Détail Arguments']
+                lignes = raw_text.split('\n')
+                
+                new_data = []
+                loaded_options = []
+                
+                for ligne in lignes:
+                    ligne = ligne.strip()
+                    if not ligne: continue # Ignorer les lignes vides
+                    
+                    # Format attendu : • Option : 🟢 Description (Note/10)
+                    try:
+                        # On enlève la puce du début
+                        clean_line = ligne.replace("• ", "")
+                        
+                        # On sépare l'Option du reste (séparateur " : ")
+                        parts = clean_line.split(" : ")
+                        opt_name = parts[0].strip()
+                        reste = parts[1].strip()
+                        
+                        # On récupère l'Option pour la liste globale
+                        if opt_name not in loaded_options:
+                            loaded_options.append(opt_name)
+                        
+                        # Détection du Type via l'émoji
+                        if "🟢" in reste:
+                            type_arg = "Avantage (+)"
+                            # On enlève l'émoji
+                            reste = reste.replace("🟢 ", "").strip()
+                            score_mult = 1
+                        else:
+                            type_arg = "Inconvénient (-)"
+                            reste = reste.replace("🔴 ", "").strip()
+                            score_mult = -1
+                            
+                        # Séparation Description et Intensité
+                        # On cherche la dernière parenthèse ouvrante pour isoler (X/10)
+                        last_paren_idx = reste.rfind("(")
+                        description = reste[:last_paren_idx].strip()
+                        
+                        intensite_part = reste[last_paren_idx+1:] # Donne "X/10)"
+                        intensite_val = int(intensite_part.split("/")[0]) # Prend le X
+                        
+                        # Ajout à la liste temporaire
+                        new_data.append({
+                            "Option": opt_name,
+                            "Type": type_arg,
+                            "Description": description,
+                            "Intensité": intensite_val,
+                            "Score_Calc": intensite_val * score_mult
+                        })
+                        
+                    except Exception as e:
+                        st.warning(f"Impossible de lire la ligne : {ligne} ({e})")
+
+                # 3. Mise à jour des Session State
+                st.session_state.balance_options_list = loaded_options
+                st.session_state.balance_args_current = pd.DataFrame(new_data)
+                
+                st.success(f"Données chargées ! Retournez dans l'onglet '⚖️ Créer une balance' pour modifier.")
+                
+                # Optionnel : Supprimer l'ancienne version pour éviter les doublons ?
+                # Pour l'instant, on laisse l'utilisateur supprimer manuellement s'il le souhaite.
     else:
         st.info("Aucune balance décisionnelle enregistrée.")
+
+    
