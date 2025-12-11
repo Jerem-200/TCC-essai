@@ -66,23 +66,6 @@ tab1, tab2 = st.tabs(["📝 Saisie du jour", "📊 Analyse & Moyennes"])
 # --- ONGLET 1 : FORMULAIRE DESIGN ---
 with tab1:
     st.subheader("📝 Saisie de la nuit dernière")
-    
-    # --- GESTIONNAIRE D'UNITÉS (Expander discret) ---
-    with st.expander("⚙️ Gérer les unités (Ajouter/Supprimer)"):
-        c_add, c_del = st.columns(2)
-        with c_add:
-            new_u = st.text_input("Nouvelle unité :", placeholder="ex: Bol", label_visibility="collapsed")
-            if st.button("➕ Ajouter", key="btn_add_u"):
-                if new_u and new_u not in st.session_state.sommeil_units:
-                    st.session_state.sommeil_units.append(new_u)
-                    st.success(f"Ajouté !")
-                    st.rerun()
-        with c_del:
-            if st.session_state.sommeil_units:
-                del_u = st.selectbox("Supprimer :", st.session_state.sommeil_units, label_visibility="collapsed")
-                if st.button("🗑️ Supprimer", key="btn_del_u"):
-                    st.session_state.sommeil_units.remove(del_u)
-                    st.rerun()
 
     # --- LE FORMULAIRE VISUEL ---
     with st.form("form_sommeil"):
@@ -221,6 +204,23 @@ with tab1:
                 ])
             except Exception as e:
                 st.error(f"Erreur Cloud : {e}")
+
+    # --- GESTIONNAIRE D'UNITÉS (Expander discret) ---
+    with st.expander("⚙️ Gérer les unités (Ajouter/Supprimer)"):
+        c_add, c_del = st.columns(2)
+        with c_add:
+            new_u = st.text_input("Nouvelle unité :", placeholder="ex: Bol", label_visibility="collapsed")
+            if st.button("➕ Ajouter", key="btn_add_u"):
+                if new_u and new_u not in st.session_state.sommeil_units:
+                    st.session_state.sommeil_units.append(new_u)
+                    st.success(f"Ajouté !")
+                    st.rerun()
+        with c_del:
+            if st.session_state.sommeil_units:
+                del_u = st.selectbox("Supprimer :", st.session_state.sommeil_units, label_visibility="collapsed")
+                if st.button("🗑️ Supprimer", key="btn_del_u"):
+                    st.session_state.sommeil_units.remove(del_u)
+                    st.rerun()
 
 # --- ONGLET 2 : ANALYSE ---
 with tab2:
