@@ -57,7 +57,7 @@ with tab1:
 
     st.divider()
 
-    # --- ÉTAPE 2 : DÉFINITION DES OPTIONS ---
+    # --- ÉTAPE 1 : DÉFINITION DES OPTIONS ---
     st.header("2. Les Options")
     st.caption("Listez les différentes options qui s'offrent à vous.")
 
@@ -98,7 +98,7 @@ with tab1:
     st.header("3. Peser le pour et le contre")
     
     if len(st.session_state.balance_options_list) >= 1:
-        with st.form("ajout_argument_balance", clear_on_submit=True):
+        with st.form("ajout_argument_balance", clear_on_submit=False):
             c1, c2 = st.columns(2)
             with c1: 
                 opt_select = st.selectbox("Concerne l'option :", st.session_state.balance_options_list)
