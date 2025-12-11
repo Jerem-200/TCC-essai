@@ -108,16 +108,55 @@ tab1, tab2 = st.tabs(["📝 Saisie (Journal)", "📊 Bilan & Historique"])
 with tab1:
     st.header(f"Journal : {substance_active}")
     
-    # 1. TYPE D'ÉVÉNEMENT (Hors formulaire pour changer l'interface)
+    # 1. TYPE D'ÉVÉNEMENT
     type_evt = st.radio(
         "Qu'est-ce qui s'est passé ?", 
         ["⚡ J'ai eu une ENVIE (Craving)", "🍷 J'ai CONSOMMÉ"], 
         horizontal=True
     )
     
-    # 2. LE FORMULAIRE
+    # ---------------------------------------------------------
+    # ZONE DE GESTION DES UNITÉS (Hors Formulaire)
+    # ---------------------------------------------------------
+    if "CONSOMMÉ" in type_evt:
+        # La case à cocher pour déplier le menu
+        gerer_unites = st.checkbox("⚙️ Gérer les unités personnalisées (Ajout / Suppression)")
+        
+        if gerer_unites:
+            with st.container(border=True):
+                st.markdown("**Configuration des unités**")
+                c_add, c_del = st.columns(2)
+                
+                # BLOC AJOUTER
+                with c_add:
+                    new_unit_name = st.text_input("Nouvelle unité à créer :", placeholder="ex: Pintes", label_visibility="collapsed")
+                    if st.button("➕ Ajouter", key="btn_add_unit"):
+                        if new_unit_name and new_unit_name not in st.session_state.liste_unites:
+                            st.session_state.liste_unites.append(new_unit_name)
+                            st.success(f"'{new_unit_name}' ajouté !")
+                            st.rerun()
+                        elif new_unit_name in st.session_state.liste_unites:
+                            st.warning("Existe déjà.")
+
+                # BLOC SUPPRIMER
+                with c_del:
+                    if st.session_state.liste_unites:
+                        del_unit_name = st.selectbox("Unité à supprimer :", st.session_state.liste_unites, label_visibility="collapsed")
+                        if st.button("🗑️ Supprimer", key="btn_del_unit"):
+                            if del_unit_name in st.session_state.liste_unites:
+                                st.session_state.liste_unites.remove(del_unit_name)
+                                # Si on supprime l'unité en mémoire, on reset la mémoire
+                                if st.session_state.memoire_unite == del_unit_name:
+                                    st.session_state.memoire_unite = ""
+                                st.success(f"'{del_unit_name}' supprimé !")
+                                st.rerun()
+                    else:
+                        st.info("Liste vide.")
+            st.divider()
+    # ---------------------------------------------------------
+
+    # 2. LE FORMULAIRE DE SAISIE
     with st.form("form_addiction"):
-        st.write("---") 
         
         # A. DATE ET HEURE
         c_date, c_heure = st.columns(2)
@@ -126,57 +165,41 @@ with tab1:
         with c_heure: 
             heure_evt = st.time_input("Heure", value=st.session_state.memoire_heure)
             
-        st.divider()
+        st.write("---")
 
         # B. CONTENU SPÉCIFIQUE
         valeur_numerique = 0.0
         pensees = ""
-        # Variables pour récupérer les choix de l'utilisateur
-        choix_unite_liste = ""
-        unite_custom = ""
+        unite_finale = ""
         
         if "CONSOMMÉ" in type_evt:
             st.markdown("#### Détails de la consommation")
             
-            # --- DISPOSITION CÔTE À CÔTE ---
             col_qte, col_unit = st.columns([1, 1])
             
             with col_qte:
                 valeur_numerique = st.number_input("Quantité", min_value=0.0, step=0.5)
 
             with col_unit:
-                # 1. Gestion de la mémoire (Sécurité)
+                # Gestion sécurité mémoire (si l'unité en mémoire a été supprimée, on gère)
                 if st.session_state.memoire_unite and st.session_state.memoire_unite not in st.session_state.liste_unites:
-                     st.session_state.liste_unites.append(st.session_state.memoire_unite)
+                     # On remet à vide ou on l'ajoute ? Ici on reset pour éviter les erreurs
+                     idx_def = 0
+                else:
+                    try:
+                        idx_def = st.session_state.liste_unites.index(st.session_state.memoire_unite)
+                    except:
+                        idx_def = 0
                 
-                # 2. Index par défaut
-                try:
-                    idx_def = st.session_state.liste_unites.index(st.session_state.memoire_unite)
-                except:
-                    idx_def = 0
-                
-                # 3. Liste déroulante avec option "Autre"
-                options_avec_autre = st.session_state.liste_unites + ["➕ Autre / Nouveau..."]
-                choix_unite_liste = st.selectbox("Unité", options_avec_autre, index=idx_def)
-                
-                # 4. Champ de saisie JUSTE EN DESSOUS (Toujours visible)
-                # L'utilisateur ne le remplit que s'il a choisi "Autre" ou veut changer
-                unite_custom = st.text_input("Si 'Autre', précisez ici :", placeholder="ex: Pintes, Litres...")
+                # Le menu est maintenant toujours propre (sans "Autre")
+                if st.session_state.liste_unites:
+                    unite_finale = st.selectbox("Unité", st.session_state.liste_unites, index=idx_def)
+                else:
+                    st.warning("Aucune unité disponible. Ajoutez-en une au-dessus.")
+                    unite_finale = ""
 
-            # --- LOGIQUE DE DÉCISION (Invisible pour l'utilisateur, calculée après) ---
-            # Si l'utilisateur a écrit dans le champ texte, c'est ce champ qui gagne
-            if choix_unite_liste == "➕ Autre / Nouveau..." and unite_custom:
-                unite_finale = unite_custom
-                is_new = True
-            elif unite_custom: # S'il a écrit un truc même sans sélectionner "Autre", on le prend
-                unite_finale = unite_custom
-                is_new = True
-            else:
-                unite_finale = choix_unite_liste
-                is_new = False
-            
             # Formatage texte
-            if unite_finale and unite_finale != "➕ Autre / Nouveau...":
+            if unite_finale:
                 pensees = f"Consommation : {valeur_numerique} {unite_finale}"
             else:
                 pensees = f"Consommation : {valeur_numerique}"
@@ -195,14 +218,9 @@ with tab1:
         
         if submitted:
             # Vérification simple
-            if "CONSOMMÉ" in type_evt and (not unite_finale or unite_finale == "➕ Autre / Nouveau..."):
-                st.warning("⚠️ Veuillez sélectionner ou écrire une unité.")
+            if "CONSOMMÉ" in type_evt and not unite_finale:
+                st.error("⚠️ Veuillez sélectionner une unité (utilisez la gestion des unités si la liste est vide).")
             else:
-                # A. MISE À JOUR LISTE (Si nouveau)
-                if "CONSOMMÉ" in type_evt and is_new:
-                    if unite_finale not in st.session_state.liste_unites:
-                        st.session_state.liste_unites.append(unite_finale)
-                
                 # B. FORMATAGE & MÉMOIRE
                 heure_str = heure_evt.strftime("%H:%M")
                 st.session_state.memoire_heure = heure_evt
@@ -231,10 +249,6 @@ with tab1:
                     ])
                     st.success("Enregistré !")
                     
-                    # Si c'était une nouvelle unité, on recharge pour mettre à jour la liste proprement
-                    if is_new:
-                        st.rerun()
-                        
                 except Exception as e:
                     st.error(f"Erreur sauvegarde : {e}")
 
