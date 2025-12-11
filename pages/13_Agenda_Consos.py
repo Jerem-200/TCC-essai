@@ -108,124 +108,135 @@ tab1, tab2 = st.tabs(["📝 Saisie (Journal)", "📊 Bilan & Historique"])
 with tab1:
     st.header(f"Journal : {substance_active}")
     
-    # 1. TYPE D'ÉVÉNEMENT
+    # 1. TYPE D'ÉVÉNEMENT (Hors formulaire pour changer l'interface)
     type_evt = st.radio(
         "Qu'est-ce qui s'est passé ?", 
         ["⚡ J'ai eu une ENVIE (Craving)", "🍷 J'ai CONSOMMÉ"], 
         horizontal=True
     )
     
-    st.divider()
-
-    # 2. DATE ET HEURE (Sur 2 colonnes)
-    c_date, c_heure = st.columns(2)
-    with c_date: 
-        date_evt = st.date_input("Date", datetime.now())
-    with c_heure: 
-        heure_evt = st.time_input("Heure", value=st.session_state.memoire_heure)
-
-    # Initialisation des variables
-    valeur_numerique = 0.0
-    pensees = ""
-    unite_finale = ""
-    ajout_unite = False
-
-    # 3. BLOC CONDITIONNEL (Envie vs Conso)
-    if "CONSOMMÉ" in type_evt:
-        st.markdown("#### Détails de la consommation")
+    # 2. LE FORMULAIRE
+    with st.form("form_addiction"):
+        st.write("---") 
         
-        # --- C'EST ICI QUE LA DISPOSITION CHANGE ---
-        # On crée 2 colonnes : Gauche pour la Quantité, Droite pour l'Unité
-        col_qte, col_unit = st.columns([1, 1])
-        
-        with col_qte:
-            valeur_numerique = st.number_input("Quantité", min_value=0.0, step=0.5)
-
-        with col_unit:
-            # Petite case pour dire "C'est une nouvelle unité"
-            ajout_unite = st.checkbox("Créer une nouvelle unité ?")
+        # A. DATE ET HEURE
+        c_date, c_heure = st.columns(2)
+        with c_date: 
+            date_evt = st.date_input("Date", datetime.now())
+        with c_heure: 
+            heure_evt = st.time_input("Heure", value=st.session_state.memoire_heure)
             
-            if ajout_unite:
-                # Champ texte libre
-                unite_finale = st.text_input("Nom de l'unité", placeholder="ex: Pintes")
-            else:
-                # Menu déroulant standard
-                # Gestion sécurité mémoire
+        st.divider()
+
+        # B. CONTENU SPÉCIFIQUE
+        valeur_numerique = 0.0
+        pensees = ""
+        # Variables pour récupérer les choix de l'utilisateur
+        choix_unite_liste = ""
+        unite_custom = ""
+        
+        if "CONSOMMÉ" in type_evt:
+            st.markdown("#### Détails de la consommation")
+            
+            # --- DISPOSITION CÔTE À CÔTE ---
+            col_qte, col_unit = st.columns([1, 1])
+            
+            with col_qte:
+                valeur_numerique = st.number_input("Quantité", min_value=0.0, step=0.5)
+
+            with col_unit:
+                # 1. Gestion de la mémoire (Sécurité)
                 if st.session_state.memoire_unite and st.session_state.memoire_unite not in st.session_state.liste_unites:
                      st.session_state.liste_unites.append(st.session_state.memoire_unite)
                 
-                # Index par défaut
-                idx_def = 0
-                if st.session_state.memoire_unite in st.session_state.liste_unites:
+                # 2. Index par défaut
+                try:
                     idx_def = st.session_state.liste_unites.index(st.session_state.memoire_unite)
+                except:
+                    idx_def = 0
                 
-                unite_finale = st.selectbox("Unité", st.session_state.liste_unites, index=idx_def)
-
-        # Formatage texte pour historique
-        if unite_finale:
-            pensees = f"Consommation : {valeur_numerique} {unite_finale}"
-        else:
-            pensees = f"Consommation : {valeur_numerique}"
-
-    else: # CAS ENVIE
-        st.markdown("#### Évaluation de l'envie")
-        valeur_numerique = st.slider("Intensité (0 à 10)", 0, 10, 5)
-        
-        with st.expander("ℹ️ Aide : Les types de pensées"):
-            st.markdown("* **Permissives** (Juste un...)\n* **Soulageantes** (Ça va calmer...)\n* **Positives** (Je serai mieux...)")
-        
-        pensees = st.text_area("Pensées / Contexte :")
-
-    st.divider()
-    
-    # 4. BOUTON ENREGISTRER
-    # Comme on a enlevé le st.form, on utilise un bouton simple
-    if st.button("💾 Enregistrer", type="primary"):
-        
-        # Vérification simple pour l'unité
-        if "CONSOMMÉ" in type_evt and not unite_finale:
-            st.toast("⚠️ Veuillez indiquer une unité.", icon="🔸")
-        else:
-            # A. GESTION LISTE (Nouvelle unité)
-            if "CONSOMMÉ" in type_evt and ajout_unite and unite_finale:
-                if unite_finale not in st.session_state.liste_unites:
-                    st.session_state.liste_unites.append(unite_finale)
-            
-            # B. FORMATAGE & MÉMOIRE
-            heure_str = heure_evt.strftime("%H:%M")
-            st.session_state.memoire_heure = heure_evt
-            
-            if "CONSOMMÉ" in type_evt and unite_finale:
-                 st.session_state.memoire_unite = unite_finale
-            
-            # C. SAUVEGARDE
-            new_row = {
-                "Date": str(date_evt),
-                "Heure": heure_str,
-                "Substance": substance_active,
-                "Type": type_evt,
-                "Intensité": valeur_numerique,
-                "Pensées" : pensees
-            }
-            st.session_state.data_addictions = pd.concat([st.session_state.data_addictions, pd.DataFrame([new_row])], ignore_index=True)
-            
-            # Cloud
-            try:
-                from connect_db import save_data
-                patient = st.session_state.get("patient_id", "Anonyme")
-                save_data("Addictions", [
-                    patient, str(date_evt), heure_str, substance_active, 
-                    type_evt, valeur_numerique, pensees
-                ])
-                st.success("Enregistré avec succès !")
+                # 3. Liste déroulante avec option "Autre"
+                options_avec_autre = st.session_state.liste_unites + ["➕ Autre / Nouveau..."]
+                choix_unite_liste = st.selectbox("Unité", options_avec_autre, index=idx_def)
                 
-                # Petit délai pour que l'utilisateur voie le message avant le reload
-                # Si on a ajouté une unité, le rerun est nécessaire pour mettre à jour la liste
-                if ajout_unite:
-                    st.rerun()
+                # 4. Champ de saisie JUSTE EN DESSOUS (Toujours visible)
+                # L'utilisateur ne le remplit que s'il a choisi "Autre" ou veut changer
+                unite_custom = st.text_input("Si 'Autre', précisez ici :", placeholder="ex: Pintes, Litres...")
+
+            # --- LOGIQUE DE DÉCISION (Invisible pour l'utilisateur, calculée après) ---
+            # Si l'utilisateur a écrit dans le champ texte, c'est ce champ qui gagne
+            if choix_unite_liste == "➕ Autre / Nouveau..." and unite_custom:
+                unite_finale = unite_custom
+                is_new = True
+            elif unite_custom: # S'il a écrit un truc même sans sélectionner "Autre", on le prend
+                unite_finale = unite_custom
+                is_new = True
+            else:
+                unite_finale = choix_unite_liste
+                is_new = False
+            
+            # Formatage texte
+            if unite_finale and unite_finale != "➕ Autre / Nouveau...":
+                pensees = f"Consommation : {valeur_numerique} {unite_finale}"
+            else:
+                pensees = f"Consommation : {valeur_numerique}"
+
+        else: # CAS ENVIE
+            st.markdown("#### Évaluation de l'envie")
+            valeur_numerique = st.slider("Intensité (0-10)", 0, 10, 5)
+            
+            with st.expander("ℹ️ Aide : Les types de pensées"):
+                st.markdown("* **Permissives** (Juste un...)\n* **Soulageantes** (Ça va calmer...)\n* **Positives** (Je serai mieux...)")
+            
+            pensees = st.text_area("Pensées / Contexte :")
+
+        st.divider()
+        submitted = st.form_submit_button("💾 Enregistrer")
+        
+        if submitted:
+            # Vérification simple
+            if "CONSOMMÉ" in type_evt and (not unite_finale or unite_finale == "➕ Autre / Nouveau..."):
+                st.warning("⚠️ Veuillez sélectionner ou écrire une unité.")
+            else:
+                # A. MISE À JOUR LISTE (Si nouveau)
+                if "CONSOMMÉ" in type_evt and is_new:
+                    if unite_finale not in st.session_state.liste_unites:
+                        st.session_state.liste_unites.append(unite_finale)
+                
+                # B. FORMATAGE & MÉMOIRE
+                heure_str = heure_evt.strftime("%H:%M")
+                st.session_state.memoire_heure = heure_evt
+                
+                if "CONSOMMÉ" in type_evt:
+                     st.session_state.memoire_unite = unite_finale
+                
+                # C. SAUVEGARDE
+                new_row = {
+                    "Date": str(date_evt),
+                    "Heure": heure_str,
+                    "Substance": substance_active,
+                    "Type": type_evt,
+                    "Intensité": valeur_numerique,
+                    "Pensées" : pensees
+                }
+                st.session_state.data_addictions = pd.concat([st.session_state.data_addictions, pd.DataFrame([new_row])], ignore_index=True)
+                
+                # Cloud
+                try:
+                    from connect_db import save_data
+                    patient = st.session_state.get("patient_id", "Anonyme")
+                    save_data("Addictions", [
+                        patient, str(date_evt), heure_str, substance_active, 
+                        type_evt, valeur_numerique, pensees
+                    ])
+                    st.success("Enregistré !")
                     
-            except Exception as e:
-                st.error(f"Erreur sauvegarde : {e}")
+                    # Si c'était une nouvelle unité, on recharge pour mettre à jour la liste proprement
+                    if is_new:
+                        st.rerun()
+                        
+                except Exception as e:
+                    st.error(f"Erreur sauvegarde : {e}")
 
 # --- ZONE DE SUPPRESSION (Reste inchangée) ---
     with st.expander("🗑️ Supprimer une entrée récente"):
