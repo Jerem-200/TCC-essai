@@ -77,7 +77,7 @@ with tab1:
         # =========================================================
         # BLOC 1 : ACTIVITÉS DE LA JOURNÉE
         # =========================================================
-        st.markdown("### 🌞 Activités & Sieste")
+        st.markdown("### Activités & Sieste de la veille")
         
         # Préparation des listes
         liste_heures_habitudes = ["Non"] + [f"{h}h00" for h in range(24)]
@@ -85,25 +85,21 @@ with tab1:
         liste_durees = ["10 min", "20 min", "30 min", "45 min", "1h00", "1h30", "2h00", "3h+"]
 
         # -- LIGNE SIESTE --
-        col_s1, col_s2, col_s3 = st.columns([1, 1, 2])
+        col_s1, col_s2, c_sport = st.columns([1, 1, 2])
         with col_s1:
             h_sieste = st.selectbox("💤 Sieste (Début)", liste_heures_sieste, help="À quelle heure avez-vous fait la sieste ?")
         with col_s2:
             d_sieste = st.selectbox("⏳ Durée", liste_durees, label_visibility="visible")
-        with col_s3:
-            # Espace vide pour l'esthétique ou commentaire éventuel
-            st.empty()
+        with c_sport:
+            sport = st.selectbox("🏋️ Sport", liste_heures_habitudes, help="Heure de fin de séance")
 
         st.write("") # Petit espace
         
         # -- LIGNE HABITUDES (4 COLONNES) --
-        st.markdown("### 🍷 Consommations & Habitudes (Heure limite)")
-        st.caption("Indiquez l'heure de la dernière prise ou 'Non'.")
+        st.markdown("### Consommations de la veille")
         
-        c_sport, c_cafe, c_alcool, c_med = st.columns(4)
+        c_cafe, c_alcool, c_med = st.columns(4)
         
-        with c_sport:
-            sport = st.selectbox("🏋️ Sport", liste_heures_habitudes, help="Heure de fin de séance")
         with c_cafe:
             cafeine = st.selectbox("☕ Caféine", liste_heures_habitudes, help="Café, Thé, Cola...")
         with c_alcool:
