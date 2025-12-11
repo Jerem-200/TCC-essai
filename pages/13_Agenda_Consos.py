@@ -123,6 +123,7 @@ with tab1:
     
     # Ce bloc ne s'affiche que si on a choisi "Consommé"
     if "CONSOMMÉ" in type_evt:
+        st.info("Choisissez l'unité ci-dessous :")
         
         # On fait 2 colonnes : gauche pour cocher, droite pour choisir/saisir
         col_check, col_input = st.columns([1, 2])
