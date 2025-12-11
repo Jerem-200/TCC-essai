@@ -261,20 +261,50 @@ with tab1:
                             st.rerun()
                 else:
                     st.info("La liste est vide.")
-    # ---------------------------------------------------------
 
-# --- ZONE DE SUPPRESSION (Reste inchangée) ---
-    with st.expander("🗑️ Supprimer une entrée récente"):
+# --- ZONE DE SUPPRESSION (ONGLET 1) ---
+    with st.expander("🗑️ Supprimer une entrée récente (Correction d'erreur)"):
+        # 1. On récupère les données de la substance active UNIQUEMENT
         df_actuel = st.session_state.data_addictions
         df_substance = df_actuel[df_actuel["Substance"] == substance_active].sort_values(by=["Date", "Heure"], ascending=False)
         
         if not df_substance.empty:
-            options_suppr = {f"{row['Date']} à {row['Heure']} : {row['Type']} ({row['Intensité']})": i for i, row in df_substance.iterrows()}
-            choix_suppr = st.selectbox("Choisir la ligne à effacer :", list(options_suppr.keys()), key="select_suppr_tab1", index=None)
+            # 2. CRÉATION DES ÉTIQUETTES DÉTAILLÉES (Même design que l'onglet 2)
+            options_suppr = {}
+            for idx, row in df_substance.iterrows():
+                # A. Icône et Type
+                is_envie = "ENVIE" in str(row['Type'])
+                icone = "⚡" if is_envie else "🍷"
+                type_lbl = "Envie" if is_envie else "Conso"
+                
+                # B. Texte court
+                raw_pensees = str(row.get('Pensées', ''))
+                pensees_txt = (raw_pensees[:30] + '...') if len(raw_pensees) > 30 else raw_pensees
+                
+                # C. Label
+                label = f"📅 {row['Date']} à {row['Heure']} | {icone} {type_lbl} | 📊 {row['Intensité']} | 📝 {pensees_txt}"
+                
+                # D. Gestion ID
+                if label in options_suppr:
+                    label = f"{label} (ID: {idx})"
+                
+                options_suppr[label] = idx
             
+            # 3. Menu Déroulant
+            choix_suppr = st.selectbox(
+                "Choisir la ligne à effacer :", 
+                list(options_suppr.keys()), 
+                key="select_suppr_tab1",
+                index=None,
+                placeholder="Sélectionnez pour corriger..."
+            )
+            
+            # 4. Bouton Suppression
             if st.button("❌ Supprimer définitivement", key="btn_suppr_tab1") and choix_suppr:
                 idx_to_drop = options_suppr[choix_suppr]
                 row_to_delete = df_substance.loc[idx_to_drop]
+                
+                # Cloud
                 try:
                     from connect_db import delete_data_flexible
                     pid = st.session_state.get("patient_id", "Anonyme")
@@ -286,11 +316,12 @@ with tab1:
                     })
                 except: pass
                 
+                # Local
                 st.session_state.data_addictions = st.session_state.data_addictions.drop(idx_to_drop).reset_index(drop=True)
-                st.success("Entrée supprimée !")
+                st.success("Entrée corrigée (supprimée) !")
                 st.rerun()
         else:
-            st.info("Aucune donnée récente.")
+            st.info(f"Aucune donnée récente pour {substance_active}.")
 
 # ==============================================================================
 # ONGLET 2 : BILAN (TABLEAU ÉDITABLE + GRAPHIQUE ÉVOLUTION)
