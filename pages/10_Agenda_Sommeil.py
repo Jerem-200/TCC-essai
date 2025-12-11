@@ -73,31 +73,48 @@ with tab1:
 
         st.write("---")
         
-        # --- NOUVEAU BLOC HABITUDES ---
-        st.write("**Habitudes de la veille (Heure de la dernière prise/pratique)**")
+        # --- BLOC HABITUDES ---
+        st.write("**Habitudes de la veille**")
         
-        # 1. Création de la liste d'heures (Non + 0h à 23h)
-        liste_heures = ["Non"] + [f"{h}h00" for h in range(24)]
+        # Listes pour les menus déroulants
+        # 1. Heures pour habitudes (0h à 23h)
+        liste_heures_habitudes = ["Non"] + [f"{h}h00" for h in range(24)]
         
-        c1, c2 = st.columns(2)
-        with c1:
-            sieste = st.text_input("1. Siestes (ex: 13h30 - 20min)", placeholder="Non ou détails")
-            # Menu déroulant pour le Sport
-            sport = st.selectbox("🏋️ Exercice physique", liste_heures, index=0, help="Heure de la séance")
-            # Menu déroulant pour la Caféine
-            cafeine = st.selectbox("☕ Caféine (Café, Thé, Cola)", liste_heures, index=0, help="Heure de la dernière tasse")
+        # 2. Heures pour Sieste (par quarts d'heure)
+        liste_heures_sieste = ["Non"] + [f"{h}h{m:02d}" for h in range(24) for m in (0, 15, 30, 45)]
+        
+        # 3. Durées Sieste
+        liste_durees = ["10 min", "20 min", "30 min", "45 min", "1h00", "1h30", "2h00", "3h+"]
 
+        c1, c2 = st.columns(2)
+        
+        # COLONNE GAUCHE
+        with c1:
+            st.write("1. Siestes")
+            # On divise la ligne sieste en 2 pour Début et Durée
+            cs_debut, cs_duree = st.columns(2)
+            with cs_debut:
+                h_sieste = st.selectbox("Début", liste_heures_sieste, help="Heure de début")
+            with cs_duree:
+                d_sieste = st.selectbox("Durée", liste_durees, help="Durée estimée")
+
+            # Sport et Caféine
+            sport = st.selectbox("🏋️ Exercice physique", liste_heures_habitudes, index=0, help="Heure de la séance")
+            cafeine = st.selectbox("☕ Caféine (Café, Thé, Cola)", liste_heures_habitudes, index=0, help="Heure de la dernière tasse")
+
+        # COLONNE DROITE
         with c2:
-            st.write("") # Espace pour aligner avec Sieste
+            # On met un espace vide pour aligner visuellement avec le bloc sieste qui prend de la place
             st.write("") 
-            # Menu déroulant pour l'Alcool
-            alcool = st.selectbox("🍷 Consommation d'alcool", liste_heures, index=0, help="Heure du dernier verre")
-            # Menu déroulant pour le Médicament
-            med_dodo = st.selectbox("💊 Médicament pour dormir", liste_heures, index=0, help="Heure de la prise")
+            st.write("")
+            st.write("") # Petits sauts de ligne pour l'alignement
+            
+            alcool = st.selectbox("🍷 Consommation d'alcool", liste_heures_habitudes, index=0, help="Heure du dernier verre")
+            med_dodo = st.selectbox("💊 Médicament pour dormir", liste_heures_habitudes, index=0, help="Heure de la prise")
 
         st.write("---")
         
-        # 3 & 4 & 5 & 6 : Les Heures (Reste inchangé)
+        # 3 & 4 & 5 & 6 : Les Heures
         st.write("**Profil de sommeil**")
         
         col_coucher, col_lever = st.columns(2)
@@ -111,7 +128,7 @@ with tab1:
 
         st.write("---")
         
-        # 10 & 11 : Ressenti (Reste inchangé)
+        # 10 & 11 : Ressenti
         st.write("**Ressenti**")
         c_forme, c_qualite = st.columns(2)
         with c_forme:
@@ -119,10 +136,17 @@ with tab1:
         with c_qualite:
             qualite = st.slider("11. Qualité du sommeil (1=Agité, 5=Profond)", 1, 5, 3)
 
-        # BOUTON CALCUL & ENREGISTREMENT
+        # BOUTON
         submitted = st.form_submit_button("Calculer et Enregistrer")
 
         if submitted:
+            # --- TRAITEMENT DE LA SIESTE ---
+            # On combine l'heure et la durée en une seule phrase pour la base de données
+            if h_sieste == "Non":
+                sieste_finale = "Non"
+            else:
+                sieste_finale = f"{h_sieste} ({d_sieste})"
+
             # --- CALCULS AUTOMATIQUES ---
             tal_minutes = calculer_duree_minutes(h_coucher, h_lever)
             tte_minutes = latence + eveil_nocturne
@@ -141,15 +165,15 @@ with tab1:
             res3.metric("Temps Éveil", format_minutes_en_h_m(tte_minutes))
             res4.metric("Efficacité", f"{efficacite} %", delta_color="normal" if efficacite > 85 else "inverse")
 
-            # --- SAUVEGARDE (Mise à jour avec les nouveaux champs) ---
+            # --- SAUVEGARDE ---
             
             # Local
             new_row = {
                 "Date": str(date_nuit),
-                "Sieste": sieste, 
-                "Sport": sport, "Cafeine": cafeine, "Alcool": alcool, "Medic_Sommeil": med_dodo, # MAJ
+                "Sieste": sieste_finale, # On utilise la variable combinée
+                "Sport": sport, "Cafeine": cafeine, "Alcool": alcool, "Medic_Sommeil": med_dodo,
                 "Heure Coucher": str(h_coucher)[:5], "Heure Lever": str(h_lever)[:5],
-                "Latence": latence, "Eveil": eveil_nocturne, # Attention j'ai corrigé "Eveil Nocturne" en "Eveil" pour matcher cols_sommeil
+                "Latence": latence, "Eveil": eveil_nocturne,
                 "TTE": format_minutes_en_h_m(tte_minutes),
                 "TAL": format_minutes_en_h_m(tal_minutes),
                 "TTS": format_minutes_en_h_m(tts_minutes),
@@ -162,10 +186,9 @@ with tab1:
                 from connect_db import save_data
                 patient = st.session_state.get("patient_id", "Anonyme")
                 
-                # Ordre strict pour Excel (Mise à jour)
                 save_data("Sommeil", [
-                    patient, str(date_nuit), sieste, 
-                    sport, cafeine, alcool, med_dodo, # Nouveaux champs insérés
+                    patient, str(date_nuit), sieste_finale, # On envoie la variable combinée
+                    sport, cafeine, alcool, med_dodo,
                     str(h_coucher)[:5], latence, eveil_nocturne, str(h_lever)[:5],
                     format_minutes_en_h_m(tte_minutes),
                     format_minutes_en_h_m(tal_minutes),
@@ -175,7 +198,7 @@ with tab1:
             except Exception as e:
                 st.error(f"Erreur de sauvegarde Cloud : {e}")
 
-# --- ONGLET 2 : ANALYSE ---
+
 # --- ONGLET 2 : ANALYSE ---
 with tab2:
     st.header("📊 Tableau de bord du sommeil")
