@@ -105,91 +105,88 @@ tab1, tab2 = st.tabs(["📝 Saisie (Journal)", "📊 Bilan & Historique"])
 # ==============================================================================
 # ONGLET 1 : SAISIE ADAPTATIVE
 # ==============================================================================
-
 with tab1:
     st.header(f"Journal : {substance_active}")
     
-    # 1. LE TYPE D'ÉVÉNEMENT
+    # 1. TYPE D'ÉVÉNEMENT
     type_evt = st.radio(
         "Qu'est-ce qui s'est passé ?", 
         ["⚡ J'ai eu une ENVIE (Craving)", "🍷 J'ai CONSOMMÉ"], 
         horizontal=True
     )
     
-    # 2. LOGIQUE UNITÉ (Placée AVANT le formulaire pour être réactive)
-    # On initialise la variable pour qu'elle existe quoi qu'il arrive
-    unite_finale = "" 
+    st.divider()
+
+    # 2. DATE ET HEURE (Sur 2 colonnes)
+    c_date, c_heure = st.columns(2)
+    with c_date: 
+        date_evt = st.date_input("Date", datetime.now())
+    with c_heure: 
+        heure_evt = st.time_input("Heure", value=st.session_state.memoire_heure)
+
+    # Initialisation des variables
+    valeur_numerique = 0.0
+    pensees = ""
+    unite_finale = ""
     ajout_unite = False
-    
-    # Ce bloc ne s'affiche que si on a choisi "Consommé"
+
+    # 3. BLOC CONDITIONNEL (Envie vs Conso)
     if "CONSOMMÉ" in type_evt:
-        st.info("Choisissez l'unité ci-dessous :")
+        st.markdown("#### Détails de la consommation")
         
-        # On fait 2 colonnes : gauche pour cocher, droite pour choisir/saisir
-        col_check, col_input = st.columns([1, 2])
+        # --- C'EST ICI QUE LA DISPOSITION CHANGE ---
+        # On crée 2 colonnes : Gauche pour la Quantité, Droite pour l'Unité
+        col_qte, col_unit = st.columns([1, 1])
         
-        with col_check:
-            # LA CASE À COCHER QUE VOUS VOULIEZ
-            # Le fait d'être hors du form permet l'affichage instantané du champ à droite
-            ajout_unite = st.checkbox("➕ Ajouter une nouvelle unité")
-        
-        with col_input:
+        with col_qte:
+            valeur_numerique = st.number_input("Quantité", min_value=0.0, step=0.5)
+
+        with col_unit:
+            # Petite case pour dire "C'est une nouvelle unité"
+            ajout_unite = st.checkbox("Créer une nouvelle unité ?")
+            
             if ajout_unite:
-                # Si coché : Champ texte libre qui apparaît instantanément
-                unite_finale = st.text_input("Nom de la nouvelle unité", placeholder="ex: Pintes, Litres...")
+                # Champ texte libre
+                unite_finale = st.text_input("Nom de l'unité", placeholder="ex: Pintes")
             else:
-                # Sinon : Menu déroulant standard avec mémoire intelligente
-                
-                # Petite sécurité : si la mémoire n'est pas dans la liste, on l'ajoute temporairement
+                # Menu déroulant standard
+                # Gestion sécurité mémoire
                 if st.session_state.memoire_unite and st.session_state.memoire_unite not in st.session_state.liste_unites:
                      st.session_state.liste_unites.append(st.session_state.memoire_unite)
                 
-                # On trouve l'index par défaut
+                # Index par défaut
                 idx_def = 0
                 if st.session_state.memoire_unite in st.session_state.liste_unites:
                     idx_def = st.session_state.liste_unites.index(st.session_state.memoire_unite)
-                    
-                unite_finale = st.selectbox("Unité standard", st.session_state.liste_unites, index=idx_def)
+                
+                unite_finale = st.selectbox("Unité", st.session_state.liste_unites, index=idx_def)
 
-    # 3. LE FORMULAIRE (Date, Heure, Quantité...)
-    with st.form("form_addiction"):
-        c_date, c_heure = st.columns(2)
-        with c_date: 
-            date_evt = st.date_input("Date", datetime.now())
-        with c_heure: 
-            heure_evt = st.time_input("Heure", value=st.session_state.memoire_heure)
-            
-        valeur_numerique = 0.0
-        pensees = ""
+        # Formatage texte pour historique
+        if unite_finale:
+            pensees = f"Consommation : {valeur_numerique} {unite_finale}"
+        else:
+            pensees = f"Consommation : {valeur_numerique}"
+
+    else: # CAS ENVIE
+        st.markdown("#### Évaluation de l'envie")
+        valeur_numerique = st.slider("Intensité (0 à 10)", 0, 10, 5)
         
-        # Bloc Contenu Spécifique
-        if "ENVIE" in type_evt:
-            st.markdown("#### Évaluation de l'envie")
-            valeur_numerique = st.slider("Intensité (0-10)", 0, 10, 5)
-            
-            with st.expander("ℹ️ Aide : Les types de pensées"):
-                st.markdown("* **Permissives** (Juste un...)\n* **Soulageantes** (Ça va calmer...)\n* **Positives** (Je serai mieux...)")
-            
-            pensees = st.text_area("Pensées / Contexte :")
-
-        else: # CONSOMMATION
-            st.markdown("#### Quantité")
-            # On demande le chiffre. L'unité est déjà choisie au-dessus du formulaire.
-            # J'ai ajouté un label dynamique pour que ce soit plus joli (ex: Combien de Verres ?)
-            label_qte = f"Combien de **{unite_finale if unite_finale else '...'}** ?"
-            valeur_numerique = st.number_input(label_qte, min_value=0.0, step=0.5)
-            
-            # On formate le texte pour l'historique
-            if unite_finale:
-                pensees = f"Consommation : {valeur_numerique} {unite_finale}"
-            else:
-                pensees = f"Consommation : {valeur_numerique}"
-
-        st.divider()
-        submitted = st.form_submit_button("💾 Enregistrer")
+        with st.expander("ℹ️ Aide : Les types de pensées"):
+            st.markdown("* **Permissives** (Juste un...)\n* **Soulageantes** (Ça va calmer...)\n* **Positives** (Je serai mieux...)")
         
-        if submitted:
-            # A. GESTION LISTE (Si c'était une nouvelle unité, on l'ajoute définitivement)
+        pensees = st.text_area("Pensées / Contexte :")
+
+    st.divider()
+    
+    # 4. BOUTON ENREGISTRER
+    # Comme on a enlevé le st.form, on utilise un bouton simple
+    if st.button("💾 Enregistrer", type="primary"):
+        
+        # Vérification simple pour l'unité
+        if "CONSOMMÉ" in type_evt and not unite_finale:
+            st.toast("⚠️ Veuillez indiquer une unité.", icon="🔸")
+        else:
+            # A. GESTION LISTE (Nouvelle unité)
             if "CONSOMMÉ" in type_evt and ajout_unite and unite_finale:
                 if unite_finale not in st.session_state.liste_unites:
                     st.session_state.liste_unites.append(unite_finale)
@@ -220,17 +217,17 @@ with tab1:
                     patient, str(date_evt), heure_str, substance_active, 
                     type_evt, valeur_numerique, pensees
                 ])
-                st.success("Enregistré !")
+                st.success("Enregistré avec succès !")
                 
-                # Si on a créé une nouvelle unité, on recharge la page pour qu'elle 
-                # apparaisse directement dans la liste déroulante au prochain coup
+                # Petit délai pour que l'utilisateur voie le message avant le reload
+                # Si on a ajouté une unité, le rerun est nécessaire pour mettre à jour la liste
                 if ajout_unite:
                     st.rerun()
                     
             except Exception as e:
                 st.error(f"Erreur sauvegarde : {e}")
 
-# --- ZONE DE SUPPRESSION (ONGLET 1) ---
+# --- ZONE DE SUPPRESSION (Reste inchangée) ---
     with st.expander("🗑️ Supprimer une entrée récente"):
         df_actuel = st.session_state.data_addictions
         df_substance = df_actuel[df_actuel["Substance"] == substance_active].sort_values(by=["Date", "Heure"], ascending=False)
