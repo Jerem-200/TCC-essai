@@ -343,7 +343,7 @@ with tab2:
         edited_df = st.data_editor(
             df_filtre, 
             column_order=["Patient", "Date", "Heure", "Substance", "Type", "Intensité", "Pensées"], 
-            disabled=["Patient", "Substance"], # On empêche de modifier ces 2 colonnes pour éviter les bugs de tri
+            disabled=["Substance"], # On empêche de modifier ces 2 colonnes pour éviter les bugs de tri
             use_container_width=True, 
             num_rows="dynamic",
             key=f"editor_{substance_active}"
