@@ -15,9 +15,11 @@ st.info("Remplissez ce formulaire chaque matin pour analyser la qualité de votr
 
 # --- INITIALISATION ET CHARGEMENT ---
 if "data_sommeil" not in st.session_state:
-    # Colonnes officielles
+    # MISE À JOUR DES COLONNES
     cols_sommeil = [
-        "Patient", "Date", "Sieste", "Medicaments", "Heure Coucher", "Latence", "Eveil", 
+        "Patient", "Date", "Sieste", 
+        "Sport", "Cafeine", "Alcool", "Medic_Sommeil",
+        "Heure Coucher", "Latence", "Eveil", 
         "Heure Lever", "TTE", "TAL", "TTS", "Forme", "Qualité", "Efficacité"
     ]
     
@@ -71,31 +73,45 @@ with tab1:
 
         st.write("---")
         
-        # 1 & 2 : Comportements
-        st.write("**Habitudes de la veille**")
+        # --- NOUVEAU BLOC HABITUDES ---
+        st.write("**Habitudes de la veille (Heure de la dernière prise/pratique)**")
+        
+        # 1. Création de la liste d'heures (Non + 0h à 23h)
+        liste_heures = ["Non"] + [f"{h}h00" for h in range(24)]
+        
         c1, c2 = st.columns(2)
         with c1:
-            sieste = st.text_input("1. Siestes hier (ex: 13h30 à 14h00)", placeholder="Heures")
+            sieste = st.text_input("1. Siestes (ex: 13h30 - 20min)", placeholder="Non ou détails")
+            # Menu déroulant pour le Sport
+            sport = st.selectbox("🏋️ Exercice physique", liste_heures, index=0, help="Heure de la séance")
+            # Menu déroulant pour la Caféine
+            cafeine = st.selectbox("☕ Caféine (Café, Thé, Cola)", liste_heures, index=0, help="Heure de la dernière tasse")
+
         with c2:
-            medics = st.text_input("2. Médicaments / Alcool (mg/verres)", placeholder="Détails")
+            st.write("") # Espace pour aligner avec Sieste
+            st.write("") 
+            # Menu déroulant pour l'Alcool
+            alcool = st.selectbox("🍷 Consommation d'alcool", liste_heures, index=0, help="Heure du dernier verre")
+            # Menu déroulant pour le Médicament
+            med_dodo = st.selectbox("💊 Médicament pour dormir", liste_heures, index=0, help="Heure de la prise")
 
         st.write("---")
         
-        # 3 & 4 & 5 & 6 : Les Heures
+        # 3 & 4 & 5 & 6 : Les Heures (Reste inchangé)
         st.write("**Profil de sommeil**")
         
         col_coucher, col_lever = st.columns(2)
         with col_coucher:
             h_coucher = st.time_input("3. Heure de coucher (au lit)", time(23, 0))
-            latence = st.number_input("4. Temps pour s'endormir (Latence) en minutes", 0, 300, 15, step=5, help="Combien de temps avez-vous mis à dormir après avoir éteint ?")
+            latence = st.number_input("4. Temps pour s'endormir (Latence) en minutes", 0, 300, 15, step=5)
         
         with col_lever:
             h_lever = st.time_input("6. Heure de lever (sortie du lit)", time(7, 0))
-            eveil_nocturne = st.number_input("5. Temps d'éveil au milieu de la nuit (Minutes totales)", 0, 300, 0, step=5, help="Si vous vous êtes réveillé, combien de temps au total ?")
+            eveil_nocturne = st.number_input("5. Temps d'éveil au milieu de la nuit (Minutes totales)", 0, 300, 0, step=5)
 
         st.write("---")
         
-        # 10 & 11 : Ressenti
+        # 10 & 11 : Ressenti (Reste inchangé)
         st.write("**Ressenti**")
         c_forme, c_qualite = st.columns(2)
         with c_forme:
@@ -108,23 +124,15 @@ with tab1:
 
         if submitted:
             # --- CALCULS AUTOMATIQUES ---
-            
-            # 8. Temps au Lit (TAL) = Lever - Coucher
             tal_minutes = calculer_duree_minutes(h_coucher, h_lever)
-            
-            # 7. Temps Total Éveil (TTE) = Latence + Éveils nocturnes
             tte_minutes = latence + eveil_nocturne
-            
-            # 9. Temps Total Sommeil (TTS) = Au lit - Éveil
             tts_minutes = tal_minutes - tte_minutes
             
-            # 12. Efficacité (ES) = (Sommeil / Lit) * 100
             if tal_minutes > 0:
                 efficacite = round((tts_minutes / tal_minutes) * 100, 1)
             else:
                 efficacite = 0
 
-            # Affichage immédiat des résultats pour le patient
             st.success("✅ Données enregistrées !")
             
             res1, res2, res3, res4 = st.columns(4)
@@ -133,14 +141,15 @@ with tab1:
             res3.metric("Temps Éveil", format_minutes_en_h_m(tte_minutes))
             res4.metric("Efficacité", f"{efficacite} %", delta_color="normal" if efficacite > 85 else "inverse")
 
-            # --- SAUVEGARDE ---
+            # --- SAUVEGARDE (Mise à jour avec les nouveaux champs) ---
             
             # Local
             new_row = {
                 "Date": str(date_nuit),
-                "Sieste": sieste, "Medicaments": medics,
+                "Sieste": sieste, 
+                "Sport": sport, "Cafeine": cafeine, "Alcool": alcool, "Medic_Sommeil": med_dodo, # MAJ
                 "Heure Coucher": str(h_coucher)[:5], "Heure Lever": str(h_lever)[:5],
-                "Latence": latence, "Eveil Nocturne": eveil_nocturne,
+                "Latence": latence, "Eveil": eveil_nocturne, # Attention j'ai corrigé "Eveil Nocturne" en "Eveil" pour matcher cols_sommeil
                 "TTE": format_minutes_en_h_m(tte_minutes),
                 "TAL": format_minutes_en_h_m(tal_minutes),
                 "TTS": format_minutes_en_h_m(tts_minutes),
@@ -149,18 +158,22 @@ with tab1:
             st.session_state.data_sommeil = pd.concat([st.session_state.data_sommeil, pd.DataFrame([new_row])], ignore_index=True)
             
             # Cloud
-            from connect_db import save_data
-            patient = st.session_state.get("patient_id", "Anonyme")
-            
-            # Ordre pour Excel : Patient, Date, Sieste, Meds, Coucher, Latence, EveilNoc, Lever, TTE, TAL, TTS, Forme, Qualite, Efficacite
-            save_data("Sommeil", [
-                patient, str(date_nuit), sieste, medics, 
-                str(h_coucher)[:5], latence, eveil_nocturne, str(h_lever)[:5],
-                format_minutes_en_h_m(tte_minutes),
-                format_minutes_en_h_m(tal_minutes),
-                format_minutes_en_h_m(tts_minutes),
-                forme, qualite, f"{efficacite}%"
-            ])
+            try:
+                from connect_db import save_data
+                patient = st.session_state.get("patient_id", "Anonyme")
+                
+                # Ordre strict pour Excel (Mise à jour)
+                save_data("Sommeil", [
+                    patient, str(date_nuit), sieste, 
+                    sport, cafeine, alcool, med_dodo, # Nouveaux champs insérés
+                    str(h_coucher)[:5], latence, eveil_nocturne, str(h_lever)[:5],
+                    format_minutes_en_h_m(tte_minutes),
+                    format_minutes_en_h_m(tal_minutes),
+                    format_minutes_en_h_m(tts_minutes),
+                    forme, qualite, f"{efficacite}%"
+                ])
+            except Exception as e:
+                st.error(f"Erreur de sauvegarde Cloud : {e}")
 
 # --- ONGLET 2 : ANALYSE ---
 # --- ONGLET 2 : ANALYSE ---
