@@ -87,7 +87,7 @@ else:
         st.write("Suivi de l'humeur")
         st.page_link("pages/02_Echelles_BDI.py", label="Tester", icon="➡️")
     with c3:
-        st.info("### ⚖️ Balance")
+        st.info("### ⚖️ Balance décisionnelle")
         st.write("Pour & Contre")
         st.page_link("pages/11_Balance_Decisionnelle.py", label="Peser", icon="➡️")
 
