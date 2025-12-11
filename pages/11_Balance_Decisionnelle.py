@@ -10,6 +10,12 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.switch_page("streamlit_app.py")
     st.stop()
 
+# === AJOUTER CE BLOC ICI (JUSTE APRÈS L'AUTH) ===
+# Gestionnaire de chargement pour éviter le bug "Widget already rendered"
+if "sujet_a_charger" in st.session_state:
+    st.session_state.input_sujet_decision = st.session_state.sujet_a_charger
+    del st.session_state.sujet_a_charger
+
 st.title("⚖️ Balance Décisionnelle")
 st.info("Comparez plusieurs options pour prendre la meilleure décision possible.")
 
@@ -277,16 +283,19 @@ with tab2:
             # On réutilise la liste 'options_history' définie plus haut
             sel_modif = st.selectbox("Choisir la balance à modifier :", list(options_history.keys()), key="select_modif")
             
-            if st.button("🔄 Charger les données pour modification"):
+if st.button("🔄 Charger les données pour modification"):
                 idx_to_load = options_history[sel_modif]
                 row_to_load = df_history.loc[idx_to_load]
                 
-                # 1. Charger le Sujet
-                st.session_state.input_sujet_decision = row_to_load['Sujet']
+                # --- CORRECTION ICI ---
+                # On ne modifie pas directement input_sujet_decision car le widget est déjà affiché.
+                # On passe par une variable temporaire qui sera traitée au prochain rechargement (Step 1).
+                st.session_state.sujet_a_charger = row_to_load['Sujet']
+                # ----------------------
                 
-                # 2. Analyser le texte "Détail Arguments" pour recréer le tableau
+                # 2. Analyser le texte "Détail Arguments"
                 raw_text = row_to_load['Détail Arguments']
-                # On gère le cas où le texte serait vide ou null
+                
                 if pd.isna(raw_text) or str(raw_text) == "nan":
                     lignes = []
                 else:
@@ -296,25 +305,20 @@ with tab2:
                 loaded_options = []
                 
                 for ligne in lignes:
+                    # ... (Le reste de votre boucle for reste identique) ...
+                    # (Je ne remets pas tout le code de parsing ici pour gagner de la place,
+                    #  gardez votre code actuel de boucle for)
                     ligne = ligne.strip()
-                    if not ligne: continue # Ignorer les lignes vides
-                    
-                    # Format attendu : • Option : 🟢 Description (Note/10)
+                    if not ligne: continue
                     try:
-                        # On enlève la puce du début
                         clean_line = ligne.replace("• ", "")
-                        
-                        # On sépare l'Option du reste (séparateur " : ")
-                        # split(" : ", 1) permet de ne couper qu'à la première occurrence
                         parts = clean_line.split(" : ", 1)
                         opt_name = parts[0].strip()
                         reste = parts[1].strip()
                         
-                        # On récupère l'Option pour la liste globale
                         if opt_name not in loaded_options:
                             loaded_options.append(opt_name)
                         
-                        # Détection du Type via l'émoji
                         if "🟢" in reste:
                             type_arg = "Avantage (+)"
                             reste = reste.replace("🟢 ", "").strip()
@@ -324,20 +328,15 @@ with tab2:
                             reste = reste.replace("🔴 ", "").strip()
                             score_mult = -1
                             
-                        # Séparation Description et Intensité
-                        # On cherche la dernière parenthèse ouvrante pour isoler (X/10)
                         last_paren_idx = reste.rfind("(")
                         if last_paren_idx != -1:
                             description = reste[:last_paren_idx].strip()
-                            intensite_part = reste[last_paren_idx+1:] # Donne "X/10)"
-                            # On extrait juste le chiffre avant le /
+                            intensite_part = reste[last_paren_idx+1:] 
                             intensite_val = int(intensite_part.split("/")[0]) 
                         else:
-                            # Cas de secours si le format est cassé
                             description = reste
                             intensite_val = 5
 
-                        # Ajout à la liste temporaire
                         new_data.append({
                             "Option": opt_name,
                             "Type": type_arg,
@@ -345,15 +344,16 @@ with tab2:
                             "Intensité": intensite_val,
                             "Score_Calc": intensite_val * score_mult
                         })
-                        
-                    except Exception as e:
-                        print(f"Ligne ignorée : {ligne} ({e})")
+                    except:
+                        pass
 
-                # 3. Mise à jour des Session State
+                # 3. Mise à jour des Session State (Cela fonctionne car ce ne sont pas des Keys de widget)
                 st.session_state.balance_options_list = loaded_options
                 st.session_state.balance_args_current = pd.DataFrame(new_data)
                 
                 st.success(f"Données chargées ! Retournez dans l'onglet '⚖️ Créer une balance' pour modifier.")
-
+                
+                # IMPORTANT : On force le rechargement pour que l'étape 1 s'exécute
+                st.rerun()
     else:
         st.info("Aucune balance décisionnelle enregistrée.")
