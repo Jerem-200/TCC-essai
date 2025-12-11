@@ -18,9 +18,15 @@ st.info("Notez vos envies (craving) et vos consommations pour identifier les dé
 # 1. INITIALISATION, CHARGEMENT & GESTION DES SUBSTANCES (TOUT EN UN)
 # ==============================================================================
 
-# A. Liste des substances (vide au départ)
+# A. Liste des substances
 if "liste_substances" not in st.session_state:
     st.session_state.liste_substances = []
+
+# --- AJOUT : Liste des unités ---
+if "liste_unites" not in st.session_state:
+    # On met des unités classiques par défaut
+    st.session_state.liste_unites = ["Verres", "Cigarettes", "Joints", "ml", "cl", "grammes"]
+# -------------------------------
 
 # B. Chargement des données et récupération des substances de l'historique
 if "data_addictions" not in st.session_state:
@@ -149,17 +155,37 @@ with tab1:
             c_val, c_unit = st.columns([1, 1])
             with c_val:
                 valeur_numerique = st.number_input("Chiffre", min_value=0.0, step=0.5)
+            
             with c_unit:
-                placeholder_txt = "ex: Cigarettes, Verres, ml, cl, grammes"
-                # --- MODIFIER CETTE LIGNE ---
-                # On ajoute value=... pour pré-remplir avec la dernière unité utilisée
-                unite_txt = st.text_input("Unité", value=st.session_state.memoire_unite, placeholder=placeholder_txt)
+                # --- LOGIQUE INTELLIGENTE DES UNITÉS ---
+                # 1. On vérifie si la mémoire est dans la liste, sinon on l'ajoute temporairement pour éviter une erreur
+                if st.session_state.memoire_unite and st.session_state.memoire_unite not in st.session_state.liste_unites:
+                    st.session_state.liste_unites.append(st.session_state.memoire_unite)
+                
+                # 2. On détermine l'index par défaut
+                try:
+                    idx_defaut = st.session_state.liste_unites.index(st.session_state.memoire_unite)
+                except:
+                    idx_defaut = 0
+
+                # 3. Le Menu Déroulant avec option de création
+                options_unites = st.session_state.liste_unites + ["➕ Autre / Nouveau..."]
+                choix_unite = st.selectbox("Unité", options_unites, index=idx_defaut if st.session_state.memoire_unite else None)
+                
+                # 4. Si l'utilisateur choisit "Autre", on affiche le champ texte
+                if choix_unite == "➕ Autre / Nouveau...":
+                    unite_txt = st.text_input("Précisez la nouvelle unité :", placeholder="ex: Litres")
+                else:
+                    unite_txt = choix_unite
+                # ---------------------------------------
 
             # On prépare le texte de l'unité pour la sauvegarde
             if unite_txt:
-                info_unite = f"[{valeur_numerique} {unite_txt}] "
+                # J'ai ajouté le nom de l'unité dans la variable 'pensees' pour qu'elle soit sauvegardée en base de données
+                # car votre base n'a pas de colonne "Unité" dédiée.
+                pensees = f"Consommation : {valeur_numerique} {unite_txt}"
             else:
-                info_unite = f"[{valeur_numerique} ut.] "
+                pensees = f"Consommation : {valeur_numerique}"
 
             pensees = ""
 
@@ -168,14 +194,23 @@ with tab1:
         submitted = st.form_submit_button("💾 Enregistrer")
         
         if submitted:
-            # 1. CORRECTION BUG CLOUD : Ajout des secondes (:00) pour le format SQL
+            # 1. GESTION LISTE UNITÉS (AJOUT)
+            # Si c'était une nouvelle unité, on l'ajoute à la liste pour la prochaine fois
+            if choix_unite == "➕ Autre / Nouveau..." and unite_txt:
+                if unite_txt not in st.session_state.liste_unites:
+                    st.session_state.liste_unites.append(unite_txt)
+            
+            # ... (Le reste de votre code de sauvegarde existant ci-dessous) ...
+            
+            # CORRECTION BUG CLOUD : Ajout des secondes (:00)
             heure_str = heure_evt.strftime("%H:%M")
             
-            # 2. MÉMOIRE : On sauvegarde ce que l'utilisateur vient de mettre
+            # MÉMOIRE : On sauvegarde l'unité choisie pour qu'elle revienne par défaut
             st.session_state.memoire_heure = heure_evt
-            # On ne sauvegarde l'unité que si elle existe (cas consommation)
-            if 'unite_txt' in locals():
-                st.session_state.memoire_unite = unite_txt
+            if 'unite_txt' in locals() and unite_txt:
+                 st.session_state.memoire_unite = unite_txt
+            
+            # ... suite du code (new_row, save_data...)
             
             # Local
             new_row = {
