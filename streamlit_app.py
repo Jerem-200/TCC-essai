@@ -114,16 +114,16 @@ else:
     # --- LIGNE 3 : PHYSIOLOGIE & BIEN-ÊTRE ---
     c7, c8, c9 = st.columns(3)
     with c7:
-        st.warning("### 🌙 Sommeil")
+        st.warning("### 🌙 Agenda du sommeil")
         st.write("Agenda du sommeil")
         st.page_link("pages/10_Agenda_Sommeil.py", label="Noter", icon="➡️")
     with c8:
-        st.warning("### 📝 Activités")
+        st.warning("### 📝 Agenda des activités")
         st.write("Plaisir & Maîtrise")
         # J'ai mis 05 ici car c'est ce que vous aviez dans la grille
         st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="➡️")
     with c9:
-        st.warning("### 🍷 Consommation") 
+        st.warning("### 🍷 Agenda de consommation") 
         st.write("Envies & Substances")
         # J'ai mis 13 ici, vérifiez si c'est 11 ou 13 dans votre dossier
         st.page_link("pages/13_Agenda_Consos.py", label="Ouvrir", icon="➡️") 
