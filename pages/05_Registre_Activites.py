@@ -385,57 +385,57 @@ with tab2:
         st.info("Pas encore de données d'humeur enregistrées pour afficher le graphique.")
 
     # --- AJOUT : ZONE DE SUPPRESSION HUMEUR (ONGLET 2) ---
-        st.write("")
-        with st.expander("🗑️ Supprimer un relevé d'humeur depuis l'historique"):
-            # 1. On récupère les données
-            df_hum_hist = st.session_state.get("data_humeur_jour", pd.DataFrame())
+    st.write("")
+    with st.expander("🗑️ Supprimer un relevé d'humeur depuis l'historique"):
+        # 1. On récupère les données
+        df_hum_hist = st.session_state.get("data_humeur_jour", pd.DataFrame())
+        
+        if not df_hum_hist.empty:
+            # 2. On trie pour afficher les plus récents en premier
+            df_hum_sorted = df_hum_hist.sort_values(by="Date", ascending=False)
             
-            if not df_hum_hist.empty:
-                # 2. On trie pour afficher les plus récents en premier
-                df_hum_sorted = df_hum_hist.sort_values(by="Date", ascending=False)
-                
-                # 3. Création du menu déroulant
-                # On crée un dictionnaire : { "Texte à afficher" : index_du_dataframe }
-                options_hum_hist = {
-                    f"📅 {row['Date']} : {row['Humeur Globale (0-10)']}/10": i 
-                    for i, row in df_hum_sorted.iterrows()
-                }
-                
-                choice_hum_hist = st.selectbox(
-                    "Sélectionnez la date à corriger :", 
-                    list(options_hum_hist.keys()), 
-                    key="del_hum_tab2", # Clé unique pour éviter conflit avec l'onglet 1
-                    index=None,
-                    placeholder="Choisir une entrée..."
-                )
-                
-                # 4. Bouton de suppression
-                if st.button("❌ Supprimer définitivement", key="btn_del_hum_tab2"):
-                    if choice_hum_hist:
-                        idx_to_drop = options_hum_hist[choice_hum_hist]
-                        row_to_del = df_hum_sorted.loc[idx_to_drop]
+            # 3. Création du menu déroulant
+            # On crée un dictionnaire : { "Texte à afficher" : index_du_dataframe }
+            options_hum_hist = {
+                f"📅 {row['Date']} : {row['Humeur Globale (0-10)']}/10": i 
+                for i, row in df_hum_sorted.iterrows()
+            }
+            
+            choice_hum_hist = st.selectbox(
+                "Sélectionnez la date à corriger :", 
+                list(options_hum_hist.keys()), 
+                key="del_hum_tab2", # Clé unique pour éviter conflit avec l'onglet 1
+                index=None,
+                placeholder="Choisir une entrée..."
+            )
+            
+            # 4. Bouton de suppression
+            if st.button("❌ Supprimer définitivement", key="btn_del_hum_tab2"):
+                if choice_hum_hist:
+                    idx_to_drop = options_hum_hist[choice_hum_hist]
+                    row_to_del = df_hum_sorted.loc[idx_to_drop]
+                    
+                    # A. Suppression Cloud
+                    try:
+                        from connect_db import delete_data_flexible
+                        pid = st.session_state.get("patient_id", "Inconnu")
                         
-                        # A. Suppression Cloud
-                        try:
-                            from connect_db import delete_data_flexible
-                            pid = st.session_state.get("patient_id", "Inconnu")
-                            
-                            delete_data_flexible("Humeur", {
-                                "Patient": pid,
-                                "Date": str(row_to_del['Date']),
-                                "Humeur Globale (0-10)": row_to_del['Humeur Globale (0-10)']
-                            })
-                        except Exception as e:
-                            # On continue même si erreur cloud (pour le local)
-                            pass
+                        delete_data_flexible("Humeur", {
+                            "Patient": pid,
+                            "Date": str(row_to_del['Date']),
+                            "Humeur Globale (0-10)": row_to_del['Humeur Globale (0-10)']
+                        })
+                    except Exception as e:
+                        # On continue même si erreur cloud (pour le local)
+                        pass
 
-                        # B. Suppression Locale
-                        st.session_state.data_humeur_jour = df_hum_hist.drop(idx_to_drop).reset_index(drop=True)
-                        
-                        st.success("Entrée supprimée avec succès !")
-                        st.rerun()
-            else:
-                st.info("Aucun historique d'humeur à supprimer.")
+                    # B. Suppression Locale
+                    st.session_state.data_humeur_jour = df_hum_hist.drop(idx_to_drop).reset_index(drop=True)
+                    
+                    st.success("Entrée supprimée avec succès !")
+                    st.rerun()
+        else:
+            st.info("Aucun historique d'humeur à supprimer.")
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
