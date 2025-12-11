@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 import time
 
 st.set_page_config(page_title="TCC Companion", page_icon="🧠")
@@ -6,36 +7,63 @@ st.set_page_config(page_title="TCC Companion", page_icon="🧠")
 st.title("🧠 Compagnon TCC")
 st.write("Bienvenue dans votre espace de travail thérapeutique.")
 
-# --- NOUVEAU SYSTÈME D'AUTHENTIFICATION PAR CODE UNIQUE ---
+# =========================================================
+# GESTION DE L'AUTHENTIFICATION (LISTE BLANCHE)
+# =========================================================
 
-# 1. Vérification si déjà connecté dans la session
+# 1. Initialisation des variables de session
 if "authentifie" not in st.session_state:
     st.session_state.authentifie = False
 if "patient_id" not in st.session_state:
     st.session_state.patient_id = ""
 
-# 2. Interface de connexion anonyme
+# 2. Fonction pour récupérer les codes autorisés (Mise en cache pour la rapidité)
+@st.cache_data(ttl=600) # Le cache se rafraîchit toutes les 10 min
+def get_valid_codes():
+    try:
+        from connect_db import load_data
+        data = load_data("Codes_Patients") # On lit l'onglet 'Codes_Patients'
+        if data:
+            df = pd.DataFrame(data)
+            # On récupère la colonne 'Code' et on convertit tout en majuscules pour éviter les erreurs
+            if "Code" in df.columns:
+                return df["Code"].astype(str).str.upper().str.strip().tolist()
+            elif "code" in df.columns: # Si écrit en minuscule dans Excel
+                return df["code"].astype(str).str.upper().str.strip().tolist()
+    except Exception as e:
+        st.error(f"Erreur de connexion à la base de sécurité : {e}")
+    return []
+
+# 3. Interface de connexion
 if not st.session_state.authentifie:
-    st.info("🔒 Veuillez entrer le code d'accès fourni par votre thérapeute.")
+    
+    st.info("🔒 Accès sécurisé : Veuillez entrer le code fourni par votre thérapeute.")
     
     with st.form("login_form"):
-        code_input = st.text_input("Votre Code Patient", placeholder="Ex: A123", type="password")
-        submit_btn = st.form_submit_button("Accéder à mon espace")
+        code_input = st.text_input("Code d'accès", placeholder="Ex: A123", type="password")
+        submit_btn = st.form_submit_button("Se connecter")
         
         if submit_btn:
-            if code_input.strip(): # On vérifie juste que ce n'est pas vide
-                # On nettoie le code (enlever les espaces, mettre en majuscule)
-                clean_code = code_input.strip().upper()
-                
-                # Validation et Stockage en session
-                st.session_state.patient_id = clean_code
+            # Nettoyage de l'entrée utilisateur
+            code_clean = code_input.strip().upper()
+            
+            # Récupération de la liste blanche
+            codes_autorises = get_valid_codes()
+            
+            # --- VÉRIFICATION ---
+            if code_clean in codes_autorises:
+                # SUCCÈS
+                st.session_state.patient_id = code_clean
                 st.session_state.authentifie = True
-                
-                st.success(f"Bienvenue ! Code actif : {clean_code}")
+                st.success(f"Code reconnu. Bienvenue !")
                 time.sleep(1)
                 st.rerun()
+            elif not codes_autorises:
+                # CAS D'URGENCE : Si la liste est vide ou connexion impossible
+                st.error("⚠️ Impossible de vérifier les codes (Erreur serveur ou liste vide).")
             else:
-                st.error("❌ Le code ne peut pas être vide.")
+                # ÉCHEC
+                st.error("❌ Code non reconnu ou invalide. Contactez votre thérapeute.")
 
 # 3. Affichage du menu une fois connecté
 else:

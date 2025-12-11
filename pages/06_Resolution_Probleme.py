@@ -396,7 +396,7 @@ with tab2:
                             }
                             
                             # 3. Sauvegarde Cloud (Nouvelle version)
-                            save_data("Résolution_Problème", [updated_row[c] for c in COLS_PB])
+                            save_data("Résolution_Problème", [updated_row[c] for c in cols_pb])
                             
                         except Exception as e:
                             st.warning(f"Erreur Cloud: {e}")
