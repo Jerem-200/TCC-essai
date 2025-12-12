@@ -5,85 +5,98 @@ import secrets
 import string
 from datetime import datetime
 
-st.set_page_config(page_title="TCC Companion", page_icon="🧠", layout="centered")
+st.set_page_config(page_title="Compagnon TCC", page_icon="🧠", layout="centered")
 
 # =========================================================
-# 0. SECURITY & UTILS
+# 0. SÉCURITÉ & UTILITAIRES
 # =========================================================
 
-def generate_secure_code(prefix="PAT", length=6):
-    """Generates a random, secure code (e.g., PAT-X9J2M)"""
-    chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" # No I, 1, O, 0 to avoid confusion
+def generer_code_securise(prefix="PAT", length=6):
+    """Génère un code aléatoire sécurisé (ex: PAT-X9J2M)"""
+    # On évite I, 1, O, 0 pour éviter les confusions de lecture
+    chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" 
     suffix = ''.join(secrets.choice(chars) for _ in range(length))
     return f"{prefix}-{suffix}"
 
-# --- SESSION INITIALIZATION ---
+# --- INITIALISATION DE LA SESSION ---
 if "authentifie" not in st.session_state:
     st.session_state.authentifie = False
 if "user_type" not in st.session_state:
-    st.session_state.user_type = None # "patient" or "therapeute"
+    st.session_state.user_type = None # "patient" ou "therapeute"
 if "user_id" not in st.session_state:
     st.session_state.user_id = "" 
 
 # =========================================================
-# 1. DATABASE FUNCTIONS
+# 1. FONCTIONS DE BASE DE DONNÉES
 # =========================================================
 
 @st.cache_data(ttl=60)
-def verify_therapist(username, password):
-    """Checks credentials against the 'Therapeutes' sheet"""
+def verifier_therapeute(identifiant, mot_de_passe):
+    """Vérifie les accès dans l'onglet 'Therapeutes'"""
     try:
         from connect_db import load_data
         data = load_data("Therapeutes")
         if data:
             df = pd.DataFrame(data)
-            # Find row matching username AND password
-            user_row = df[(df["Identifiant"] == username) & (df["MotDePasse"] == password)]
+            
+            # --- BLINDAGE : Nettoyage des espaces et conversion en texte ---
+            # On s'assure que les colonnes sont bien lues comme du texte
+            df["Identifiant"] = df["Identifiant"].astype(str).str.strip()
+            df["MotDePasse"] = df["MotDePasse"].astype(str).str.strip()
+            
+            user_clean = str(identifiant).strip()
+            pwd_clean = str(mot_de_passe).strip()
+
+            # Recherche de la ligne correspondante
+            user_row = df[(df["Identifiant"] == user_clean) & (df["MotDePasse"] == pwd_clean)]
+            
             if not user_row.empty:
-                return user_row.iloc[0]["ID"] # Returns 'TH-01'
+                # On retourne la colonne 'ID' (ex: TH-01)
+                return user_row.iloc[0]["ID"] 
     except Exception as e:
-        print(f"Login Error: {e}")
+        st.error(f"Erreur connexion Thérapeute : {e}")
     return None
 
 @st.cache_data(ttl=60)
-def verify_patient_code(code):
-    """Checks if patient code exists in 'Codes_Patients'"""
+def verifier_code_patient(code):
+    """Vérifie si le code existe dans 'Codes_Patients'"""
     try:
         from connect_db import load_data
         data = load_data("Codes_Patients")
         if data:
             df = pd.DataFrame(data)
             if "Code" in df.columns:
-                # Check if code exists
+                # Vérification insensible à la casse (majuscule/minuscule)
                 if code.upper() in df["Code"].astype(str).str.upper().values:
                     return True
     except Exception as e:
-        print(f"Patient Login Error: {e}")
+        st.error(f"Erreur connexion Patient : {e}")
     return False
 
-def get_my_patients(therapist_id):
-    """Fetches patients linked to this therapist"""
+def recuperer_mes_patients(therapeute_id):
+    """Récupère la liste des patients liés à ce thérapeute"""
     try:
         from connect_db import load_data
         data = load_data("Codes_Patients")
         if data:
             df = pd.DataFrame(data)
-            return df[df["Therapeute_ID"] == therapist_id]
+            # On filtre pour ne garder que ceux créés par CE thérapeute
+            return df[df["Therapeute_ID"] == therapeute_id]
     except: pass
     return pd.DataFrame()
 
 # =========================================================
-# 2. LOGIN SCREEN (NOT AUTHENTICATED)
+# 2. ÉCRAN DE CONNEXION (NON CONNECTÉ)
 # =========================================================
 
 if not st.session_state.authentifie:
     st.title("🧠 Compagnon TCC")
     st.write("Bienvenue dans votre espace de travail thérapeutique.")
 
-    # TABS FOR DOUBLE ENTRY
+    # ONGLETS POUR LA DOUBLE ENTRÉE
     tab_patient, tab_pro = st.tabs(["👤 Accès Patient", "🩺 Accès Thérapeute"])
     
-    # --- A. PATIENT LOGIN ---
+    # --- A. CONNEXION PATIENT ---
     with tab_patient:
         st.info("🔒 Entrez votre code unique fourni par votre thérapeute.")
         with st.form("login_patient"):
@@ -92,8 +105,8 @@ if not st.session_state.authentifie:
             
             if btn_pat:
                 clean_code = code_input.strip().upper()
-                # Verification
-                if verify_patient_code(clean_code):
+                # Vérification
+                if verifier_code_patient(clean_code):
                     st.session_state.authentifie = True
                     st.session_state.user_type = "patient"
                     st.session_state.user_id = clean_code
@@ -103,7 +116,7 @@ if not st.session_state.authentifie:
                 else:
                     st.error("❌ Code non reconnu.")
 
-    # --- B. THERAPIST LOGIN ---
+    # --- B. CONNEXION THÉRAPEUTE ---
     with tab_pro:
         st.warning("Espace réservé aux professionnels.")
         with st.form("login_therapeute"):
@@ -112,7 +125,7 @@ if not st.session_state.authentifie:
             btn_pro = st.form_submit_button("Connexion Pro")
             
             if btn_pro:
-                th_id = verify_therapist(user_input, pwd_input)
+                th_id = verifier_therapeute(user_input, pwd_input)
                 if th_id:
                     st.session_state.authentifie = True
                     st.session_state.user_type = "therapeute"
@@ -124,11 +137,11 @@ if not st.session_state.authentifie:
                     st.error("❌ Identifiants incorrects.")
 
 # =========================================================
-# 3. DASHBOARDS (AUTHENTICATED)
+# 3. TABLEAUX DE BORD (CONNECTÉ)
 # =========================================================
 else:
     # -----------------------------------------------------
-    # SCENARIO A: THERAPIST DASHBOARD
+    # SCÉNARIO A : TABLEAU DE BORD THÉRAPEUTE
     # -----------------------------------------------------
     if st.session_state.user_type == "therapeute":
         st.title("🩺 Espace Thérapeute")
@@ -140,7 +153,7 @@ else:
             
         st.divider()
         
-        # --- 1. GENERATE NEW PATIENT ---
+        # --- 1. GÉNÉRER UN NOUVEAU PATIENT ---
         st.subheader("➕ Générer un accès patient")
         st.caption("Créez un code unique sécurisé pour un nouveau patient.")
         
@@ -149,13 +162,13 @@ else:
             submitted = st.form_submit_button("Générer le code")
             
             if submitted:
-                # 1. Generate Secure Code
-                new_code = generate_secure_code(prefix="TCC")
+                # 1. Génération du code
+                new_code = generer_code_securise(prefix="TCC")
                 
-                # 2. Save to Cloud
+                # 2. Sauvegarde Cloud
                 try:
                     from connect_db import save_data
-                    # Columns: Code | Therapeute_ID | Commentaire | Date_Creation
+                    # Colonnes: Code | Therapeute_ID | Commentaire | Date_Creation
                     save_data("Codes_Patients", [
                         new_code, 
                         st.session_state.user_id, 
@@ -171,13 +184,18 @@ else:
 
         st.divider()
         
-        # --- 2. LIST MY PATIENTS ---
+        # --- 2. LISTE DE MES PATIENTS ---
         st.subheader("📂 Mes Patients actifs")
-        df_pats = get_my_patients(st.session_state.user_id)
+        df_pats = recuperer_mes_patients(st.session_state.user_id)
         
         if not df_pats.empty:
+            # On affiche uniquement les colonnes utiles
+            cols_to_show = ["Code", "Commentaire", "Date_Creation"]
+            # On vérifie qu'elles existent pour éviter les bugs
+            final_cols = [c for c in cols_to_show if c in df_pats.columns]
+            
             st.dataframe(
-                df_pats[["Code", "Commentaire", "Date_Creation"]], 
+                df_pats[final_cols], 
                 use_container_width=True, 
                 hide_index=True
             )
@@ -186,11 +204,11 @@ else:
             
 
     # -----------------------------------------------------
-    # SCENARIO B: PATIENT DASHBOARD (Your existing logic)
+    # SCÉNARIO B : TABLEAU DE BORD PATIENT
     # -----------------------------------------------------
     elif st.session_state.user_type == "patient":
         
-        # Header & Logout
+        # En-tête & Déconnexion
         c_titre, c_logout = st.columns([4, 1])
         with c_titre:
             st.title(f"🧠 Bonjour")
@@ -202,10 +220,7 @@ else:
         st.subheader("Tableau de bord personnel")
         st.divider()
 
-        # 
-        # (Note: Streamlit renders UI, inserting image here is metaphorical for the layout below)
-
-        # --- ROW 1 : COGNITION ---
+        # --- LIGNE 1 : COGNITIF ---
         c1, c2, c3 = st.columns(3)
         with c1:
             st.info("### 🧩 Restructuration")
@@ -222,7 +237,7 @@ else:
 
         st.divider()
 
-        # --- ROW 2 : ACTION ---
+        # --- LIGNE 2 : ACTION ---
         c4, c5, c6 = st.columns(3)
         with c4:
             st.error("### 🧘 Relaxation")
@@ -239,7 +254,7 @@ else:
 
         st.divider()
 
-        # --- ROW 3 : TRACKING ---
+        # --- LIGNE 3 : SUIVI ---
         c7, c8, c9 = st.columns(3)
         with c7:
             st.warning("### 🌙 Sommeil")
@@ -256,7 +271,7 @@ else:
 
         st.divider()
 
-        # --- ROW 4 : DATA ---
+        # --- LIGNE 4 : DONNÉES ---
         c10, c11, c12 = st.columns(3)
         with c10:
             st.success("### 📜 Historique")
@@ -271,7 +286,7 @@ else:
             st.write("Fiches pratiques")
             st.page_link("pages/03_Ressources.py", label="Lire", icon="📚")
 
-        # --- SIDEBAR ---
+        # --- BARRE LATÉRALE ---
         with st.sidebar:
             st.write(f"👤 ID: **{st.session_state.user_id}**")
             st.divider()
