@@ -23,6 +23,27 @@ if not CURRENT_USER_ID:
     st.error("Erreur d'identité. Veuillez vous reconnecter.")
     st.stop()
 
+# --- TRADUCTION ID POUR SAUVEGARDE (TCC-XYZ -> PAT-001) ---
+PATIENT_SAVE_ID = CURRENT_USER_ID # Valeur par défaut (sécurité)
+try:
+    from connect_db import load_data
+    # On charge la table de correspondance
+    infos = load_data("Codes_Patients")
+    if infos:
+        df_i = pd.DataFrame(infos)
+        # On gère les deux noms de colonnes possibles
+        col_id = "Identifiant" if "Identifiant" in df_i.columns else "Commentaire"
+        
+        # On trouve la ligne correspondante au code connecté
+        match = df_i[df_i["Code"] == CURRENT_USER_ID]
+        if not match.empty: 
+            # On récupère le PAT-001 (ou le commentaire complet)
+            PATIENT_SAVE_ID = match.iloc[0][col_id]
+            # Si le format est "PAT-001 | J. Dupont", on peut nettoyer si besoin :
+            # PATIENT_SAVE_ID = PATIENT_SAVE_ID.split("|")[0].strip()
+except: 
+    pass
+
 st.title("🧗 L'Exposition (Apprentissage Inhibiteur)")
 
 # --- 1. GESTION DES CRAINTES (MULTI-CRAINTES) ---
