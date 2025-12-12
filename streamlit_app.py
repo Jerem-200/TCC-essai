@@ -66,7 +66,7 @@ else:
     # En-tête avec bouton déconnexion
     c_titre, c_logout = st.columns([4, 1])
     with c_titre:
-        st.title(f"🧠 Bonjour {st.session_state.patient_id}")
+        st.title(f"🧠 Bonjour")
     with c_logout:
         if st.button("Se déconnecter"):
             st.session_state.authentifie = False
