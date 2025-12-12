@@ -264,36 +264,41 @@ with tab2:
     st.header("📊 Tableau de bord")
     
     if not st.session_state.data_sommeil.empty:
-        # 1. On définit 'df' car le reste du code (graphiques/moyennes) en a besoin
+        # 1. On garde 'df' brut pour les calculs (graphiques, moyennes plus bas)
         df = st.session_state.data_sommeil.copy()
         
-        # 2. On crée une copie spéciale pour l'affichage du tableau (avec le nom PAT-001)
+        # 2. On crée 'df_display' juste pour l'affichage visuel du tableau
         df_display = df.copy()
         
         # --- TRADUCTION DU NOM (Code -> PAT-XXX) ---
-        nom_dossier = CURRENT_USER_ID # Par défaut
+        nom_dossier = CURRENT_USER_ID # Valeur par défaut
         try:
             from connect_db import load_data
             infos = load_data("Codes_Patients")
             if infos:
                 df_i = pd.DataFrame(infos)
+                # On cherche la colonne Identifiant ou Commentaire
                 col_id = "Identifiant" if "Identifiant" in df_i.columns else "Commentaire"
+                
+                # On trouve la ligne correspondant au code actuel
                 match = df_i[df_i["Code"] == CURRENT_USER_ID]
                 if not match.empty: nom_dossier = match.iloc[0][col_id]
         except: pass
         
-        # On remplace dans la version d'affichage seulement
+        # Remplacement visuel dans la colonne Patient
         if "Patient" in df_display.columns:
             df_display["Patient"] = nom_dossier
 
-        # 3. AFFICHAGE (Avec hide_index=True)
+        # 3. AFFICHAGE DU TABLEAU (Propre et sans index)
         st.dataframe(
             df_display, 
             use_container_width=True,
-            hide_index=True 
+            hide_index=True  # <--- C'est ici qu'on enlève la colonne de chiffres à gauche
         )
         
         st.divider()
+        
+        # ... La suite du code (Moyennes, Graphiques) reste inchangée ...
         
         # Moyennes
         try:
