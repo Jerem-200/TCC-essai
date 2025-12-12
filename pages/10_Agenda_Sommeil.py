@@ -264,41 +264,49 @@ with tab2:
     st.header("📊 Tableau de bord")
     
     if not st.session_state.data_sommeil.empty:
-        # 1. On garde 'df' brut pour les calculs (graphiques, moyennes plus bas)
+        # 1. On prépare les données (df pour les calculs, df_display pour l'affichage)
         df = st.session_state.data_sommeil.copy()
         
-        # 2. On crée 'df_display' juste pour l'affichage visuel du tableau
-        df_display = df.copy()
+        # On nettoie l'index pour éviter la colonne de chiffres à gauche (0, 1, 2...)
+        df_display = df.copy().reset_index(drop=True)
         
-        # --- TRADUCTION DU NOM (Code -> PAT-XXX) ---
+        # --- 2. TRADUCTION DU NOM (Code TCC -> PAT-001) ---
         nom_dossier = CURRENT_USER_ID # Valeur par défaut
+        
         try:
             from connect_db import load_data
             infos = load_data("Codes_Patients")
             if infos:
-                df_i = pd.DataFrame(infos)
-                # On cherche la colonne Identifiant ou Commentaire
-                col_id = "Identifiant" if "Identifiant" in df_i.columns else "Commentaire"
+                df_infos = pd.DataFrame(infos)
                 
-                # On trouve la ligne correspondant au code actuel
-                match = df_i[df_i["Code"] == CURRENT_USER_ID]
-                if not match.empty: nom_dossier = match.iloc[0][col_id]
-        except: pass
+                # On détermine le nom de la colonne (Identifiant ou Commentaire)
+                col_cible = "Identifiant" if "Identifiant" in df_infos.columns else "Commentaire"
+                
+                if "Code" in df_infos.columns:
+                    # Recherche BLINDÉE (on enlève les espaces et on met tout en majuscule pour comparer)
+                    code_actuel = str(CURRENT_USER_ID).strip().upper()
+                    
+                    # On cherche la ligne correspondante
+                    match = df_infos[df_infos["Code"].astype(str).str.strip().str.upper() == code_actuel]
+                    
+                    if not match.empty:
+                        # On a trouvé ! On prend l'identifiant (ex: PAT-001)
+                        nom_dossier = match.iloc[0][col_cible]
+        except Exception as e:
+            pass # Si erreur technique, on affiche juste le code, pas grave
         
-        # Remplacement visuel dans la colonne Patient
-        if "Patient" in df_display.columns:
-            df_display["Patient"] = nom_dossier
+        # --- 3. REMPLACEMENT DANS LE TABLEAU ---
+        # On force la valeur dans la colonne Patient
+        df_display["Patient"] = nom_dossier
 
-        # 3. AFFICHAGE DU TABLEAU (Propre et sans index)
+        # --- 4. AFFICHAGE PROPRE ---
         st.dataframe(
             df_display, 
             use_container_width=True,
-            hide_index=True  # <--- C'est ici qu'on enlève la colonne de chiffres à gauche
+            hide_index=True # Cache la colonne d'index à gauche
         )
         
         st.divider()
-        
-        # ... La suite du code (Moyennes, Graphiques) reste inchangée ...
         
         # Moyennes
         try:
