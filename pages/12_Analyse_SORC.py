@@ -53,7 +53,7 @@ COLS_SORC = [
     "Patient", "Date", "Heure", "Situation", 
     "Pensées", "Émotions", "Intensité Emo", 
     "Douleur Active", "Desc Douleur", "Intensité Douleur",
-    "Réponse", "Csg Court Terme", "Csg Long Terme"
+    "Réponse", "Csq Court Terme", "Csq Long Terme"
 ]
 
 if "data_sorc" not in st.session_state:
@@ -153,9 +153,9 @@ with tab1:
         
         c_court, c_long = st.columns(2)
         with c_court:
-            csg_court = st.text_area("🟢 Court Terme (Soulagement immédiat ?)", height=100, placeholder="Ex: Baisse de l'anxiété, la douleur semble diminuer...")
+            csq_court = st.text_area("🟢 Court Terme (Soulagement immédiat ?)", height=100, placeholder="Ex: Baisse de l'anxiété, la douleur semble diminuer...")
         with c_long:
-            csg_long = st.text_area("🔴 Long Terme (Le problème persiste ?)", height=100, placeholder="Ex: Je me sens coupable, la douleur revient plus fort, je suis isolé...")
+            csq_long = st.text_area("🔴 Long Terme (Le problème persiste ?)", height=100, placeholder="Ex: Je me sens coupable, la douleur revient plus fort, je suis isolé...")
         
         # VALIDATION
         st.write("")
@@ -178,8 +178,8 @@ with tab1:
                 "Desc Douleur": desc_douleur if has_pain else "",
                 "Intensité Douleur": int_douleur if has_pain else 0,
                 "Réponse": reponse,
-                "Csg Court Terme": csg_court,
-                "Csg Long Terme": csg_long
+                "Csq Court Terme": csq_court,
+                "Csq Long Terme": csq_long
             }
             
             # Sauvegarde Locale
@@ -192,7 +192,7 @@ with tab1:
                     USER_IDENTIFIER, str(date_evt), heure_str, situation, 
                     pensees, emotions, int_emo, 
                     douleur_active_str, desc_douleur, int_douleur,
-                    reponse, csg_court, csg_long
+                    reponse, csq_court, csq_long
                 ]
                 save_data("SORC", values_list)
                 st.success("✅ Analyse SORC enregistrée avec succès !")
@@ -224,8 +224,8 @@ with tab2:
                 "Situation": st.column_config.TextColumn("Situation", width="medium"),
                 "Pensées": st.column_config.TextColumn("Pensées", width="medium"),
                 "Réponse": st.column_config.TextColumn("Comportement", width="medium"),
-                "Csg Court Terme": st.column_config.TextColumn("Csg Court", width="small"),
-                "Csg Long Terme": st.column_config.TextColumn("Csg Long", width="small"),
+                "Csq Court Terme": st.column_config.TextColumn("Csq Court", width="small"),
+                "Csq Long Terme": st.column_config.TextColumn("Csq Long", width="small"),
                 "Intensité Emo": st.column_config.NumberColumn("Int. Emo", format="%d/10"),
                 "Intensité Douleur": st.column_config.NumberColumn("Douleur", format="%d/10"),
             }
