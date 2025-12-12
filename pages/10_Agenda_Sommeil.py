@@ -263,31 +263,34 @@ with tab1:
 # ==============================================================================
 # ONGLET 2 : ANALYSE (HISTORIQUE)
 # ==============================================================================
+# ==============================================================================
+# ONGLET 2 : ANALYSE (HISTORIQUE)
+# ==============================================================================
 with tab2:
     st.header("📊 Tableau de bord")
     
     # On vérifie s'il y a des données
     if not st.session_state.data_sommeil.empty:
         
-        # 1. On crée une copie pour l'affichage (pour ne pas casser les calculs)
+        # 1. On crée une copie pour l'affichage (pour ne pas casser les calculs qui suivent)
         df_display = st.session_state.data_sommeil.copy()
         
         # 2. LOGIQUE DE TRADUCTION (Code Technique -> PAT-001)
-        identifiant_lisible = CURRENT_USER_ID # Par défaut, on met le code
+        identifiant_lisible = CURRENT_USER_ID # Par défaut, on met le code actuel
         
         try:
             from connect_db import load_data
-            # On charge la liste des codes patients
+            # On charge la liste des codes patients pour trouver le nom
             infos_patients = load_data("Codes_Patients")
             
             if infos_patients:
                 df_infos = pd.DataFrame(infos_patients)
                 
-                # On cherche la correspondance
-                # (On nettoie les espaces pour être sûr que ça matche)
+                # Nettoyage du code actuel pour comparaison (suppression espaces)
                 code_actuel = str(CURRENT_USER_ID).strip()
                 
                 # On cherche la ligne où la colonne 'Code' correspond à l'utilisateur actuel
+                # On convertit tout en string et on nettoie pour éviter les erreurs de format
                 match = df_infos[df_infos["Code"].astype(str).str.strip() == code_actuel]
                 
                 if not match.empty:
@@ -297,7 +300,7 @@ with tab2:
         except:
             pass # Si erreur de connexion, on garde le code par défaut
             
-        # 3. ON REMPLIT LA COLONNE "PATIENT" AVEC L'IDENTIFIANT TROUVÉ
+        # 3. ON FORCE L'IDENTIFIANT DANS LA COLONNE "PATIENT"
         if "Patient" in df_display.columns:
             df_display["Patient"] = str(identifiant_lisible)
 
@@ -310,6 +313,9 @@ with tab2:
         )
         
         st.divider()
+        
+        # 5. SUITE DU CODE (GRAPHIQUES) - ON UTILISE L'ORIGINAL
+        df = st.session_state.data_sommeil.copy() 
         
         # 5. GRAPHIQUES & STATISTIQUES (Sur les données brutes)
         df = st.session_state.data_sommeil # On reprend l'original pour les calculs
