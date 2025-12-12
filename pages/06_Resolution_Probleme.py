@@ -300,7 +300,7 @@ with tab2:
     
     df_history = st.session_state.data_problemes
     
-if not df_history.empty:
+    if not df_history.empty:
         
         # --- A. CONVERSION DU NOM (PAT-XXX) ---
         df_display = df_history.copy()
