@@ -5,7 +5,7 @@ import secrets
 import string
 from datetime import datetime
 
-st.set_page_config(page_title="Compagnon TCC", page_icon="🧠", layout="centered")
+st.set_page_config(page_title="Compagnon TCC", page_icon="🧠", layout="wide")
 
 # =========================================================
 # 0. SÉCURITÉ & UTILITAIRES
