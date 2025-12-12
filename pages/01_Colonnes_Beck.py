@@ -170,19 +170,52 @@ with tab1:
                 st.warning(f"⚠️ Enregistré en local uniquement ({e}).")
 
 # ==============================================================================
-# ONGLET 2 : HISTORIQUE, SUPPRESSION ET MODIFICATION
+# ONGLET 2 : HISTORIQUE
 # ==============================================================================
 with tab2:
-    st.header("🗂️ Historique & Actions")
+    st.header("🗂️ Historique")
     
     df_history = st.session_state.data_beck
     
+    # Filtre de sécurité
+    if "Patient" in df_history.columns:
+        df_history = df_history[df_history["Patient"] == CURRENT_USER_ID]
+    
     if not df_history.empty:
-        # A. TABLEAU RÉCAPITULATIF
+        
+        # --- MODIFICATION POUR AFFICHER PAT-001 AU LIEU DU CODE ---
+        # 1. On crée une copie pour l'affichage
+        df_display = df_history.copy()
+        
+        # 2. On va chercher le "Vrai nom" (PAT-001) dans la base
+        nom_affichable = CURRENT_USER_ID # Par défaut, on garde le code si on ne trouve rien
+        try:
+            from connect_db import load_data
+            # On charge la liste des codes pour trouver le nom associé
+            infos_patients = load_data("Codes_Patients")
+            if infos_patients:
+                df_infos = pd.DataFrame(infos_patients)
+                # On cherche la ligne qui correspond au code connecté
+                # (Assurez-vous que la colonne dans Excel s'appelle 'Identifiant' ou 'Commentaire')
+                col_id = "Identifiant" if "Identifiant" in df_infos.columns else "Commentaire"
+                
+                match = df_infos[df_infos["Code"] == CURRENT_USER_ID]
+                if not match.empty:
+                    # On récupère PAT-001
+                    nom_affichable = match.iloc[0][col_id]
+        except:
+            pass
+        
+        # 3. On remplace la colonne Patient par le nom lisible
+        df_display["Patient"] = nom_affichable
+        # -----------------------------------------------------------
+
+        # A. TABLEAU
         st.dataframe(
-            df_history.sort_values(by="Date", ascending=False), 
+            df_display.sort_values(by="Date", ascending=False), 
             use_container_width=True,
             column_config={
+                "Patient": st.column_config.TextColumn("Dossier", width="small"), # On renomme l'entête
                 "Date": st.column_config.DateColumn("Date", format="DD/MM/YYYY"),
                 "Situation": st.column_config.TextColumn("Situation", width="medium"),
                 "Pensée Auto": st.column_config.TextColumn("Pensée Auto", width="medium"),
