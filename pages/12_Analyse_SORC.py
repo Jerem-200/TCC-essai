@@ -123,7 +123,7 @@ with tab1:
         if has_pain:
             st.info("🩸 **Focus Douleur**")
             c_p1, c_p2 = st.columns([3, 1])
-            with c_p1: desc_douleur = st.text_input("Description de la douleur / sensation physique :")
+            with c_p1: desc_douleur = st.text_area("Description de la douleur / sensation physique :")
             with c_p2: int_douleur = st.slider("Intensité Douleur (0-10)", 0, 10, 5)
             st.write("") # Espace
         
