@@ -210,22 +210,24 @@ with tab2:
         if "Patient" in df_display.columns:
             df_display["Patient"] = str(USER_IDENTIFIER)
             
-        # 2. SÉCURISATION COLONNE HEURE
+        # 2. SÉCURISATION COLONNE HEURE (Le Correctif Anti-Crash)
         if "Heure" not in df_display.columns:
-            df_display["Heure"] = "" 
+            df_display["Heure"] = "" # On crée la colonne vide si elle manque
 
-        # 3. Tri par date et heure
+        # 3. Tri par date et heure (Sécurisé)
         if "Date" in df_display.columns:
+            # On trie par Date, et par Heure seulement si elle existe
             cols_tri = ["Date", "Heure"]
             df_display = df_display.sort_values(by=cols_tri, ascending=False)
 
         # --- 4. DÉFINITION DE L'ORDRE DES COLONNES (C'EST ICI LE CHANGEMENT) ---
         # On définit l'ordre exact que vous voulez voir à l'écran
         ordre_souhaite = [
-            "Date", "Heure", "Situation", 
+            "Patient", "Date", "Heure", "Situation", 
             "Pensées", "Émotions", "Intensité Emo", 
-            "Réponse", "Csg Court Terme", "Csg Long Terme", 
-            "Douleur Active", "Desc Douleur", "Intensité Douleur"
+            "Douleur Active", "Descr Douleur", "Intensité Douleur",
+            "Réponse", "Csq Court Terme", "Csq Long Terme", 
+            
         ]
         
         # On filtre pour ne garder que les colonnes qui existent vraiment (sécurité)
@@ -252,6 +254,7 @@ with tab2:
         
         # Suppression
         with st.expander("🗑️ Supprimer une analyse"):
+            # On gère l'affichage du sélecteur même si l'heure est vide
             opts = {}
             for i, r in df_display.iterrows():
                 h_str = f" à {r['Heure']}" if r.get('Heure') else ""
@@ -262,16 +265,14 @@ with tab2:
             
             if st.button("Supprimer définitivement") and choix:
                 idx = opts[choix]
-                # On utilise l'index d'origine pour supprimer dans la source
-                # (Attention : df_display est trié, donc on retrouve l'index d'origine via .loc)
-                row_source = df_display.loc[idx] 
+                row = df_display.loc[idx]
                 
                 try:
                     from connect_db import delete_data_flexible
                     delete_data_flexible("SORC", {
                         "Patient": USER_IDENTIFIER, 
-                        "Date": str(row_source['Date']),
-                        "Situation": str(row_source['Situation'])
+                        "Date": str(row['Date']),
+                        "Situation": str(row['Situation'])
                     })
                 except: pass
                 
