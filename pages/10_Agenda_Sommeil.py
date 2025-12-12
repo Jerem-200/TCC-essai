@@ -319,9 +319,7 @@ with tab2:
             if pd.notna(df["Qualité"].mean()): 
                 c3.metric("Qualité Moyenne", f"{df['Qualité'].mean():.1f} / 10")
         except: pass
-        
-        # 5. GRAPHIQUES (Suite du code...)
-        df = st.session_state.data_sommeil.copy()
+    
         
         try:
             # Conversion numérique pour les moyennes
