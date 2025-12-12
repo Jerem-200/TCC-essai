@@ -268,10 +268,14 @@ with tab2:
         
         st.divider()
         
-        # 5. ANALYSE AVANCÉE (FILTRES & GRAPHIQUES)
+        # 5. GRAPHIQUES (Suite du code...)
+# 5. ANALYSE AVANCÉE (FILTRES & GRAPHIQUES)
         
         # --- A. PRÉPARATION DES DONNÉES ---
-        # On repart des données brutes 'df'
+        # ⚠️ CORRECTION ICI : On définit 'df' avant de l'utiliser
+        df = st.session_state.data_sommeil.copy()
+        
+        # On crée df_chart pour les graphiques
         df_chart = df.copy()
         
         # Conversion des dates et des chiffres pour qu'Altair puisse les lire
@@ -280,13 +284,14 @@ with tab2:
         # Nettoyage des colonnes numériques
         cols_num = ["Efficacité", "Forme", "Qualité"]
         for c in cols_num:
-            # On enlève le '%' si présent et on convertit en nombre
-            df_chart[c] = pd.to_numeric(df_chart[c].astype(str).str.replace('%', ''), errors='coerce')
+            if c in df_chart.columns:
+                # On enlève le '%' si présent et on convertit en nombre
+                df_chart[c] = pd.to_numeric(df_chart[c].astype(str).str.replace('%', ''), errors='coerce')
             
         # On enlève les lignes sans date valide
         df_chart = df_chart.dropna(subset=["Date"])
 
-        # --- B. FILTRE TEMPOREL (Comme Agenda Consos) ---
+        # --- B. FILTRE TEMPOREL ---
         st.write("### 📅 Période d'analyse")
         col_vue, col_date = st.columns([1, 2])
         
@@ -319,14 +324,17 @@ with tab2:
         if not df_chart.empty:
             c1, c2, c3 = st.columns(3)
             with c1:
-                moy_eff = df_chart["Efficacité"].mean()
-                st.metric("Efficacité", f"{moy_eff:.1f} %", delta_color="normal")
+                if "Efficacité" in df_chart.columns:
+                    moy_eff = df_chart["Efficacité"].mean()
+                    st.metric("Efficacité", f"{moy_eff:.1f} %")
             with c2:
-                moy_forme = df_chart["Forme"].mean()
-                st.metric("Forme", f"{moy_forme:.1f} / 5")
+                if "Forme" in df_chart.columns:
+                    moy_forme = df_chart["Forme"].mean()
+                    st.metric("Forme", f"{moy_forme:.1f} / 5")
             with c3:
-                moy_qual = df_chart["Qualité"].mean()
-                st.metric("Qualité", f"{moy_qual:.1f} / 5")
+                if "Qualité" in df_chart.columns:
+                    moy_qual = df_chart["Qualité"].mean()
+                    st.metric("Qualité", f"{moy_qual:.1f} / 5")
         
         st.divider()
 
@@ -335,35 +343,33 @@ with tab2:
 
         if not df_chart.empty:
             # GRAPHIQUE 1 : EFFICACITÉ DU SOMMEIL
-            st.subheader("🌙 Efficacité du Sommeil (%)")
-            chart_eff = alt.Chart(df_chart).mark_line(point=True, color="#3498db").encode(
-                x=alt.X('Date:T', axis=alt.Axis(format='%d/%m')),
-                y=alt.Y('Efficacité:Q', scale=alt.Scale(domain=[0, 100])),
-                tooltip=['Date', 'Efficacité', 'Heure Coucher', 'Heure Lever']
-            ).interactive()
-            st.altair_chart(chart_eff, use_container_width=True)
+            if "Efficacité" in df_chart.columns:
+                st.subheader("🌙 Efficacité du Sommeil (%)")
+                chart_eff = alt.Chart(df_chart).mark_line(point=True, color="#3498db").encode(
+                    x=alt.X('Date:T', axis=alt.Axis(format='%d/%m')),
+                    y=alt.Y('Efficacité:Q', scale=alt.Scale(domain=[0, 100])),
+                    tooltip=['Date', 'Efficacité', 'Heure Coucher', 'Heure Lever']
+                ).interactive()
+                st.altair_chart(chart_eff, use_container_width=True)
 
-            # GRAPHIQUE 2 : FORME & QUALITÉ (Nouveau !)
-            st.subheader("🔋 Forme & ✨ Qualité")
-            
-            # Astuce : On combine les deux courbes sur le même graphique
-            base = alt.Chart(df_chart).encode(x=alt.X('Date:T', axis=alt.Axis(format='%d/%m')))
+            # GRAPHIQUE 2 : FORME & QUALITÉ
+            if "Forme" in df_chart.columns and "Qualité" in df_chart.columns:
+                st.subheader("🔋 Forme & ✨ Qualité")
+                
+                base = alt.Chart(df_chart).encode(x=alt.X('Date:T', axis=alt.Axis(format='%d/%m')))
 
-            # Ligne Forme (Orange)
-            line_forme = base.mark_line(point=True, color="#e67e22").encode(
-                y=alt.Y('Forme:Q', scale=alt.Scale(domain=[0, 6]), title="Note (0-5)"),
-                tooltip=['Date', 'Forme']
-            )
-            
-            # Ligne Qualité (Violet)
-            line_qualite = base.mark_line(point=True, color="#9b59b6", strokeDash=[5, 5]).encode(
-                y=alt.Y('Qualité:Q'),
-                tooltip=['Date', 'Qualité']
-            )
+                line_forme = base.mark_line(point=True, color="#e67e22").encode(
+                    y=alt.Y('Forme:Q', scale=alt.Scale(domain=[0, 6]), title="Note (0-5)"),
+                    tooltip=['Date', 'Forme']
+                )
+                
+                line_qualite = base.mark_line(point=True, color="#9b59b6", strokeDash=[5, 5]).encode(
+                    y=alt.Y('Qualité:Q'),
+                    tooltip=['Date', 'Qualité']
+                )
 
-            # Légende manuelle simple sous le graphique
-            st.altair_chart((line_forme + line_qualite).interactive(), use_container_width=True)
-            st.caption("🟠 Trait continu : Forme | 🟣 Pointillés : Qualité du sommeil")
+                st.altair_chart((line_forme + line_qualite).interactive(), use_container_width=True)
+                st.caption("🟠 Trait continu : Forme | 🟣 Pointillés : Qualité du sommeil")
 
         else:
             st.info("Aucune donnée sur cette période.")
