@@ -317,9 +317,6 @@ with tab2:
         # 5. SUITE DU CODE (GRAPHIQUES) - ON UTILISE L'ORIGINAL
         df = st.session_state.data_sommeil.copy() 
         
-        # 5. GRAPHIQUES & STATISTIQUES (Sur les données brutes)
-        df = st.session_state.data_sommeil # On reprend l'original pour les calculs
-        
         try:
             # Conversion numérique pour les moyennes
             df["Efficacité"] = pd.to_numeric(df["Efficacité"].astype(str).str.replace('%', ''), errors='coerce')
