@@ -29,6 +29,14 @@ if not CURRENT_USER_ID:
     st.error("Erreur d'identité. Veuillez vous reconnecter.")
     st.stop()
 
+# 3. VERROUILLAGE ANTI-FUITE
+if "expo_owner" not in st.session_state or st.session_state.expo_owner != CURRENT_USER_ID:
+    # On vide TOUTES les variables spécifiques à l'exposition
+    keys_to_clear = ["liste_craintes", "data_hierarchie", "data_planning_expo", "data_logs_expo", "step1_valide"]
+    for k in keys_to_clear:
+        if k in st.session_state: del st.session_state[k]
+    st.session_state.expo_owner = CURRENT_USER_ID
+
 # === GESTIONNAIRE DE CHARGEMENT (TOP LEVEL) ===
 if "sujet_a_charger" in st.session_state:
     st.session_state.input_sujet_decision = st.session_state.sujet_a_charger
@@ -231,7 +239,7 @@ with tab1:
                         
                         try:
                             from connect_db import save_data
-                            patient_id = st.session_state.get("patient_id", "Anonyme")
+                            patient = CURRENT_USER_ID
                             save_data("Balance_Decisionnelle", [
                                 patient_id, 
                                 new_entry["Date"], 
@@ -300,7 +308,7 @@ with tab2:
 
                 try:
                     from connect_db import delete_data_flexible
-                    pid = st.session_state.get("patient_id", "Anonyme")
+                    patient = CURRENT_USER_ID
                     delete_data_flexible("Balance_Decisionnelle", {
                         "Patient": pid,
                         "Date": str(row_to_del['Date']),
