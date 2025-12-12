@@ -17,6 +17,24 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
 CURRENT_USER_ID = st.session_state.get("user_id", "")
 if not CURRENT_USER_ID:
     CURRENT_USER_ID = st.session_state.get("patient_id", "")
+    # --- RÉCUPÉRATION DE L'IDENTIFIANT LISIBLE (PAT-001) ---
+# On en a besoin pour sauvegarder proprement dans le Sheet
+USER_IDENTIFIER = CURRENT_USER_ID # Par défaut, on garde le code
+try:
+    from connect_db import load_data
+    infos = load_data("Codes_Patients")
+    if infos:
+        df_infos = pd.DataFrame(infos)
+        # Recherche insensible à la casse
+        code_clean = str(CURRENT_USER_ID).strip().upper()
+        match = df_infos[df_infos["Code"].astype(str).str.strip().str.upper() == code_clean]
+        
+        if not match.empty:
+            col_id = "Identifiant" if "Identifiant" in df_infos.columns else "Commentaire"
+            USER_IDENTIFIER = str(match.iloc[0][col_id]).strip()
+except:
+    pass
+# -------------------------------------------------------
 
 if not CURRENT_USER_ID:
     st.error("Erreur d'identité. Veuillez vous reconnecter.")
@@ -59,12 +77,16 @@ if "data_sommeil" not in st.session_state:
                 elif col == "Eveil" and "Eveil Nocturne" in df_cloud.columns:
                     df_final[col] = df_cloud["Eveil Nocturne"]
 
-            # FILTRE SÉCURITÉ
-            # On nettoie les espaces pour être sûr que ça matche
-            df_final["Patient"] = df_final["Patient"].astype(str).str.strip()
-            user_clean = str(CURRENT_USER_ID).strip()
+            # =================================================================
+            # 🛑 FILTRAGE SÉCURITÉ (MISE À JOUR)
+            # =================================================================
+            # On accepte les lignes signées avec le Code (TCC-...) OU l'Identifiant (PAT-...)
+            ids_autorises = [str(CURRENT_USER_ID).strip(), str(USER_IDENTIFIER).strip()]
             
-            df_final = df_final[df_final["Patient"] == user_clean]
+            # On nettoie la colonne patient et on filtre
+            df_final["Patient"] = df_final["Patient"].astype(str).str.strip()
+            df_final = df_final[df_final["Patient"].isin(ids_autorises)]
+            # =================================================================
 
     except: pass
     st.session_state.data_sommeil = df_final
@@ -167,7 +189,7 @@ with tab1:
             r4.metric("Efficacité", f"{efficacite} %")
 
             new_row = {
-                "Patient": CURRENT_USER_ID,
+                "Patient": USER_IDENTIFIER,
                 "Date": str(date_nuit),
                 "Sieste": sieste_final, "Sport": sport_final, 
                 "Cafeine": cafe_final, "Alcool": alcool_final, "Medic_Sommeil": med_final,
@@ -183,7 +205,7 @@ with tab1:
             try:
                 from connect_db import save_data
                 save_data("Sommeil", [
-                    CURRENT_USER_ID, str(date_nuit), 
+                    USER_IDENTIFIER, str(date_nuit), 
                     sieste_final, sport_final, cafe_final, alcool_final, med_final,
                     str(h_coucher)[:5], latence, eveil_nocturne, str(h_lever)[:5],
                     format_minutes_en_h_m(tte_minutes),
@@ -299,7 +321,7 @@ with tab2:
                         from connect_db import delete_data_flexible
                         # Suppression dans le Cloud avec l'ID sécurisé
                         delete_data_flexible("Sommeil", {
-                            "Patient": CURRENT_USER_ID, 
+                            "Patient": USER_IDENTIFIER, # On utilise l'identifiant pour cibler la ligne
                             "Date": str(row_to_del['Date'])
                         })
                     except: pass
