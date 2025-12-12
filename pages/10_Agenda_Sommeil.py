@@ -4,14 +4,23 @@ from datetime import datetime, time
 
 st.set_page_config(page_title="Agenda du Sommeil", page_icon="🌙")
 
-# --- VIGILE DE SÉCURITÉ SIMPLIFIÉ ---
+# --- VIGILE DE SÉCURITÉ & NETTOYAGE MÉMOIRE ---
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.warning("🔒 Accès restreint. Veuillez entrer votre Code Patient sur l'accueil.")
-    st.page_link("streamlit_app.py", label="Retourner à l'accueil pour se connecter", icon="🏠")
-    st.stop() # Arrête le chargement du reste de la page
+    st.page_link("streamlit_app.py", label="Retourner à l'accueil", icon="🏠")
+    st.stop()
 
-# On récupère l'identité unique de l'utilisateur connecté
-CURRENT_USER_ID = st.session_state.patient_id
+# 1. Récupération sécurisée de l'ID (corrige l'erreur AttributeError)
+CURRENT_USER_ID = st.session_state.get("patient_id", "")
+
+# 2. SYSTÈME ANTI-FUITE DE DONNÉES (Le correctif "Jérémy")
+# On vérifie si les données en mémoire appartiennent bien à la personne connectée
+if "sommeil_owner" not in st.session_state or st.session_state.sommeil_owner != CURRENT_USER_ID:
+    # Si l'utilisateur a changé, on supprime immédiatement les données de l'ancien utilisateur
+    if "data_sommeil" in st.session_state:
+        del st.session_state.data_sommeil
+    # On marque le nouveau propriétaire
+    st.session_state.sommeil_owner = CURRENT_USER_ID
 
 st.title("🌙 Agenda du Sommeil")
 st.info("Remplissez ce formulaire chaque matin pour analyser la qualité de votre sommeil.")
