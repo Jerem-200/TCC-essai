@@ -10,8 +10,8 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.page_link("streamlit_app.py", label="Retourner à l'accueil pour se connecter", icon="🏠")
     st.stop() # Arrête le chargement du reste de la page
 
-# Récupération du code patient pour les sauvegardes
-patient_id = st.session_state.patient_id
+# On récupère l'identité unique de l'utilisateur connecté
+CURRENT_USER_ID = st.session_state.patient_id
 
 st.title("🌙 Agenda du Sommeil")
 st.info("Remplissez ce formulaire chaque matin pour analyser la qualité de votre sommeil.")
@@ -48,6 +48,18 @@ if "data_sommeil" not in st.session_state:
                 # Optionnel : Gestion des synonymes si jamais le nom diffère légèrement
                 elif col == "Eveil" and "Eveil Nocturne" in df_cloud.columns:
                     df_final[col] = df_cloud["Eveil Nocturne"]
+
+            # =================================================================
+            # 🛑 FILTRAGE SÉCURITÉ (C'EST ICI QUE TOUT SE JOUE)
+            # =================================================================
+            # On ne garde que les lignes où la colonne 'Patient' correspond au code connecté
+            if "Patient" in df_final.columns:
+                # On convertit en string pour être sûr de comparer du texte avec du texte
+                df_final = df_final[df_final["Patient"].astype(str) == str(CURRENT_USER_ID)]
+            else:
+                # Si pas de colonne Patient, on vide tout par sécurité
+                df_final = pd.DataFrame(columns=cols_sommeil)
+            # =================================================================
 
     except Exception as e:
         # En cas d'erreur de connexion, on ne bloque pas l'appli, on démarre vide
