@@ -48,11 +48,10 @@ if "data_sommeil" not in st.session_state:
         if data_cloud:
             df_cloud = pd.DataFrame(data_cloud)
             
-            # --- CORRECTION ICI : On force la création de la colonne Patient si elle manque ---
+            # --- CORRECTION CRUCIALE ICI ---
+            # Si la colonne Patient n'existe pas dans l'Excel (vos anciennes données),
+            # on l'invente et on met l'ID de l'utilisateur actuel partout.
             if "Patient" not in df_cloud.columns:
-                # Si l'Excel n'a pas de colonne Patient, on suppose que TOUTES les lignes
-                # appartiennent à l'utilisateur actuel (Mode monoposte / ancien fichier)
-                # OU on laisse vide pour le moment et on remplira à l'affichage
                 df_cloud["Patient"] = str(CURRENT_USER_ID)
             
             # D. Remplissage intelligent
@@ -63,9 +62,8 @@ if "data_sommeil" not in st.session_state:
                     df_final[col] = df_cloud["Eveil Nocturne"]
 
             # =================================================================
-            # 🛑 FILTRAGE SÉCURITÉ (Réparé)
+            # 🛑 FILTRAGE SÉCURITÉ
             # =================================================================
-            # Maintenant que la colonne Patient existe forcément (créée ou importée)
             # On nettoie les espaces pour être sûr que ça matche
             df_final["Patient"] = df_final["Patient"].astype(str).str.strip()
             user_clean = str(CURRENT_USER_ID).strip()
