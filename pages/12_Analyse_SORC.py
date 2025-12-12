@@ -210,22 +210,34 @@ with tab2:
         if "Patient" in df_display.columns:
             df_display["Patient"] = str(USER_IDENTIFIER)
             
-        # 2. SÉCURISATION COLONNE HEURE (Le Correctif Anti-Crash)
+        # 2. SÉCURISATION COLONNE HEURE
         if "Heure" not in df_display.columns:
-            df_display["Heure"] = "" # On crée la colonne vide si elle manque
+            df_display["Heure"] = "" 
 
-        # 3. Tri par date et heure (Sécurisé)
+        # 3. Tri par date et heure
         if "Date" in df_display.columns:
-            # On trie par Date, et par Heure seulement si elle existe
             cols_tri = ["Date", "Heure"]
             df_display = df_display.sort_values(by=cols_tri, ascending=False)
 
-        # 4. Affichage Tableau
+        # --- 4. DÉFINITION DE L'ORDRE DES COLONNES (C'EST ICI LE CHANGEMENT) ---
+        # On définit l'ordre exact que vous voulez voir à l'écran
+        ordre_souhaite = [
+            "Date", "Heure", "Situation", 
+            "Pensées", "Émotions", "Intensité Emo", 
+            "Réponse", "Csg Court Terme", "Csg Long Terme", 
+            "Douleur Active", "Desc Douleur", "Intensité Douleur"
+        ]
+        
+        # On filtre pour ne garder que les colonnes qui existent vraiment (sécurité)
+        cols_finales = [c for c in ordre_souhaite if c in df_display.columns]
+
+        # 5. AFFICHAGE TABLEAU (Avec l'ordre imposé)
         st.dataframe(
-            df_display, 
+            df_display[cols_finales], # <--- On applique l'ordre ici
             use_container_width=True, 
             hide_index=True,
             column_config={
+                "Heure": st.column_config.TextColumn("Heure", width="small"), # Petit ajustement visuel
                 "Situation": st.column_config.TextColumn("Situation", width="medium"),
                 "Pensées": st.column_config.TextColumn("Pensées", width="medium"),
                 "Réponse": st.column_config.TextColumn("Comportement", width="medium"),
@@ -240,7 +252,6 @@ with tab2:
         
         # Suppression
         with st.expander("🗑️ Supprimer une analyse"):
-            # On gère l'affichage du sélecteur même si l'heure est vide
             opts = {}
             for i, r in df_display.iterrows():
                 h_str = f" à {r['Heure']}" if r.get('Heure') else ""
@@ -251,14 +262,16 @@ with tab2:
             
             if st.button("Supprimer définitivement") and choix:
                 idx = opts[choix]
-                row = df_display.loc[idx]
+                # On utilise l'index d'origine pour supprimer dans la source
+                # (Attention : df_display est trié, donc on retrouve l'index d'origine via .loc)
+                row_source = df_display.loc[idx] 
                 
                 try:
                     from connect_db import delete_data_flexible
                     delete_data_flexible("SORC", {
                         "Patient": USER_IDENTIFIER, 
-                        "Date": str(row['Date']),
-                        "Situation": str(row['Situation'])
+                        "Date": str(row_source['Date']),
+                        "Situation": str(row_source['Situation'])
                     })
                 except: pass
                 
