@@ -365,16 +365,18 @@ with tab1:
 # ==============================================================================
 # ONGLET 2 : BILAN (TABLEAU ÉDITABLE + GRAPHIQUE ÉVOLUTION)
 # ==============================================================================
+# ==============================================================================
+# ONGLET 2 : BILAN (TABLEAU ÉDITABLE + GRAPHIQUE ÉVOLUTION)
+# ==============================================================================
 with tab2:
     st.header(f"Historique : {substance_active}")
     
-    # 1. RECUPERATION ET SECURISATION DES DONNEES
+    # 1. RECUPERATION ET SECURISATION DES DONNÉES
     df_global = st.session_state.data_addictions
 
-    if "Quantité" not in df_global.columns:
-        df_global["Quantité"] = 0.0
-    if "Unité" not in df_global.columns:
-        df_global["Unité"] = "" # ou "Inconnu"
+    # Initialisation colonnes manquantes
+    if "Quantité" not in df_global.columns: df_global["Quantité"] = 0.0
+    if "Unité" not in df_global.columns: df_global["Unité"] = ""
         
     st.session_state.data_addictions = df_global 
     
@@ -382,22 +384,50 @@ with tab2:
     df_filtre = df_global[df_global["Substance"] == substance_active].sort_values(by=["Date", "Heure"], ascending=False).reset_index(drop=True)
     
     if not df_filtre.empty:
-        st.info("💡 Vous pouvez modifier les valeurs directement.")
+        st.info("💡 Vous pouvez modifier les valeurs directement dans le tableau.")
         
-        # 2. TABLEAU ÉDITABLE (Avec les nouvelles colonnes)
+        # --- A. TRADUCTION DU NOM (Code -> PAT-XXX) ---
+        nom_dossier = CURRENT_USER_ID # Par défaut
+        try:
+            from connect_db import load_data
+            infos = load_data("Codes_Patients")
+            if infos:
+                df_i = pd.DataFrame(infos)
+                col_id = "Identifiant" if "Identifiant" in df_i.columns else "Commentaire"
+                match = df_i[df_i["Code"] == CURRENT_USER_ID]
+                if not match.empty: nom_dossier = match.iloc[0][col_id]
+        except: pass
+        
+        # On crée une vue pour l'éditeur avec le nom lisible
+        df_editor_view = df_filtre.copy()
+        df_editor_view["Patient"] = nom_dossier 
+
+        # --- B. TABLEAU ÉDITABLE ---
         edited_df = st.data_editor(
-            df_filtre, 
-            # On affiche tout proprement
-            column_order=["Date", "Heure", "Substance", "Type", "Intensité", "Quantité", "Unité", "Pensées"], 
+            df_editor_view, 
+            # On affiche la colonne Patient en premier
+            column_order=["Patient", "Date", "Heure", "Substance", "Type", "Intensité", "Quantité", "Unité", "Pensées"], 
+            # On interdit de modifier le Dossier et la Substance
             disabled=["Patient", "Substance"],
+            column_config={
+                "Patient": st.column_config.TextColumn("Dossier"), # Renommage visuel
+            },
             use_container_width=True, 
             num_rows="dynamic",
             key=f"editor_{substance_active}"
         )
         
-        if not edited_df.equals(df_filtre):
+        # --- C. GESTION DES MODIFICATIONS ---
+        if not edited_df.equals(df_editor_view):
+            # Si l'utilisateur a modifié quelque chose (ex: l'heure ou la quantité)
+            
+            # 1. On remet le code technique (TCC-XYZ) à la place du PAT-001 avant de sauvegarder
+            # Sinon, on perdrait le lien avec le compte !
+            edited_df["Patient"] = CURRENT_USER_ID
+            edited_df["Substance"] = substance_active # Sécurité
+            
+            # 2. On fusionne avec le reste des données
             df_others = df_global[df_global["Substance"] != substance_active]
-            edited_df["Substance"] = substance_active
             st.session_state.data_addictions = pd.concat([df_others, edited_df], ignore_index=True)
             st.rerun()
 
