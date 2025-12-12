@@ -220,19 +220,6 @@ with tab2:
             cols_tri = ["Date", "Heure"]
             df_display = df_display.sort_values(by=cols_tri, ascending=False)
 
-        # --- 4. DÉFINITION DE L'ORDRE DES COLONNES (C'EST ICI LE CHANGEMENT) ---
-        # On définit l'ordre exact que vous voulez voir à l'écran
-        ordre_souhaite = [
-            "Patient", "Date", "Heure", "Situation", 
-            "Pensées", "Émotions", "Intensité Emo", 
-            "Douleur Active", "Descr Douleur", "Intensité Douleur",
-            "Réponse", "Csq Court Terme", "Csq Long Terme" 
-            
-        ]
-        
-        # On filtre pour ne garder que les colonnes qui existent vraiment (sécurité)
-        cols_finales = [c for c in ordre_souhaite if c in df_display.columns]
-
         # 5. AFFICHAGE TABLEAU (Avec l'ordre imposé)
         st.dataframe(
             df_display[cols_finales], # <--- On applique l'ordre ici
