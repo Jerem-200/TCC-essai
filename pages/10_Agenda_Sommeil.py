@@ -268,39 +268,105 @@ with tab2:
         
         st.divider()
         
-        # 5. GRAPHIQUES (Suite du code...)
-        df = st.session_state.data_sommeil.copy()
+        # 5. ANALYSE AVANCÉE (FILTRES & GRAPHIQUES)
         
-        try:
-            # Conversion numérique pour les moyennes
-            df["Efficacité"] = pd.to_numeric(df["Efficacité"].astype(str).str.replace('%', ''), errors='coerce')
-            df["Forme"] = pd.to_numeric(df["Forme"], errors='coerce')
-            df["Qualité"] = pd.to_numeric(df["Qualité"], errors='coerce')
-            
-            c1, c2, c3 = st.columns(3)
-            if pd.notna(df["Efficacité"].mean()): 
-                c1.metric("Efficacité Moyenne", f"{df['Efficacité'].mean():.1f} %")
-            if pd.notna(df["Forme"].mean()): 
-                c2.metric("Forme Moyenne", f"{df['Forme'].mean():.1f} / 5")
-            if pd.notna(df["Qualité"].mean()): 
-                c3.metric("Qualité Moyenne", f"{df['Qualité'].mean():.1f} / 10")
-        except: pass
-
-        st.write("### Évolution")
-        import altair as alt
-        
-        # Préparation graphique
+        # --- A. PRÉPARATION DES DONNÉES ---
+        # On repart des données brutes 'df'
         df_chart = df.copy()
+        
+        # Conversion des dates et des chiffres pour qu'Altair puisse les lire
         df_chart["Date"] = pd.to_datetime(df_chart["Date"], errors='coerce')
-        df_chart = df_chart.dropna(subset=["Date", "Efficacité"])
         
-        chart = alt.Chart(df_chart).mark_line(point=True).encode(
-            x=alt.X('Date:T', title='Date', axis=alt.Axis(format='%d/%m')),
-            y=alt.Y('Efficacité:Q', title='Efficacité (%)', scale=alt.Scale(domain=[0, 100])),
-            tooltip=['Date', 'Efficacité', 'Forme', 'Qualité']
-        ).interactive()
+        # Nettoyage des colonnes numériques
+        cols_num = ["Efficacité", "Forme", "Qualité"]
+        for c in cols_num:
+            # On enlève le '%' si présent et on convertit en nombre
+            df_chart[c] = pd.to_numeric(df_chart[c].astype(str).str.replace('%', ''), errors='coerce')
+            
+        # On enlève les lignes sans date valide
+        df_chart = df_chart.dropna(subset=["Date"])
+
+        # --- B. FILTRE TEMPOREL (Comme Agenda Consos) ---
+        st.write("### 📅 Période d'analyse")
+        col_vue, col_date = st.columns([1, 2])
         
-        st.altair_chart(chart, use_container_width=True)
+        with col_vue:
+            vue_temporelle = st.selectbox(
+                "Vue :", 
+                ["Tout l'historique", "Semaine", "Mois"],
+                label_visibility="collapsed"
+            )
+
+        with col_date:
+            from datetime import timedelta
+            date_ref = st.date_input("Choisir la date de référence :", datetime.now(), label_visibility="collapsed")
+
+        # Application du filtre
+        if vue_temporelle == "Semaine":
+            start_week = date_ref - timedelta(days=date_ref.weekday())
+            end_week = start_week + timedelta(days=6)
+            df_chart = df_chart[(df_chart['Date'].dt.date >= start_week) & (df_chart['Date'].dt.date <= end_week)]
+            st.caption(f"🔎 Semaine du {start_week.strftime('%d/%m')} au {end_week.strftime('%d/%m')}")
+
+        elif vue_temporelle == "Mois":
+            df_chart = df_chart[(df_chart['Date'].dt.month == date_ref.month) & (df_chart['Date'].dt.year == date_ref.year)]
+            st.caption(f"🔎 Mois de {date_ref.strftime('%B %Y')}")
+            
+        else:
+            st.caption(f"🔎 Historique complet ({len(df_chart)} nuits)")
+
+        # --- C. CALCUL DES MOYENNES (Sur la période filtrée) ---
+        if not df_chart.empty:
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                moy_eff = df_chart["Efficacité"].mean()
+                st.metric("Efficacité", f"{moy_eff:.1f} %", delta_color="normal")
+            with c2:
+                moy_forme = df_chart["Forme"].mean()
+                st.metric("Forme", f"{moy_forme:.1f} / 5")
+            with c3:
+                moy_qual = df_chart["Qualité"].mean()
+                st.metric("Qualité", f"{moy_qual:.1f} / 5")
+        
+        st.divider()
+
+        # --- D. VISUALISATION ---
+        import altair as alt
+
+        if not df_chart.empty:
+            # GRAPHIQUE 1 : EFFICACITÉ DU SOMMEIL
+            st.subheader("🌙 Efficacité du Sommeil (%)")
+            chart_eff = alt.Chart(df_chart).mark_line(point=True, color="#3498db").encode(
+                x=alt.X('Date:T', axis=alt.Axis(format='%d/%m')),
+                y=alt.Y('Efficacité:Q', scale=alt.Scale(domain=[0, 100])),
+                tooltip=['Date', 'Efficacité', 'Heure Coucher', 'Heure Lever']
+            ).interactive()
+            st.altair_chart(chart_eff, use_container_width=True)
+
+            # GRAPHIQUE 2 : FORME & QUALITÉ (Nouveau !)
+            st.subheader("🔋 Forme & ✨ Qualité")
+            
+            # Astuce : On combine les deux courbes sur le même graphique
+            base = alt.Chart(df_chart).encode(x=alt.X('Date:T', axis=alt.Axis(format='%d/%m')))
+
+            # Ligne Forme (Orange)
+            line_forme = base.mark_line(point=True, color="#e67e22").encode(
+                y=alt.Y('Forme:Q', scale=alt.Scale(domain=[0, 6]), title="Note (0-5)"),
+                tooltip=['Date', 'Forme']
+            )
+            
+            # Ligne Qualité (Violet)
+            line_qualite = base.mark_line(point=True, color="#9b59b6", strokeDash=[5, 5]).encode(
+                y=alt.Y('Qualité:Q'),
+                tooltip=['Date', 'Qualité']
+            )
+
+            # Légende manuelle simple sous le graphique
+            st.altair_chart((line_forme + line_qualite).interactive(), use_container_width=True)
+            st.caption("🟠 Trait continu : Forme | 🟣 Pointillés : Qualité du sommeil")
+
+        else:
+            st.info("Aucune donnée sur cette période.")
 
         # 6. SUPPRESSION
         st.divider()
