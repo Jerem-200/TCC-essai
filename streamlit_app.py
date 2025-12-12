@@ -327,8 +327,33 @@ else:
 
         # --- SIDEBAR (MENU LATÉRAL) ---
         with st.sidebar:
-            # CORRECTION 2 : On utilise la bonne variable user_id
-            st.write(f"👤 ID: **{st.session_state.user_id}**")
+            
+            # --- LOGIQUE DE TRADUCTION (Code TCC -> PAT-001) ---
+            # 1. Par défaut, on affiche le code (au cas où on ne trouve pas le nom)
+            display_id = st.session_state.user_id 
+            
+            # 2. On cherche le "Vrai Nom" dans la base
+            try:
+                from connect_db import load_data
+                infos = load_data("Codes_Patients")
+                if infos:
+                    df_infos = pd.DataFrame(infos)
+                    # Recherche insensible aux majuscules/espaces
+                    code_actuel = str(st.session_state.user_id).strip().upper()
+                    
+                    # On cherche la ligne correspondante
+                    match = df_infos[df_infos["Code"].astype(str).str.strip().str.upper() == code_actuel]
+                    
+                    if not match.empty:
+                        # On récupère l'Identifiant (ou Commentaire)
+                        col_id = "Identifiant" if "Identifiant" in df_infos.columns else "Commentaire"
+                        display_id = match.iloc[0][col_id]
+            except:
+                pass # Si erreur technique, on reste sur le code par défaut
+            
+            # 3. Affichage du résultat
+            st.write(f"👤 ID: **{display_id}**")
+            
             st.divider()
             st.title("Navigation")
             st.page_link("streamlit_app.py", label="🏠 Accueil")
