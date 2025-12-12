@@ -206,15 +206,21 @@ with tab2:
     if not st.session_state.data_sorc.empty:
         df_display = st.session_state.data_sorc.copy()
         
-        # Forçage affichage identifiant
+        # 1. Forçage affichage identifiant
         if "Patient" in df_display.columns:
             df_display["Patient"] = str(USER_IDENTIFIER)
             
-        # Tri par date
-        if "Date" in df_display.columns:
-            df_display = df_display.sort_values(by=["Date", "Heure"], ascending=False)
+        # 2. SÉCURISATION COLONNE HEURE (Le Correctif Anti-Crash)
+        if "Heure" not in df_display.columns:
+            df_display["Heure"] = "" # On crée la colonne vide si elle manque
 
-        # Affichage Tableau
+        # 3. Tri par date et heure (Sécurisé)
+        if "Date" in df_display.columns:
+            # On trie par Date, et par Heure seulement si elle existe
+            cols_tri = ["Date", "Heure"]
+            df_display = df_display.sort_values(by=cols_tri, ascending=False)
+
+        # 4. Affichage Tableau
         st.dataframe(
             df_display, 
             use_container_width=True, 
@@ -234,7 +240,13 @@ with tab2:
         
         # Suppression
         with st.expander("🗑️ Supprimer une analyse"):
-            opts = {f"{r['Date']} à {r.get('Heure', '')} | {str(r['Situation'])[:30]}...": i for i, r in df_display.iterrows()}
+            # On gère l'affichage du sélecteur même si l'heure est vide
+            opts = {}
+            for i, r in df_display.iterrows():
+                h_str = f" à {r['Heure']}" if r.get('Heure') else ""
+                label = f"{r['Date']}{h_str} | {str(r['Situation'])[:30]}..."
+                opts[label] = i
+
             choix = st.selectbox("Choisir l'entrée :", list(opts.keys()), index=None)
             
             if st.button("Supprimer définitivement") and choix:
