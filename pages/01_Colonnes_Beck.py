@@ -14,11 +14,14 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.page_link("streamlit_app.py", label="Retourner à l'accueil", icon="🏠")
     st.stop()
 
-# 2. Récupération sécurisée de l'ID (Corrige l'erreur AttributeError)
-CURRENT_USER_ID = st.session_state.get("patient_id", "")
+# 2. Récupération sécurisée de l'ID (CORRIGÉ)
+# On cherche d'abord 'user_id' (nouveau système), sinon 'patient_id' (ancien système)
+CURRENT_USER_ID = st.session_state.get("user_id", "")
+if not CURRENT_USER_ID:
+    CURRENT_USER_ID = st.session_state.get("patient_id", "")
 
 if not CURRENT_USER_ID:
-    st.error("Erreur d'identité. Veuillez vous reconnecter.")
+    st.error("Erreur d'identité (Session vide). Veuillez retourner à l'accueil pour vous reconnecter.")
     st.stop()
 
 # 3. VERROUILLAGE DES DONNÉES (Système Anti-Fuite)
