@@ -208,70 +208,73 @@ else:
     # -----------------------------------------------------
     elif st.session_state.user_type == "patient":
         
-        # En-tête & Déconnexion
         c_titre, c_logout = st.columns([4, 1])
         with c_titre:
             st.title(f"🧠 Bonjour")
         with c_logout:
-            if st.button("Se déconnecter", key="logout_pat"):
+            if st.button("Se déconnecter"):
                 st.session_state.authentifie = False
+                st.session_state.patient_id = ""
                 st.rerun()
 
         st.subheader("Tableau de bord personnel")
         st.divider()
 
-        # --- LIGNE 1 : COGNITIF ---
+        # --- LIGNE 1 : COGNITIF & ANALYSE ---
         c1, c2, c3 = st.columns(3)
         with c1:
             st.info("### 🧩 Restructuration")
             st.write("Colonnes de Beck")
             st.page_link("pages/01_Colonnes_Beck.py", label="Lancer", icon="➡️")
         with c2:
-            st.info("### 📊 Humeur (PHQ-9)")
-            st.write("Suivi dépression")
+            st.info("### 📊 Échelles (BDI)")
+            st.write("Suivi de l'humeur")
             st.page_link("pages/02_Echelles_BDI.py", label="Tester", icon="➡️")
         with c3:
-            st.info("### ⚖️ Balance")
+            st.info("### ⚖️ Balance décisionnelle")
             st.write("Pour & Contre")
             st.page_link("pages/11_Balance_Decisionnelle.py", label="Peser", icon="➡️")
 
         st.divider()
 
-        # --- LIGNE 2 : ACTION ---
+        # --- LIGNE 2 : ACTION & PROBLÈMES ---
         c4, c5, c6 = st.columns(3)
         with c4:
             st.error("### 🧘 Relaxation")
-            st.write("Respiration")
+            st.write("Respiration & Détente")
             st.page_link("pages/07_Relaxation.py", label="Lancer", icon="➡️")
         with c5:
-            st.error("### 💡 Résolution")
-            st.write("Trouver solutions")
+            st.error("### 💡 Résolution de problème")
+            st.write("Trouver des solutions")
+            # Attention au nom exact du fichier (singulier ou pluriel ?)
             st.page_link("pages/06_Resolution_Probleme.py", label="Lancer", icon="➡️")
         with c6:
             st.error("### 🧗 Exposition")
-            st.write("Affronter peurs")
+            st.write("Affronter ses peurs")
             st.page_link("pages/09_Exposition.py", label="Planifier", icon="➡️")
 
         st.divider()
 
-        # --- LIGNE 3 : SUIVI ---
+        # --- LIGNE 3 : PHYSIOLOGIE & BIEN-ÊTRE ---
         c7, c8, c9 = st.columns(3)
         with c7:
-            st.warning("### 🌙 Sommeil")
-            st.write("Agenda sommeil")
+            st.warning("### 🌙 Agenda du sommeil")
+            st.write("Agenda du sommeil")
             st.page_link("pages/10_Agenda_Sommeil.py", label="Noter", icon="➡️")
         with c8:
-            st.warning("### 📝 Activités")
+            st.warning("### 📝 Agenda des activités")
             st.write("Plaisir & Maîtrise")
+            # J'ai mis 05 ici car c'est ce que vous aviez dans la grille
             st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="➡️")
         with c9:
-            st.warning("### 🍷 Consos") 
+            st.warning("### 🍷 Agenda de consommation") 
             st.write("Envies & Substances")
+            # J'ai mis 13 ici, vérifiez si c'est 11 ou 13 dans votre dossier
             st.page_link("pages/13_Agenda_Consos.py", label="Ouvrir", icon="➡️") 
 
         st.divider()
 
-        # --- LIGNE 4 : DONNÉES ---
+        # --- LIGNE 4 : SUIVI & RESSOURCES ---
         c10, c11, c12 = st.columns(3)
         with c10:
             st.success("### 📜 Historique")
@@ -286,16 +289,17 @@ else:
             st.write("Fiches pratiques")
             st.page_link("pages/03_Ressources.py", label="Lire", icon="📚")
 
-        # --- BARRE LATÉRALE ---
+        # --- SIDEBAR (MENU LATÉRAL) ---
         with st.sidebar:
-            st.write(f"👤 ID: **{st.session_state.user_id}**")
+            st.write(f"👤 ID: **{st.session_state.patient_id}**")
             st.divider()
             st.title("Navigation")
             st.page_link("streamlit_app.py", label="🏠 Accueil")
+            # Vérifiez que ces liens correspondent bien à vos fichiers existants
             st.page_link("pages/01_Colonnes_Beck.py", label="🧩 Tableau de Beck")
-            st.page_link("pages/02_Echelles_BDI.py", label="📊 BDI / PHQ-9")
-            st.page_link("pages/05_Registre_Activites.py", label="📝 Activités")
-            st.page_link("pages/06_Resolution_Probleme.py", label="💡 Résolution")
+            st.page_link("pages/02_Echelles_BDI.py", label="📊 BDI")
+            st.page_link("pages/05_Registre_Activites.py", label="📝 Agenda des activités")
+            st.page_link("pages/06_Resolution_Probleme.py", label="💡 Résolution Problèmes")
             st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
             st.page_link("pages/09_Exposition.py", label="🧗 Exposition")
             st.page_link("pages/10_Agenda_Sommeil.py", label="🌙 Sommeil")
