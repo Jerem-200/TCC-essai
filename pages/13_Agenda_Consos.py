@@ -365,16 +365,12 @@ with tab1:
 # ==============================================================================
 # ONGLET 2 : BILAN (TABLEAU ÉDITABLE + GRAPHIQUE ÉVOLUTION)
 # ==============================================================================
-# ==============================================================================
-# ONGLET 2 : BILAN (TABLEAU ÉDITABLE + GRAPHIQUE ÉVOLUTION)
-# ==============================================================================
 with tab2:
     st.header(f"Historique : {substance_active}")
     
-    # 1. RECUPERATION ET SECURISATION DES DONNÉES
+    # 1. RECUPERATION ET SECURISATION DES DONNEES
     df_global = st.session_state.data_addictions
 
-    # Initialisation colonnes manquantes
     if "Quantité" not in df_global.columns: df_global["Quantité"] = 0.0
     if "Unité" not in df_global.columns: df_global["Unité"] = ""
         
@@ -398,20 +394,19 @@ with tab2:
                 if not match.empty: nom_dossier = match.iloc[0][col_id]
         except: pass
         
-        # On crée une vue pour l'éditeur avec le nom lisible
+        # On injecte le nom lisible (PAT-001) pour l'affichage
         df_editor_view = df_filtre.copy()
-        df_editor_view["Patient"] = nom_dossier 
+        if "Patient" in df_editor_view.columns:
+            df_editor_view["Patient"] = nom_dossier
 
         # --- B. TABLEAU ÉDITABLE ---
         edited_df = st.data_editor(
             df_editor_view, 
             # On affiche la colonne Patient en premier
             column_order=["Patient", "Date", "Heure", "Substance", "Type", "Intensité", "Quantité", "Unité", "Pensées"], 
-            # On interdit de modifier le Dossier et la Substance
+            # On interdit de modifier le Patient et la Substance
             disabled=["Patient", "Substance"],
-            column_config={
-                "Patient": st.column_config.TextColumn("Dossier"), # Renommage visuel
-            },
+            # J'ai retiré le renommage ici, la colonne s'appellera donc "Patient" par défaut
             use_container_width=True, 
             num_rows="dynamic",
             key=f"editor_{substance_active}"
@@ -419,14 +414,13 @@ with tab2:
         
         # --- C. GESTION DES MODIFICATIONS ---
         if not edited_df.equals(df_editor_view):
-            # Si l'utilisateur a modifié quelque chose (ex: l'heure ou la quantité)
+            # Si modification détectée
             
-            # 1. On remet le code technique (TCC-XYZ) à la place du PAT-001 avant de sauvegarder
-            # Sinon, on perdrait le lien avec le compte !
+            # 1. On remet le code technique (TCC-XYZ) pour la sauvegarde
             edited_df["Patient"] = CURRENT_USER_ID
-            edited_df["Substance"] = substance_active # Sécurité
+            edited_df["Substance"] = substance_active 
             
-            # 2. On fusionne avec le reste des données
+            # 2. On fusionne et on recharge
             df_others = df_global[df_global["Substance"] != substance_active]
             st.session_state.data_addictions = pd.concat([df_others, edited_df], ignore_index=True)
             st.rerun()
