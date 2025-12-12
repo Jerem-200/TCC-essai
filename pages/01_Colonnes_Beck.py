@@ -139,7 +139,7 @@ with tab1:
 
         if submitted:
             # Récupération ID Patient
-            patient_id = st.session_state.get("patient_id", "Inconnu")
+            patient_id = CURRENT_USER_ID
             
             # Création de la ligne de données
             new_row_dict = {
@@ -226,7 +226,7 @@ with tab2:
                     # 1. Suppression Cloud
                     try:
                         from connect_db import delete_data_flexible
-                        pid = st.session_state.get("patient_id", "Inconnu")
+                        pid = CURRENT_USER_ID
                         # On utilise Date et Situation comme clés pour identifier la ligne
                         delete_data_flexible("Beck", {
                             "Patient": pid,
@@ -282,7 +282,7 @@ with tab2:
                         # 1. Suppression de l'ancienne version (Cloud)
                         try:
                             from connect_db import delete_data_flexible, save_data
-                            pid = st.session_state.get("patient_id", "Inconnu")
+                            pid = CURRENT_USER_ID
                             delete_data_flexible("Beck", {
                                 "Patient": pid,
                                 "Date": str(row_sel['Date']),
