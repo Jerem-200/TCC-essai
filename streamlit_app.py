@@ -184,7 +184,7 @@ else:
         df_pats = recuperer_mes_patients(st.session_state.user_id)
         prochain_id = "PAT-001"
         if not df_pats.empty:
-            ids_existants = df_pats["Commentaire"].tolist()
+            ids_existants = df_pats["Identifiant"].tolist()
             for i in range(1, 1000):
                 test_id = f"PAT-{i:03d}"
                 if test_id not in ids_existants:
@@ -235,7 +235,7 @@ else:
         
         if not df_pats.empty:
             # On affiche uniquement les colonnes utiles
-            cols_to_show = ["Code", "Commentaire", "Date_Creation"]
+            cols_to_show = ["Code", "Identifiant", "Date_Creation"]
             # On vérifie qu'elles existent pour éviter les bugs
             final_cols = [c for c in cols_to_show if c in df_pats.columns]
             
