@@ -319,22 +319,6 @@ with tab2:
             if pd.notna(df["Qualité"].mean()): 
                 c3.metric("Qualité Moyenne", f"{df['Qualité'].mean():.1f} / 10")
         except: pass
-    
-        
-        try:
-            # Conversion numérique pour les moyennes
-            df["Efficacité"] = pd.to_numeric(df["Efficacité"].astype(str).str.replace('%', ''), errors='coerce')
-            df["Forme"] = pd.to_numeric(df["Forme"], errors='coerce')
-            df["Qualité"] = pd.to_numeric(df["Qualité"], errors='coerce')
-            
-            c1, c2, c3 = st.columns(3)
-            if pd.notna(df["Efficacité"].mean()): 
-                c1.metric("Efficacité Moyenne", f"{df['Efficacité'].mean():.1f} %")
-            if pd.notna(df["Forme"].mean()): 
-                c2.metric("Forme Moyenne", f"{df['Forme'].mean():.1f} / 5")
-            if pd.notna(df["Qualité"].mean()): 
-                c3.metric("Qualité Moyenne", f"{df['Qualité'].mean():.1f} / 10")
-        except: pass
 
         st.write("### Évolution")
         import altair as alt
