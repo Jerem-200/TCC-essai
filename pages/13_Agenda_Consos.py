@@ -5,14 +5,26 @@ from datetime import datetime, time, timedelta
 
 st.set_page_config(page_title="Agenda Consos", page_icon="🍷")
 
-# --- VIGILE DE SÉCURITÉ SIMPLIFIÉ ---
+# 1. Vérification de l'authentification
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.warning("🔒 Accès restreint. Veuillez entrer votre Code Patient sur l'accueil.")
-    st.page_link("streamlit_app.py", label="Retourner à l'accueil pour se connecter", icon="🏠")
-    st.stop() # Arrête le chargement du reste de la page
+    st.page_link("streamlit_app.py", label="Retourner à l'accueil", icon="🏠")
+    st.stop()
 
-# Récupération du code patient pour les sauvegardes
-patient_id = st.session_state.patient_id
+# 2. Récupération sécurisée de l'ID
+CURRENT_USER_ID = st.session_state.get("user_id", "")
+if not CURRENT_USER_ID:
+    CURRENT_USER_ID = st.session_state.get("patient_id", "")
+
+if not CURRENT_USER_ID:
+    st.error("Erreur d'identité. Veuillez vous reconnecter.")
+    st.stop()
+
+# 3. VERROUILLAGE ANTI-FUITE (Nettoyage des listes si changement de patient)
+if "conso_owner" not in st.session_state or st.session_state.conso_owner != CURRENT_USER_ID:
+    if "data_addictions" in st.session_state: del st.session_state.data_addictions
+    if "liste_substances" in st.session_state: del st.session_state.liste_substances # Important !
+    st.session_state.conso_owner = CURRENT_USER_ID
 
 st.title("🍷 Agenda des Envies & Consommations")
 st.info("Notez vos envies (craving) et vos consommations pour identifier les déclencheurs.")
@@ -56,6 +68,14 @@ if "data_addictions" not in st.session_state:
                 else:
                     df_final[col] = None 
             
+            # FILTRE SÉCURITÉ CRUCIAL
+            if "Patient" in df_final.columns:
+                df_final = df_final[df_final["Patient"].astype(str) == str(CURRENT_USER_ID)]
+            else:
+                df_final = pd.DataFrame(columns=cols_conso)
+            
+            # Nettoyage numérique (votre code existant continue après ça) ...
+
             # Nettoyage numérique
             for col_num in ["Intensité", "Quantité"]:
                 if col_num in df_final.columns:
@@ -227,7 +247,7 @@ with tab1:
                 # D. SAUVEGARDE CLOUD
                 try:
                     from connect_db import save_data
-                    patient = st.session_state.get("patient_id", "Anonyme")
+                    patient = CURRENT_USER_ID
                     # Attention l'ordre doit correspondre à vos colonnes Excel
                     save_data("Addictions", [
                         patient, str(date_evt), heure_str, substance_active, 
@@ -326,7 +346,7 @@ with tab1:
                 # Cloud
                 try:
                     from connect_db import delete_data_flexible
-                    pid = st.session_state.get("patient_id", "Anonyme")
+                    pid = CURRENT_USER_ID
                     delete_data_flexible("Addictions", {
                         "Patient": pid, 
                         "Date": str(row_to_delete["Date"]),
@@ -530,7 +550,7 @@ with tab2:
 
                     try:
                         from connect_db import delete_data_flexible
-                        pid = st.session_state.get("patient_id", "Anonyme")
+                        pid = CURRENT_USER_ID
                         delete_data_flexible("Addictions", {
                             "Patient": pid,
                             "Date": str(row_to_delete['Date']),
