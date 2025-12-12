@@ -29,7 +29,7 @@ st.info("Remplissez ce formulaire chaque matin pour analyser la qualité de votr
 # 1. INITIALISATION ET CHARGEMENT CLOUD
 # ==============================================================================
 if "data_sommeil" not in st.session_state:
-    # A. Vos en-têtes exactes Google Sheet
+    # A. Vos en-têtes exactes
     cols_sommeil = [
         "Patient", "Date", "Sieste", 
         "Sport", "Cafeine", "Alcool", "Medic_Sommeil",
@@ -37,45 +37,48 @@ if "data_sommeil" not in st.session_state:
         "Heure Lever", "TTE", "TAL", "TTS", "Forme", "Qualité", "Efficacité"
     ]
     
-    # B. Création d'un DataFrame vide (sécurité)
+    # B. DataFrame vide par défaut
     df_final = pd.DataFrame(columns=cols_sommeil)
     
     # C. Chargement des données
     try:
         from connect_db import load_data
-        # Attention : L'argument "Sommeil" doit être le nom exact de l'onglet en bas de votre Google Sheet
         data_cloud = load_data("Sommeil")
         
         if data_cloud:
             df_cloud = pd.DataFrame(data_cloud)
             
+            # --- CORRECTION ICI : On force la création de la colonne Patient si elle manque ---
+            if "Patient" not in df_cloud.columns:
+                # Si l'Excel n'a pas de colonne Patient, on suppose que TOUTES les lignes
+                # appartiennent à l'utilisateur actuel (Mode monoposte / ancien fichier)
+                # OU on laisse vide pour le moment et on remplira à l'affichage
+                df_cloud["Patient"] = str(CURRENT_USER_ID)
+            
             # D. Remplissage intelligent
-            # On parcourt vos colonnes officielles et on cherche si elles existent dans le Cloud
             for col in cols_sommeil:
                 if col in df_cloud.columns:
                     df_final[col] = df_cloud[col]
-                # Optionnel : Gestion des synonymes si jamais le nom diffère légèrement
                 elif col == "Eveil" and "Eveil Nocturne" in df_cloud.columns:
                     df_final[col] = df_cloud["Eveil Nocturne"]
 
             # =================================================================
-            # 🛑 FILTRAGE SÉCURITÉ (C'EST ICI QUE TOUT SE JOUE)
+            # 🛑 FILTRAGE SÉCURITÉ (Réparé)
             # =================================================================
-            # On ne garde que les lignes où la colonne 'Patient' correspond au code connecté
-            if "Patient" in df_final.columns:
-                # On convertit en string pour être sûr de comparer du texte avec du texte
-                df_final = df_final[df_final["Patient"].astype(str) == str(CURRENT_USER_ID)]
-            else:
-                # Si pas de colonne Patient, on vide tout par sécurité
-                df_final = pd.DataFrame(columns=cols_sommeil)
+            # Maintenant que la colonne Patient existe forcément (créée ou importée)
+            # On nettoie les espaces pour être sûr que ça matche
+            df_final["Patient"] = df_final["Patient"].astype(str).str.strip()
+            user_clean = str(CURRENT_USER_ID).strip()
+            
+            # On ne garde que les lignes de l'utilisateur
+            df_final = df_final[df_final["Patient"] == user_clean]
             # =================================================================
 
     except Exception as e:
-        # En cas d'erreur de connexion, on ne bloque pas l'appli, on démarre vide
-        # st.error(f"Erreur de chargement : {e}") # Décommentez pour voir l'erreur
+        # En cas d'erreur (ex: fichier vide), on ne fait rien
         pass
 
-    # E. Sauvegarde en mémoire pour la session
+    # E. Sauvegarde en mémoire
     st.session_state.data_sommeil = df_final
 
 # C. INITIALISATION DES UNITÉS
