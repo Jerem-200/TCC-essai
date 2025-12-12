@@ -194,11 +194,8 @@ else:
         st.info(f"Création du dossier : **{prochain_id}**")
         
         with st.form("create_patient"):
-            c1, c2 = st.columns(2)
-            with c1:
-                id_dossier = st.text_input("Identifiant (Auto)", value=prochain_id, disabled=True)
-            with c2:
-                note_perso = st.text_input("Note (Optionnelle, non sauvegardée)", placeholder="ex: Mme Dupont")
+            # Plus besoin de colonnes (c1, c2) car il n'y a qu'un seul champ
+            id_dossier = st.text_input("Identifiant (Auto)", value=prochain_id, disabled=True)
             
             submitted = st.form_submit_button("Générer l'accès")
             
@@ -215,19 +212,15 @@ else:
                         str(datetime.now().date())
                     ])
                     
-                    # --- CHANGEMENT ICI ---
-                    # Au lieu d'afficher et dormir, on stocke dans la session
+                    # Stockage session pour affichage persistant (Pop-up vert)
                     st.session_state.new_patient_created = {
                         "id": id_dossier,
                         "code": access_code
                     }
-                    # Et on recharge la page pour mettre à jour la liste en bas
                     st.rerun()
                     
                 except Exception as e:
                     st.error(f"Erreur : {e}")
-
-        st.divider()
         
         # --- 2. LISTE DE MES PATIENTS ---
         st.subheader("📂 Mes Patients actifs")
