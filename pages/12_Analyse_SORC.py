@@ -5,7 +5,7 @@ from datetime import datetime
 st.set_page_config(page_title="Analyse SORC", page_icon="🔍")
 
 # ==============================================================================
-# 0. SÉCURITÉ & IDENTIFICATION (STANDARDISÉ)
+# 0. SÉCURITÉ & IDENTIFICATION
 # ==============================================================================
 
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
@@ -22,7 +22,7 @@ if not CURRENT_USER_ID:
     st.error("Erreur d'identité. Veuillez vous reconnecter.")
     st.stop()
 
-# 2. Récupération de l'Identifiant Lisible (PAT-001) pour sauvegarde/affichage
+# 2. Récupération de l'Identifiant Lisible (PAT-001)
 USER_IDENTIFIER = CURRENT_USER_ID 
 try:
     from connect_db import load_data
@@ -43,36 +43,36 @@ if "sorc_owner" not in st.session_state or st.session_state.sorc_owner != CURREN
     st.session_state.sorc_owner = CURRENT_USER_ID
 
 st.title("🔍 Analyse SORC")
-st.info("Analysez une situation problème : Situation, Organisme (Pensées/Émotions), Réponse, Conséquences.")
+st.info(f"Dossier : {USER_IDENTIFIER}")
 
 # ==============================================================================
 # 1. CHARGEMENT DES DONNÉES
 # ==============================================================================
+# Mise à jour des colonnes pour inclure l'heure et les deux types de conséquences
 COLS_SORC = [
-    "Patient", "Date", "Situation", 
+    "Patient", "Date", "Heure", "Situation", 
     "Pensées", "Émotions", "Intensité Emo", 
     "Douleur Active", "Desc Douleur", "Intensité Douleur",
-    "Réponse", "Conséquences", "Type Conséquence"
+    "Réponse", "Csg Court Terme", "Csg Long Terme"
 ]
 
 if "data_sorc" not in st.session_state:
     df_init = pd.DataFrame(columns=COLS_SORC)
     try:
         from connect_db import load_data
-        data_cloud = load_data("SORC") # Nom de l'onglet GSheet
+        data_cloud = load_data("SORC")
         if data_cloud:
             df_cloud = pd.DataFrame(data_cloud)
             
-            # Gestion colonne manquante (Patient)
             if "Patient" not in df_cloud.columns:
                 df_cloud["Patient"] = str(USER_IDENTIFIER)
             
-            # Remplissage
+            # Remplissage intelligent
             for col in COLS_SORC:
                 if col in df_cloud.columns:
                     df_init[col] = df_cloud[col]
             
-            # Filtre Sécurité (Accepte Code ou PAT-001)
+            # Filtre Sécurité
             ids_ok = [str(CURRENT_USER_ID).strip(), str(USER_IDENTIFIER).strip()]
             df_init["Patient"] = df_init["Patient"].astype(str).str.strip()
             df_init = df_init[df_init["Patient"].isin(ids_ok)]
@@ -94,60 +94,81 @@ tab1, tab2 = st.tabs(["📝 Nouvelle Analyse", "🗂️ Historique"])
 with tab1:
     st.subheader("Décortiquer une situation")
     
+    # --- INTERACTIVITÉ HORS FORMULAIRE ---
+    # On met la case à cocher ici pour qu'elle recharge la page immédiatement
+    has_pain = st.toggle("⚠️ Cette situation inclut-elle des douleurs chroniques ?", value=False)
+    
+    st.divider()
+
     with st.form("sorc_form"):
         # 1. S - SITUATION
         st.markdown("### 1. Situation (S)")
-        col_d, col_l = st.columns([1, 3])
-        with col_d: date_evt = st.date_input("Date", datetime.now())
-        with col_l: situation = st.text_area("Que se passait-il ? (Où, quand, avec qui, quoi ?)", height=80)
+        c_date, c_heure, c_sit = st.columns([1, 1, 3])
+        with c_date: 
+            date_evt = st.date_input("Date", datetime.now())
+        with c_heure:
+            heure_evt = st.time_input("Heure", datetime.now())
+        with c_sit: 
+            situation = st.text_area("Que se passait-il ? (Où, quand, avec qui ?)", height=80, help="Décrivez les faits objectivement, comme une caméra.")
         
         st.divider()
         
         # 2. O - ORGANISME
         st.markdown("### 2. Organisme (O)")
         
-        # A. Douleurs (Optionnel)
-        has_pain = st.checkbox("⚠️ Présence de Douleurs Chroniques ?")
+        # A. Douleurs (Conditionnel, géré par le toggle au-dessus)
         desc_douleur = ""
         int_douleur = 0
         
         if has_pain:
-            with st.container(border=True):
-                c_p1, c_p2 = st.columns([3, 1])
-                with c_p1: desc_douleur = st.text_input("Description de la douleur / sensation physique :")
-                with c_p2: int_douleur = st.slider("Intensité Douleur", 0, 10, 5)
+            st.info("🩸 **Focus Douleur**")
+            c_p1, c_p2 = st.columns([3, 1])
+            with c_p1: desc_douleur = st.text_input("Description de la douleur / sensation physique :")
+            with c_p2: int_douleur = st.slider("Intensité Douleur (0-10)", 0, 10, 5)
+            st.write("") # Espace
         
         # B. Pensées & Emotions
-        pensees = st.text_area("💭 Pensées : Qu'est-ce qui vous a traversé l'esprit ?")
+        pensees = st.text_area("💭 Pensées : Qu'est-ce qui vous a traversé l'esprit ?", height=80)
         
         c_emo, c_int = st.columns([3, 1])
-        with c_emo: emotions = st.text_input("❤️ Émotions / Sensations (ex: Peur, Colère, Boule au ventre)")
-        with c_int: int_emo = st.slider("Intensité Émotion", 0, 10, 7)
+        with c_emo: 
+            # MODIFICATION : Text Area au lieu de Input pour avoir plus de place
+            emotions = st.text_area("❤️ Émotions / Sensations (ex: Peur, Colère, Boule au ventre)", height=80)
+        with c_int: 
+            st.write("") # Petit espace pour aligner le slider
+            int_emo = st.slider("Intensité Émotion", 0, 10, 7)
         
         st.divider()
         
         # 3. R - RÉPONSE
         st.markdown("### 3. Réponse (R)")
-        reponse = st.text_area("🏃‍♂️ Comportement : Qu'avez-vous fait concrètement ?", height=80, placeholder="Ex: J'ai quitté la pièce, j'ai crié, j'ai pris un médicament...")
+        reponse = st.text_area("🏃‍♂️ Comportement : Qu'avez-vous fait concrètement ?", height=80, placeholder="Ex: J'ai quitté la pièce, j'ai crié, j'ai pris un médicament, j'ai ruminé...")
         
         st.divider()
         
         # 4. C - CONSÉQUENCES
         st.markdown("### 4. Conséquences (C)")
-        consequences = st.text_area("Le résultat immédiat ou retardé ?")
-        type_consq = st.radio("Impact principal :", ["Court terme (Soulagement immédiat)", "Long terme (Problème maintenu)"], horizontal=True)
+        st.caption("Analysez l'impact de votre réaction.")
+        
+        c_court, c_long = st.columns(2)
+        with c_court:
+            csg_court = st.text_area("🟢 Court Terme (Soulagement immédiat ?)", height=100, placeholder="Ex: Baisse de l'anxiété, la douleur semble diminuer...")
+        with c_long:
+            csg_long = st.text_area("🔴 Long Terme (Le problème persiste ?)", height=100, placeholder="Ex: Je me sens coupable, la douleur revient plus fort, je suis isolé...")
         
         # VALIDATION
         st.write("")
         submitted = st.form_submit_button("Enregistrer l'analyse SORC", type="primary")
         
         if submitted:
-            # Préparation des données
+            # Formatage
+            heure_str = str(heure_evt)[:5]
             douleur_active_str = "Oui" if has_pain else "Non"
             
             new_row = {
                 "Patient": USER_IDENTIFIER,
                 "Date": str(date_evt),
+                "Heure": heure_str,
                 "Situation": situation,
                 "Pensées": pensees,
                 "Émotions": emotions,
@@ -156,8 +177,8 @@ with tab1:
                 "Desc Douleur": desc_douleur if has_pain else "",
                 "Intensité Douleur": int_douleur if has_pain else 0,
                 "Réponse": reponse,
-                "Conséquences": consequences,
-                "Type Conséquence": type_consq
+                "Csg Court Terme": csg_court,
+                "Csg Long Terme": csg_long
             }
             
             # Sauvegarde Locale
@@ -166,12 +187,11 @@ with tab1:
             # Sauvegarde Cloud
             try:
                 from connect_db import save_data
-                # Ordre strict des colonnes pour GSheet
                 values_list = [
-                    USER_IDENTIFIER, str(date_evt), situation, 
+                    USER_IDENTIFIER, str(date_evt), heure_str, situation, 
                     pensees, emotions, int_emo, 
                     douleur_active_str, desc_douleur, int_douleur,
-                    reponse, consequences, type_consq
+                    reponse, csg_court, csg_long
                 ]
                 save_data("SORC", values_list)
                 st.success("✅ Analyse SORC enregistrée avec succès !")
@@ -191,7 +211,7 @@ with tab2:
             
         # Tri par date
         if "Date" in df_display.columns:
-            df_display = df_display.sort_values(by="Date", ascending=False)
+            df_display = df_display.sort_values(by=["Date", "Heure"], ascending=False)
 
         # Affichage Tableau
         st.dataframe(
@@ -202,6 +222,8 @@ with tab2:
                 "Situation": st.column_config.TextColumn("Situation", width="medium"),
                 "Pensées": st.column_config.TextColumn("Pensées", width="medium"),
                 "Réponse": st.column_config.TextColumn("Comportement", width="medium"),
+                "Csg Court Terme": st.column_config.TextColumn("Csg Court", width="small"),
+                "Csg Long Terme": st.column_config.TextColumn("Csg Long", width="small"),
                 "Intensité Emo": st.column_config.NumberColumn("Int. Emo", format="%d/10"),
                 "Intensité Douleur": st.column_config.NumberColumn("Douleur", format="%d/10"),
             }
@@ -211,7 +233,7 @@ with tab2:
         
         # Suppression
         with st.expander("🗑️ Supprimer une analyse"):
-            opts = {f"{r['Date']} - {str(r['Situation'])[:30]}...": i for i, r in df_display.iterrows()}
+            opts = {f"{r['Date']} à {r.get('Heure', '')} | {str(r['Situation'])[:30]}...": i for i, r in df_display.iterrows()}
             choix = st.selectbox("Choisir l'entrée :", list(opts.keys()), index=None)
             
             if st.button("Supprimer définitivement") and choix:
