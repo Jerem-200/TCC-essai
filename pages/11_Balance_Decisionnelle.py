@@ -30,12 +30,11 @@ if not CURRENT_USER_ID:
     st.stop()
 
 # 3. VERROUILLAGE ANTI-FUITE
-if "expo_owner" not in st.session_state or st.session_state.expo_owner != CURRENT_USER_ID:
-    # On vide TOUTES les variables spécifiques à l'exposition
-    keys_to_clear = ["liste_craintes", "data_hierarchie", "data_planning_expo", "data_logs_expo", "step1_valide"]
-    for k in keys_to_clear:
-        if k in st.session_state: del st.session_state[k]
-    st.session_state.expo_owner = CURRENT_USER_ID
+if "balance_owner" not in st.session_state or st.session_state.balance_owner != CURRENT_USER_ID:
+    # On vide les variables spécifiques à la balance
+    if "data_balance" in st.session_state: del st.session_state.data_balance
+    if "balance_args_current" in st.session_state: del st.session_state.balance_args_current
+    st.session_state.balance_owner = CURRENT_USER_ID
 
 # === GESTIONNAIRE DE CHARGEMENT (TOP LEVEL) ===
 if "sujet_a_charger" in st.session_state:
@@ -63,7 +62,13 @@ if "data_balance" not in st.session_state:
         for col in cols_balance:
             if col in df_cloud.columns:
                 df_final[col] = df_cloud[col]
-                
+    
+    # --- FILTRE SÉCURITÉ ---
+    if "Patient" in df_final.columns:
+        df_final = df_final[df_final["Patient"].astype(str) == str(CURRENT_USER_ID)]
+    else:
+        df_final = pd.DataFrame(columns=cols_balance)
+        
     st.session_state.data_balance = df_final
 
 # B. Mémoires temporaires pour la session en cours
@@ -239,9 +244,9 @@ with tab1:
                         
                         try:
                             from connect_db import save_data
-                            patient = CURRENT_USER_ID
+                            # On utilise la variable sécurisée définie en haut
                             save_data("Balance_Decisionnelle", [
-                                patient_id, 
+                                CURRENT_USER_ID,  # <--- CORRECTION (au lieu de patient_id)
                                 new_entry["Date"], 
                                 new_entry["Sujet"], 
                                 new_entry["Option Gagnante"], 
@@ -272,12 +277,34 @@ with tab2:
         if "Date" in df_history.columns:
             df_history = df_history.sort_values(by="Date", ascending=False).reset_index(drop=True)
 
-        # 1. MASQUER LA COLONNE PATIENT POUR L'AFFICHAGE
+        # --- 1. CONVERSION DU NOM (Code -> PAT-XXX) ---
         df_display = df_history.copy()
-        if "Patient" in df_display.columns:
-            df_display = df_display.drop(columns=["Patient"])
+        nom_dossier = CURRENT_USER_ID # Par défaut
         
-        st.dataframe(df_display, use_container_width=True, hide_index=True)
+        try:
+            from connect_db import load_data
+            infos = load_data("Codes_Patients")
+            if infos:
+                df_i = pd.DataFrame(infos)
+                # On gère les noms de colonnes possibles
+                col_id = "Identifiant" if "Identifiant" in df_i.columns else "Commentaire"
+                
+                # On trouve la correspondance
+                match = df_i[df_i["Code"] == CURRENT_USER_ID]
+                if not match.empty: nom_dossier = match.iloc[0][col_id]
+        except: pass
+        
+        # On remplace dans le tableau d'affichage
+        if "Patient" in df_display.columns:
+            df_display["Patient"] = nom_dossier
+        
+        # Affichage Propre
+        st.dataframe(
+            df_display, 
+            column_config={"Patient": st.column_config.TextColumn("Dossier")},
+            use_container_width=True, 
+            hide_index=True
+        )
         
         st.divider()
 
@@ -308,7 +335,7 @@ with tab2:
 
                 try:
                     from connect_db import delete_data_flexible
-                    patient = CURRENT_USER_ID
+                    pid = CURRENT_USER_ID
                     delete_data_flexible("Balance_Decisionnelle", {
                         "Patient": pid,
                         "Date": str(row_to_del['Date']),
