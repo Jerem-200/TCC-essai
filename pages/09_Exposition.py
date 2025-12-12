@@ -166,7 +166,7 @@ with tab2:
             
             # Cloud (Ajout colonne Crainte)
             from connect_db import save_data
-            patient = st.session_state.get("patient_id", "Anonyme")
+            patient = CURRENT_USER_ID
             save_data("Evitements", [patient, datetime.now().strftime("%Y-%m-%d"), crainte_active['Nom'], sit, attente, cons, f"Anx:{anxiete}"])
             st.success("Ajouté !")
 
@@ -241,7 +241,7 @@ with tab3:
             st.session_state.data_planning_expo = pd.concat([st.session_state.data_planning_expo, pd.DataFrame([new_plan])], ignore_index=True)
             
             from connect_db import save_data
-            patient = st.session_state.get("patient_id", "Anonyme")
+            patient = CURRENT_USER_ID
             # Ordre Cloud : Patient, Date, CRAINTE, Situation, Type, Details, Score1, Score2, Vide, Vide
             save_data("Expositions", [
                 patient, str(date_prevue), crainte_active['Nom'], choix_sit, 
@@ -317,7 +317,7 @@ with tab4:
                 st.session_state.data_logs_expo = pd.concat([st.session_state.data_logs_expo, pd.DataFrame([new_log])], ignore_index=True)
                 
                 from connect_db import save_data
-                patient = st.session_state.get("patient_id", "Anonyme")
+                patient = CURRENT_USER_ID
                 # Sauvegarde avec colonne Crainte
                 save_data("Expositions", [
                     patient, datetime.now().strftime("%Y-%m-%d"), 
