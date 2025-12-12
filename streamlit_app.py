@@ -140,67 +140,133 @@ if not st.session_state.authentifie:
 # 3. TABLEAUX DE BORD (CONNECTÉ)
 # =========================================================
 else:
-    # -----------------------------------------------------
+# -----------------------------------------------------
     # SCÉNARIO A : TABLEAU DE BORD THÉRAPEUTE
     # -----------------------------------------------------
     if st.session_state.user_type == "therapeute":
         st.title("🩺 Espace Thérapeute")
-        st.write(f"Connecté en tant que : **{st.session_state.user_id}**")
-        
-        if st.button("Se déconnecter", key="logout_th"):
-            st.session_state.authentifie = False
-            st.rerun()
+        c_user, c_deco = st.columns([3, 1])
+        with c_user:
+            st.write(f"Connecté : **{st.session_state.user_id}**")
+        with c_deco:
+            if st.button("Se déconnecter", key="logout_th"):
+                st.session_state.authentifie = False
+                st.rerun()
             
         st.divider()
         
-        # --- 1. GÉNÉRER UN NOUVEAU PATIENT ---
-        st.subheader("➕ Générer un accès patient")
-        st.caption("Créez un code unique sécurisé pour un nouveau patient.")
+        # --- 1. PROVISIONING (AUTOMATISÉ) ---
+        st.subheader("➕ Nouveau Patient")
+        
+        # --- CALCUL DU PROCHAIN ID ---
+        # 1. On récupère les patients existants de ce thérapeute
+        df_pats = recuperer_mes_patients(st.session_state.user_id)
+        
+        # 2. On cherche le premier "PAT-XXX" libre
+        prochain_id = "PAT-001"
+        if not df_pats.empty:
+            # On récupère la liste des commentaires (qui contiennent les IDs : "PAT-001", "PAT-002"...)
+            ids_existants = df_pats["Commentaire"].tolist()
+            
+            # On boucle de 1 à 1000 pour trouver le premier trou
+            for i in range(1, 1000):
+                test_id = f"PAT-{i:03d}" # Formate en 001, 002, 010...
+                if test_id not in ids_existants:
+                    prochain_id = test_id
+                    break
+        # -----------------------------
+
+        st.info(f"Création automatique du patient : **{prochain_id}**")
         
         with st.form("create_patient"):
-            comment = st.text_input("Note interne (ex: M. Dupont - Anxiété)", placeholder="Nom ou initiales pour vous souvenir")
-            submitted = st.form_submit_button("Générer le code")
+            c1, c2 = st.columns(2)
+            with c1:
+                # Champ bloqué (disabled=True) avec la valeur calculée
+                id_dossier = st.text_input("Identifiant (Auto)", value=prochain_id, disabled=True)
+            with c2:
+                # On ne stocke pas le nom, c'est juste pour le cerveau du thérapeute à l'instant T
+                # Le code ci-dessous n'enregistrera PAS ce champ dans le Cloud pour respecter votre règle
+                note_perso = st.text_input("Note (Optionnelle, non sauvegardée)", placeholder="ex: Mme Dupont")
+            
+            submitted = st.form_submit_button("Générer l'accès")
             
             if submitted:
-                # 1. Génération du code
-                new_code = generer_code_securise(prefix="TCC")
+                # Génération du code technique
+                access_code = generer_code_securise(prefix="TCC")
                 
-                # 2. Sauvegarde Cloud
+                # Sauvegarde : On ne sauvegarde QUE l'ID Dossier (PAT-XXX) dans le commentaire
                 try:
                     from connect_db import save_data
-                    # Colonnes: Code | Therapeute_ID | Commentaire | Date_Creation
                     save_data("Codes_Patients", [
-                        new_code, 
+                        access_code, 
                         st.session_state.user_id, 
-                        comment, 
+                        id_dossier, # C'est PAT-001
                         str(datetime.now().date())
                     ])
-                    st.success("✅ Patient créé !")
-                    st.info(f"🔑 Code à transmettre : **{new_code}**")
-                    st.warning("Notez ce code maintenant, il permet au patient d'accéder à l'app.")
+                    
+                    st.success(f"✅ Patient {id_dossier} activé !")
+                    
+                    # AFFICHAGE DU COUPON
+                    st.markdown("---")
+                    st.markdown(f"### 📂 Dossier : **{id_dossier}**")
+                    if note_perso:
+                        st.caption(f"Pour : {note_perso}")
+                    st.markdown("Donnez ce code unique au patient :")
+                    st.code(access_code, language="text")
+                    st.warning("Notez la correspondance (PAT-XXX = Mme Dupont) dans votre dossier papier.")
+                    st.markdown("---")
+                    
+                    # Petit délai pour laisser lire avant de rafraîchir la liste
+                    time.sleep(2)
+                    st.rerun()
                     
                 except Exception as e:
-                    st.error(f"Erreur de sauvegarde : {e}")
+                    st.error(f"Erreur : {e}")
 
         st.divider()
+
+        # --- 2. SUPERVISION ---
+        st.subheader("🔎 Visualiser les données")
         
-        # --- 2. LISTE DE MES PATIENTS ---
-        st.subheader("📂 Mes Patients actifs")
+        # On rafraîchit la liste
         df_pats = recuperer_mes_patients(st.session_state.user_id)
         
         if not df_pats.empty:
-            # On affiche uniquement les colonnes utiles
-            cols_to_show = ["Code", "Commentaire", "Date_Creation"]
-            # On vérifie qu'elles existent pour éviter les bugs
-            final_cols = [c for c in cols_to_show if c in df_pats.columns]
+            # Map : PAT-001 -> TCC-XYZ
+            map_patients = dict(zip(df_pats["Commentaire"], df_pats["Code"]))
             
-            st.dataframe(
-                df_pats[final_cols], 
-                use_container_width=True, 
-                hide_index=True
+            choix_patient = st.selectbox(
+                "Sélectionnez un dossier à consulter :", 
+                options=sorted(df_pats["Commentaire"].unique()), # Trié par ordre alphabétique (PAT-001, 002...)
+                index=None
             )
+            
+            if choix_patient:
+                code_technique = map_patients[choix_patient]
+                st.info(f"Visualisation du dossier : **{choix_patient}**")
+                
+                # Exemple Sommeil
+                try:
+                    from connect_db import load_data
+                    data_sommeil = load_data("Sommeil")
+                    if data_sommeil:
+                        df_sommeil = pd.DataFrame(data_sommeil)
+                        # Filtre sur le code technique
+                        if "Patient" in df_sommeil.columns:
+                            df_patient_sommeil = df_sommeil[df_sommeil["Patient"] == code_technique]
+                            
+                            if not df_patient_sommeil.empty:
+                                st.write(f"🌙 Données de Sommeil ({len(df_patient_sommeil)} nuits)")
+                                st.dataframe(
+                                    df_patient_sommeil.drop(columns=["Patient"]), 
+                                    use_container_width=True,
+                                    hide_index=True
+                                )
+                            else:
+                                st.warning("Pas de données de sommeil.")
+                except: pass
         else:
-            st.info("Aucun patient enregistré pour le moment.")
+            st.info("Aucun patient.")
             
 
     # -----------------------------------------------------
