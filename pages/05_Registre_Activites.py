@@ -238,27 +238,77 @@ with tab2:
 
         st.divider()
 
-        # 2. GRAPHIQUE MOYENNES
-        st.subheader("📊 Moyennes par Activité")
-        cols_num = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
-        df_stats = st.session_state.data_activites.copy()
-        for c in cols_num: df_stats[c] = pd.to_numeric(df_stats[c], errors='coerce')
-        df_stats = df_stats[df_stats["Activité"].notna()]
+# --- FILTRE TEMPOREL ---
+        st.divider()
+        st.subheader("📅 Période d'analyse")
+        col_vue, col_date = st.columns([1, 2])
+        
+        with col_vue:
+            vue_temporelle = st.selectbox(
+                "Vue :", 
+                ["Tout l'historique", "Semaine", "Mois"],
+                label_visibility="collapsed"
+            )
 
-        if not df_stats.empty:
-            df_grp = df_stats.groupby("Activité")[cols_num].mean().reset_index()
+        with col_date:
+            from datetime import timedelta
+            date_ref = st.date_input("Choisir la date de référence :", datetime.now(), label_visibility="collapsed")
+
+        # --- PRÉPARATION DES DONNÉES FILTRÉES ---
+        df_filtre = st.session_state.data_activites.copy()
+        
+        # Nettoyage et conversion
+        cols_num = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
+        for c in cols_num: df_filtre[c] = pd.to_numeric(df_filtre[c], errors='coerce')
+        df_filtre["Date"] = pd.to_datetime(df_filtre["Date"], errors='coerce')
+        df_filtre = df_filtre.dropna(subset=["Date", "Activité"])
+
+        # Application du filtre
+        if vue_temporelle == "Semaine":
+            start_week = date_ref - timedelta(days=date_ref.weekday())
+            end_week = start_week + timedelta(days=6)
+            df_filtre = df_filtre[(df_filtre['Date'].dt.date >= start_week) & (df_filtre['Date'].dt.date <= end_week)]
+            st.caption(f"🔎 Semaine du {start_week.strftime('%d/%m')} au {end_week.strftime('%d/%m')}")
+
+        elif vue_temporelle == "Mois":
+            df_filtre = df_filtre[(df_filtre['Date'].dt.month == date_ref.month) & (df_filtre['Date'].dt.year == date_ref.year)]
+            st.caption(f"🔎 Mois de {date_ref.strftime('%B %Y')}")
+            
+        else:
+            st.caption(f"🔎 Historique complet ({len(df_filtre)} activités)")
+
+        if not df_filtre.empty:
+            # 2. GRAPHIQUE MOYENNES (Sur données filtrées)
+            st.subheader("📊 Moyennes par Activité")
+            df_grp = df_filtre.groupby("Activité")[cols_num].mean().reset_index()
             df_long = df_grp.melt(id_vars=["Activité"], value_vars=cols_num, var_name="Critère", value_name="Note")
             
-            chart = alt.Chart(df_long).mark_bar().encode(
+            chart_bar = alt.Chart(df_long).mark_bar().encode(
                 x=alt.X('Activité:N', axis=alt.Axis(labelAngle=-45)),
                 y=alt.Y('Note:Q', scale=alt.Scale(domain=[0, 10])),
                 color='Critère:N', xOffset='Critère:N', tooltip=['Activité', 'Critère', alt.Tooltip('Note', format='.1f')]
             ).properties(height=400)
-            st.altair_chart(chart, use_container_width=True)
+            st.altair_chart(chart_bar, use_container_width=True)
+
+            # 3. GRAPHIQUE ÉVOLUTION (Sur données filtrées)
+            st.subheader("📈 Évolution des activités")
+            # On veut voir l'évolution du Plaisir/Maîtrise/Satisfaction au fil du temps
+            df_evol = df_filtre.melt(id_vars=["Date", "Heure", "Activité"], value_vars=cols_num, var_name="Critère", value_name="Note")
+            
+            chart_line = alt.Chart(df_evol).mark_line(point=True).encode(
+                x=alt.X('Date:T', axis=alt.Axis(format='%d/%m')),
+                y=alt.Y('mean(Note):Q', title='Moyenne Journalière', scale=alt.Scale(domain=[0, 10])),
+                color='Critère:N',
+                tooltip=['Date', 'Critère', alt.Tooltip('mean(Note)', format='.1f')]
+            ).properties(height=300).interactive()
+            st.altair_chart(chart_line, use_container_width=True)
+
+        else:
+            st.info("Aucune activité sur cette période.")
 
         st.divider()
         
-        # 3. GRAPHIQUE HUMEUR
+        # 4. GRAPHIQUE HUMEUR (Indépendant pour l'instant, ou filtrable aussi si voulu)
         st.subheader("🌈 Évolution de l'Humeur")
         df_h = st.session_state.data_humeur_jour.copy()
         if not df_h.empty:
@@ -266,12 +316,21 @@ with tab2:
             df_h["Humeur Globale (0-10)"] = pd.to_numeric(df_h["Humeur Globale (0-10)"], errors='coerce')
             df_h = df_h.dropna(subset=["Date", "Humeur Globale (0-10)"]).sort_values("Date")
             
-            c_humeur = alt.Chart(df_h).mark_line(point=True, color="#FFA500").encode(
-                x=alt.X('Date:T', axis=alt.Axis(format='%d/%m')),
-                y=alt.Y('Humeur Globale (0-10):Q', scale=alt.Scale(domain=[0, 10])),
-                tooltip=['Date', 'Humeur Globale (0-10)']
-            ).properties(height=300).interactive()
-            st.altair_chart(c_humeur, use_container_width=True)
+            # On applique le même filtre temporel si on veut être cohérent
+            if vue_temporelle == "Semaine":
+                df_h = df_h[(df_h['Date'].dt.date >= start_week) & (df_h['Date'].dt.date <= end_week)]
+            elif vue_temporelle == "Mois":
+                df_h = df_h[(df_h['Date'].dt.month == date_ref.month) & (df_h['Date'].dt.year == date_ref.year)]
+
+            if not df_h.empty:
+                c_humeur = alt.Chart(df_h).mark_line(point=True, color="#FFA500").encode(
+                    x=alt.X('Date:T', axis=alt.Axis(format='%d/%m')),
+                    y=alt.Y('Humeur Globale (0-10):Q', scale=alt.Scale(domain=[0, 10])),
+                    tooltip=['Date', 'Humeur Globale (0-10)']
+                ).properties(height=300).interactive()
+                st.altair_chart(c_humeur, use_container_width=True)
+            else:
+                st.info("Pas d'humeur enregistrée sur cette période.")
         else:
             st.info("Pas encore de données d'humeur.")
 
