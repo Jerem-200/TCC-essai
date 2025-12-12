@@ -228,9 +228,10 @@ with tab1:
             # CLOUD
             try:
                 from connect_db import save_data
-                patient = st.session_state.get("patient_id", "Anonyme")
+                # On utilise CURRENT_USER_ID (défini tout en haut du fichier)
                 save_data("Sommeil", [
-                    patient, str(date_nuit), 
+                    CURRENT_USER_ID,  # <--- C'est ici qu'on met l'ID sécurisé
+                    str(date_nuit), 
                     sieste_final, sport_final, cafe_final, alcool_final, med_final,
                     str(h_coucher)[:5], latence, eveil_nocturne, str(h_lever)[:5],
                     format_minutes_en_h_m(tte_minutes),
@@ -261,9 +262,37 @@ with tab1:
 # --- ONGLET 2 : ANALYSE ---
 with tab2:
     st.header("📊 Tableau de bord")
+    
     if not st.session_state.data_sommeil.empty:
+        # 1. On définit 'df' car le reste du code (graphiques/moyennes) en a besoin
         df = st.session_state.data_sommeil.copy()
-        st.dataframe(df, use_container_width=True)
+        
+        # 2. On crée une copie spéciale pour l'affichage du tableau (avec le nom PAT-001)
+        df_display = df.copy()
+        
+        # --- TRADUCTION DU NOM (Code -> PAT-XXX) ---
+        nom_dossier = CURRENT_USER_ID # Par défaut
+        try:
+            from connect_db import load_data
+            infos = load_data("Codes_Patients")
+            if infos:
+                df_i = pd.DataFrame(infos)
+                col_id = "Identifiant" if "Identifiant" in df_i.columns else "Commentaire"
+                match = df_i[df_i["Code"] == CURRENT_USER_ID]
+                if not match.empty: nom_dossier = match.iloc[0][col_id]
+        except: pass
+        
+        # On remplace dans la version d'affichage seulement
+        if "Patient" in df_display.columns:
+            df_display["Patient"] = nom_dossier
+
+        # 3. AFFICHAGE (Avec hide_index=True)
+        st.dataframe(
+            df_display, 
+            use_container_width=True,
+            hide_index=True 
+        )
+        
         st.divider()
         
         # Moyennes
@@ -316,10 +345,10 @@ with tab2:
                     # Suppression Cloud
                     try:
                         from connect_db import delete_data_flexible
-                        pid = st.session_state.get("patient_id", "Anonyme")
-                        delete_data_flexible("Sommeil", {"Patient": pid, "Date": str(row['Date'])})
-                    except: 
-                        pass
+                        # On utilise CURRENT_USER_ID pour cibler la bonne ligne à supprimer
+                        delete_data_flexible("Sommeil", {"Patient": CURRENT_USER_ID, "Date": str(row['Date'])})
+                    except: pass
+                    # ...
                     
                     # Suppression Locale
                     st.session_state.data_sommeil = st.session_state.data_sommeil.drop(idx).reset_index(drop=True)
