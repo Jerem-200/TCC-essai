@@ -260,108 +260,115 @@ with tab1:
                     st.rerun()
 
 # --- ONGLET 2 : ANALYSE ---
+# ==============================================================================
+# ONGLET 2 : ANALYSE (HISTORIQUE)
+# ==============================================================================
 with tab2:
     st.header("📊 Tableau de bord")
     
+    # On vérifie s'il y a des données
     if not st.session_state.data_sommeil.empty:
-        # 1. On prépare les données (df pour les calculs, df_display pour l'affichage)
-        df = st.session_state.data_sommeil.copy()
         
-        # On nettoie l'index pour éviter la colonne de chiffres à gauche (0, 1, 2...)
-        df_display = df.copy().reset_index(drop=True)
+        # 1. On crée une copie pour l'affichage (pour ne pas casser les calculs)
+        df_display = st.session_state.data_sommeil.copy()
         
-        # --- 2. TRADUCTION DU NOM (Code TCC -> PAT-001) ---
-        nom_dossier = CURRENT_USER_ID # Valeur par défaut
+        # 2. LOGIQUE DE TRADUCTION (Code Technique -> PAT-001)
+        identifiant_lisible = CURRENT_USER_ID # Par défaut, on met le code
         
         try:
             from connect_db import load_data
-            infos = load_data("Codes_Patients")
-            if infos:
-                df_infos = pd.DataFrame(infos)
+            # On charge la liste des codes patients
+            infos_patients = load_data("Codes_Patients")
+            
+            if infos_patients:
+                df_infos = pd.DataFrame(infos_patients)
                 
-                # On détermine le nom de la colonne (Identifiant ou Commentaire)
-                col_cible = "Identifiant" if "Identifiant" in df_infos.columns else "Commentaire"
+                # On cherche la correspondance
+                # (On nettoie les espaces pour être sûr que ça matche)
+                code_actuel = str(CURRENT_USER_ID).strip()
                 
-                if "Code" in df_infos.columns:
-                    # Recherche BLINDÉE (on enlève les espaces et on met tout en majuscule pour comparer)
-                    code_actuel = str(CURRENT_USER_ID).strip().upper()
-                    
-                    # On cherche la ligne correspondante
-                    match = df_infos[df_infos["Code"].astype(str).str.strip().str.upper() == code_actuel]
-                    
-                    if not match.empty:
-                        # On a trouvé ! On prend l'identifiant (ex: PAT-001)
-                        nom_dossier = match.iloc[0][col_cible]
-        except Exception as e:
-            pass # Si erreur technique, on affiche juste le code, pas grave
-        
-        # --- 3. REMPLACEMENT DANS LE TABLEAU ---
-        # On force la valeur dans la colonne Patient
-        df_display["Patient"] = nom_dossier
+                # On cherche la ligne où la colonne 'Code' correspond à l'utilisateur actuel
+                match = df_infos[df_infos["Code"].astype(str).str.strip() == code_actuel]
+                
+                if not match.empty:
+                    # Si trouvé, on prend la colonne Identifiant (ou Commentaire selon votre version)
+                    col_id = "Identifiant" if "Identifiant" in df_infos.columns else "Commentaire"
+                    identifiant_lisible = match.iloc[0][col_id]
+        except:
+            pass # Si erreur de connexion, on garde le code par défaut
+            
+        # 3. ON REMPLIT LA COLONNE "PATIENT" AVEC L'IDENTIFIANT TROUVÉ
+        if "Patient" in df_display.columns:
+            df_display["Patient"] = str(identifiant_lisible)
 
-        # --- 4. AFFICHAGE PROPRE ---
+        # 4. AFFICHAGE DU TABLEAU
+        # hide_index=True -> Supprime la colonne de numéros à gauche (0, 1, 2...)
         st.dataframe(
             df_display, 
-            use_container_width=True,
-            hide_index=True # Cache la colonne d'index à gauche
+            use_container_width=True, 
+            hide_index=True
         )
         
         st.divider()
         
-        # Moyennes
+        # 5. GRAPHIQUES & STATISTIQUES (Sur les données brutes)
+        df = st.session_state.data_sommeil # On reprend l'original pour les calculs
+        
         try:
-            eff_clean = pd.to_numeric(df["Efficacité"], errors='coerce')
-            forme_clean = pd.to_numeric(df["Forme"], errors='coerce')
-            if pd.notna(eff_clean.mean()):
-                c1, c2 = st.columns(2)
-                c1.metric("Efficacité Moyenne", f"{eff_clean.mean():.1f} %")
-                c2.metric("Forme Moyenne", f"{forme_clean.mean():.1f} / 5")
+            # Conversion numérique pour les moyennes
+            df["Efficacité"] = pd.to_numeric(df["Efficacité"].astype(str).str.replace('%', ''), errors='coerce')
+            df["Forme"] = pd.to_numeric(df["Forme"], errors='coerce')
+            df["Qualité"] = pd.to_numeric(df["Qualité"], errors='coerce')
+            
+            c1, c2, c3 = st.columns(3)
+            if pd.notna(df["Efficacité"].mean()): 
+                c1.metric("Efficacité Moyenne", f"{df['Efficacité'].mean():.1f} %")
+            if pd.notna(df["Forme"].mean()): 
+                c2.metric("Forme Moyenne", f"{df['Forme'].mean():.1f} / 5")
+            if pd.notna(df["Qualité"].mean()): 
+                c3.metric("Qualité Moyenne", f"{df['Qualité'].mean():.1f} / 10")
         except: pass
 
         st.write("### Évolution")
         import altair as alt
-        chart = alt.Chart(df).mark_line(point=True).encode(
-            x='Date', y='Efficacité', tooltip=['Date', 'Efficacité', 'Forme']
+        
+        # Préparation graphique
+        df_chart = df.copy()
+        df_chart["Date"] = pd.to_datetime(df_chart["Date"], errors='coerce')
+        df_chart = df_chart.dropna(subset=["Date", "Efficacité"])
+        
+        chart = alt.Chart(df_chart).mark_line(point=True).encode(
+            x=alt.X('Date:T', title='Date', axis=alt.Axis(format='%d/%m')),
+            y=alt.Y('Efficacité:Q', title='Efficacité (%)', scale=alt.Scale(domain=[0, 100])),
+            tooltip=['Date', 'Efficacité', 'Forme', 'Qualité']
         ).interactive()
+        
         st.altair_chart(chart, use_container_width=True)
 
-# Suppression
+        # 6. SUPPRESSION
         st.divider()
         with st.expander("🗑️ Supprimer une entrée"):
-            # 1. Tri par date décroissante
-            df_h = st.session_state.data_sommeil.sort_values(by="Date", ascending=False)
+            df_h = df.sort_values(by="Date", ascending=False)
+            # Création d'une liste lisible pour le menu déroulant
+            options_history = {
+                f"📅 {row['Date']} | Efficacité: {row.get('Efficacité', '?')}%": i 
+                for i, row in df_h.iterrows()
+            }
+            choix = st.selectbox("Sélectionnez la nuit à supprimer :", list(options_history.keys()), index=None)
             
-            # 2. CRÉATION DES ÉTIQUETTES DÉTAILLÉES
-            options_history = {}
-            for i, row in df_h.iterrows():
-                # On construit une phrase complète pour identifier la nuit
-                date_lbl = row['Date']
-                coucher = str(row.get('Heure Coucher', '?'))
-                lever = str(row.get('Heure Lever', '?'))
-                eff = row.get('Efficacité', '?')
-                forme = row.get('Forme', '?')
-                
-                # Format : 📅 Date | 🌙 23:00 ➝ ☀️ 07:00 | 🔋 3/5 | 🏆 85%
-                label = f"📅 {date_lbl} | 🌙 {coucher} ➝ ☀️ {lever} | 🔋 Forme: {forme}/5 | 🏆 Eff: {eff}"
-                
-                options_history[label] = i
-            
-            # 3. Menu de sélection avec le label détaillé
-            choix = st.selectbox("Sélectionnez la nuit à supprimer :", list(options_history.keys()), key="del_t2", index=None)
-            
-            # 4. Bouton de confirmation
             if st.button("Confirmer la suppression", key="btn_del"):
                 if choix:
                     idx = options_history[choix]
-                    row = df_h.loc[idx]
+                    row_to_del = df_h.loc[idx]
                     
-                    # Suppression Cloud
                     try:
                         from connect_db import delete_data_flexible
-                        # On utilise CURRENT_USER_ID pour cibler la bonne ligne à supprimer
-                        delete_data_flexible("Sommeil", {"Patient": CURRENT_USER_ID, "Date": str(row['Date'])})
+                        # Suppression dans le Cloud avec l'ID sécurisé
+                        delete_data_flexible("Sommeil", {
+                            "Patient": CURRENT_USER_ID, 
+                            "Date": str(row_to_del['Date'])
+                        })
                     except: pass
-                    # ...
                     
                     # Suppression Locale
                     st.session_state.data_sommeil = st.session_state.data_sommeil.drop(idx).reset_index(drop=True)
@@ -370,7 +377,7 @@ with tab2:
                 else:
                     st.warning("Veuillez sélectionner une ligne.")
     else:
-        st.info("Aucune donnée.")
+        st.info("Aucune donnée de sommeil enregistrée pour ce patient.")
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
