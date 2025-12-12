@@ -206,19 +206,13 @@ with tab2:
     if not st.session_state.data_sorc.empty:
         df_display = st.session_state.data_sorc.copy()
         
-        # 1. Forçage affichage identifiant
+        # Forçage affichage identifiant
         if "Patient" in df_display.columns:
             df_display["Patient"] = str(USER_IDENTIFIER)
             
-        # 2. SÉCURISATION COLONNE HEURE (Le Correctif Anti-Crash)
-        if "Heure" not in df_display.columns:
-            df_display["Heure"] = "" # On crée la colonne vide si elle manque
-
-        # 3. Tri par date et heure (Sécurisé)
+        # Tri par date
         if "Date" in df_display.columns:
-            # On trie par Date, et par Heure seulement si elle existe
-            cols_tri = ["Date", "Heure"]
-            df_display = df_display.sort_values(by=cols_tri, ascending=False)
+            df_display = df_display.sort_values(by=["Date", "Heure"], ascending=False)
 
         # 5. AFFICHAGE TABLEAU (Avec l'ordre imposé)
         st.dataframe(
