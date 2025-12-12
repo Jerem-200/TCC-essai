@@ -241,7 +241,7 @@ else:
             st.info("Aucun patient enregistré pour le moment.")
             
 
-    # -----------------------------------------------------
+# -----------------------------------------------------
     # SCÉNARIO B : TABLEAU DE BORD PATIENT
     # -----------------------------------------------------
     elif st.session_state.user_type == "patient":
@@ -252,7 +252,8 @@ else:
         with c_logout:
             if st.button("Se déconnecter"):
                 st.session_state.authentifie = False
-                st.session_state.patient_id = ""
+                # CORRECTION 1 : On vide user_id (et non patient_id qui n'existe pas)
+                st.session_state.user_id = "" 
                 st.rerun()
 
         st.subheader("Tableau de bord personnel")
@@ -284,7 +285,6 @@ else:
         with c5:
             st.error("### 💡 Résolution de problème")
             st.write("Trouver des solutions")
-            # Attention au nom exact du fichier (singulier ou pluriel ?)
             st.page_link("pages/06_Resolution_Probleme.py", label="Lancer", icon="➡️")
         with c6:
             st.error("### 🧗 Exposition")
@@ -302,12 +302,10 @@ else:
         with c8:
             st.warning("### 📝 Agenda des activités")
             st.write("Plaisir & Maîtrise")
-            # J'ai mis 05 ici car c'est ce que vous aviez dans la grille
             st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="➡️")
         with c9:
             st.warning("### 🍷 Agenda de consommation") 
             st.write("Envies & Substances")
-            # J'ai mis 13 ici, vérifiez si c'est 11 ou 13 dans votre dossier
             st.page_link("pages/13_Agenda_Consos.py", label="Ouvrir", icon="➡️") 
 
         st.divider()
@@ -329,11 +327,11 @@ else:
 
         # --- SIDEBAR (MENU LATÉRAL) ---
         with st.sidebar:
-            st.write(f"👤 ID: **{st.session_state.patient_id}**")
+            # CORRECTION 2 : On utilise la bonne variable user_id
+            st.write(f"👤 ID: **{st.session_state.user_id}**")
             st.divider()
             st.title("Navigation")
             st.page_link("streamlit_app.py", label="🏠 Accueil")
-            # Vérifiez que ces liens correspondent bien à vos fichiers existants
             st.page_link("pages/01_Colonnes_Beck.py", label="🧩 Tableau de Beck")
             st.page_link("pages/02_Echelles_BDI.py", label="📊 BDI")
             st.page_link("pages/05_Registre_Activites.py", label="📝 Agenda des activités")
