@@ -4,14 +4,30 @@ from datetime import datetime
 
 st.set_page_config(page_title="Échelles BDI", page_icon="📊")
 
-# --- VIGILE DE SÉCURITÉ SIMPLIFIÉ ---
+# ==============================================================================
+# 0. SÉCURITÉ & NETTOYAGE (OBLIGATOIRE SUR CHAQUE PAGE)
+# ==============================================================================
+
+# 1. Vérification de l'authentification
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.warning("🔒 Accès restreint. Veuillez entrer votre Code Patient sur l'accueil.")
-    st.page_link("streamlit_app.py", label="Retourner à l'accueil pour se connecter", icon="🏠")
-    st.stop() # Arrête le chargement du reste de la page
+    st.page_link("streamlit_app.py", label="Retourner à l'accueil", icon="🏠")
+    st.stop()
 
-# Récupération du code patient pour les sauvegardes
-patient_id = st.session_state.patient_id
+# 2. Récupération sécurisée de l'ID
+CURRENT_USER_ID = st.session_state.get("user_id", "")
+if not CURRENT_USER_ID:
+    CURRENT_USER_ID = st.session_state.get("patient_id", "")
+
+if not CURRENT_USER_ID:
+    st.error("Erreur d'identité. Veuillez vous reconnecter.")
+    st.stop()
+
+# 3. VERROUILLAGE DES DONNÉES (Système Anti-Fuite)
+if "bdi_owner" not in st.session_state or st.session_state.bdi_owner != CURRENT_USER_ID:
+    if "data_echelles" in st.session_state:
+        del st.session_state.data_echelles
+    st.session_state.bdi_owner = CURRENT_USER_ID
 
 st.title("📊 Échelle BDI-II (Dépression)")
 st.write("Ce questionnaire comporte 21 groupes d'énoncés. Choisissez l'énoncé qui décrit le mieux comment vous vous êtes senti(e) au cours des deux dernières semaines.")
