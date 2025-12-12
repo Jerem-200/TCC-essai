@@ -253,7 +253,7 @@ else:
             if st.button("Se déconnecter"):
                 st.session_state.authentifie = False
                 # CORRECTION 1 : On vide user_id (et non patient_id qui n'existe pas)
-                st.session_state.user_id = "" 
+                st.session_state.patient_id = "" 
                 st.rerun()
 
         st.subheader("Tableau de bord personnel")
@@ -328,7 +328,7 @@ else:
         # --- SIDEBAR (MENU LATÉRAL) ---
         with st.sidebar:
             # CORRECTION 2 : On utilise la bonne variable user_id
-            st.write(f"👤 ID: **{st.session_state.user_id}**")
+            st.write(f"👤 ID: **{st.session_state.patient_id}**")
             st.divider()
             st.title("Navigation")
             st.page_link("streamlit_app.py", label="🏠 Accueil")
