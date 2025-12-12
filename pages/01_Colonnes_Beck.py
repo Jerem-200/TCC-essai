@@ -4,14 +4,29 @@ from datetime import datetime
 
 st.set_page_config(page_title="Colonnes de Beck", page_icon="🧩")
 
-# --- VIGILE DE SÉCURITÉ SIMPLIFIÉ ---
+# ==============================================================================
+# 0. SÉCURITÉ & NETTOYAGE (ANTI-FUITE DE DONNÉES)
+# ==============================================================================
+
+# 1. Vérification de l'authentification
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.warning("🔒 Accès restreint. Veuillez entrer votre Code Patient sur l'accueil.")
-    st.page_link("streamlit_app.py", label="Retourner à l'accueil pour se connecter", icon="🏠")
-    st.stop() # Arrête le chargement du reste de la page
+    st.page_link("streamlit_app.py", label="Retourner à l'accueil", icon="🏠")
+    st.stop()
 
-# Récupération du code patient pour les sauvegardes
-patient_id = st.session_state.patient_id
+# 2. Récupération sécurisée de l'ID (Corrige l'erreur AttributeError)
+CURRENT_USER_ID = st.session_state.get("patient_id", "")
+
+if not CURRENT_USER_ID:
+    st.error("Erreur d'identité. Veuillez vous reconnecter.")
+    st.stop()
+
+# 3. VERROUILLAGE DES DONNÉES (Système Anti-Fuite)
+# Si on change d'utilisateur, on vide le cache spécifique à cette page
+if "beck_owner" not in st.session_state or st.session_state.beck_owner != CURRENT_USER_ID:
+    if "data_beck" in st.session_state:
+        del st.session_state.data_beck
+    st.session_state.beck_owner = CURRENT_USER_ID
 
 st.title("🧩 Colonnes de Beck")
 st.caption("Identifiez et restructurez vos pensées automatiques.")
@@ -51,6 +66,15 @@ if "data_beck" not in st.session_state:
             for c in numeric_cols:
                 if c in df_init.columns:
                     df_init[c] = pd.to_numeric(df_init[c], errors='coerce').fillna(0).astype(int)
+
+            # =================================================================
+            # 🛑 AJOUTEZ CE FILTRE ICI
+            # =================================================================
+            if "Patient" in df_init.columns:
+                # On ne garde que les lignes du patient connecté
+                df_init = df_init[df_init["Patient"].astype(str) == str(CURRENT_USER_ID)]
+            else:
+                df_init = pd.DataFrame(columns=COLS_BECK)
 
     except Exception as e:
         # En cas d'erreur (pas de connexion, etc.), on reste sur un tableau vide
