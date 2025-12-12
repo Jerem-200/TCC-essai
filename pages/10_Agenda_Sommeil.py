@@ -212,10 +212,10 @@ with tab1:
 
             # SAUVEGARDE
             new_row = {
+                "Patient": CURRENT_USER_ID,  # <--- IL MANQUAIT CETTE LIGNE !
                 "Date": str(date_nuit),
-                "Sieste": sieste_final,
-                "Sport": sport_final, "Cafeine": cafe_final, 
-                "Alcool": alcool_final, "Medic_Sommeil": med_final,
+                "Sieste": sieste_final, "Sport": sport_final, 
+                "Cafeine": cafe_final, "Alcool": alcool_final, "Medic_Sommeil": med_final,
                 "Heure Coucher": str(h_coucher)[:5], "Heure Lever": str(h_lever)[:5],
                 "Latence": latence, "Eveil": eveil_nocturne,
                 "TTE": format_minutes_en_h_m(tte_minutes),
