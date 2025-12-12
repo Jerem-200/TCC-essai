@@ -4,14 +4,24 @@ import altair as alt
 
 st.set_page_config(page_title="Historique", page_icon="📜", layout="wide")
 
-# --- VIGILE DE SÉCURITÉ SIMPLIFIÉ ---
+# ==============================================================================
+# 0. SÉCURITÉ (ACCÈS RESTREINT)
+# ==============================================================================
+
+# 1. Vérification de l'authentification
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.warning("🔒 Accès restreint. Veuillez entrer votre Code Patient sur l'accueil.")
-    st.page_link("streamlit_app.py", label="Retourner à l'accueil pour se connecter", icon="🏠")
-    st.stop() # Arrête le chargement du reste de la page
+    st.page_link("streamlit_app.py", label="Retourner à l'accueil", icon="🏠")
+    st.stop()
 
-# Récupération du code patient pour les sauvegardes
-patient_id = st.session_state.patient_id
+# 2. Récupération sécurisée de l'ID (Juste pour l'affichage éventuel)
+CURRENT_USER_ID = st.session_state.get("user_id", "")
+if not CURRENT_USER_ID:
+    CURRENT_USER_ID = st.session_state.get("patient_id", "")
+
+if not CURRENT_USER_ID:
+    st.error("Erreur d'identité. Veuillez vous reconnecter.")
+    st.stop()
 
 st.title("📜 Historique de vos progrès")
 
