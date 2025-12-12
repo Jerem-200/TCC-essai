@@ -226,7 +226,7 @@ with tab2:
             "Patient", "Date", "Heure", "Situation", 
             "Pensées", "Émotions", "Intensité Emo", 
             "Douleur Active", "Descr Douleur", "Intensité Douleur",
-            "Réponse", "Csq Court Terme", "Csq Long Terme", 
+            "Réponse", "Csq Court Terme", "Csq Long Terme" 
             
         ]
         
