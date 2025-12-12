@@ -124,8 +124,9 @@ with tab1:
             st.info("🩸 **Focus Douleur**")
             c_p1, c_p2 = st.columns([3, 1])
             with c_p1: desc_douleur = st.text_area("Description de la douleur / sensation physique :")
-            with c_p2: int_douleur = st.slider("Intensité Douleur (0-10)", 0, 10, 5)
-            st.write("") # Espace
+            with c_p2: 
+                st.write("")
+                int_douleur = st.slider("Intensité Douleur (0-10)", 0, 10, 5)
         
         # B. Pensées & Emotions
         pensees = st.text_area("💭 Pensées : Qu'est-ce qui vous a traversé l'esprit ?", height=80)
