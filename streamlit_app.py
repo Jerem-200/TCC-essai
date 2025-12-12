@@ -194,9 +194,11 @@ else:
         st.info(f"Création du dossier : **{prochain_id}**")
         
         with st.form("create_patient"):
-            c1 = st.columns(1)
+            c1, c2 = st.columns(2)
             with c1:
                 id_dossier = st.text_input("Identifiant (Auto)", value=prochain_id, disabled=True)
+            with c2:
+                note_perso = st.text_input("Note (Optionnelle, non sauvegardée)", placeholder="ex: Mme Dupont")
             
             submitted = st.form_submit_button("Générer l'accès")
             
