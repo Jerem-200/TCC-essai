@@ -367,4 +367,4 @@ else:
             st.page_link("pages/11_Balance_Decisionnelle.py", label="⚖️ Balance")
             st.page_link("pages/13_Agenda_Consos.py", label="🍷 Consommation")
             st.page_link("pages/03_Ressources.py", label="📚 Ressources")
-            st.page_link("pages/12_Analyse_SORC.py", label="📚 Ressources")
+            st.page_link("pages/12_Analyse_SORC.py", label="🔍 SORC")
