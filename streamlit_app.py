@@ -163,19 +163,151 @@ if not st.session_state.authentifie:
 # =========================================================
 else:
 # -----------------------------------------------------
-    # SCÉNARIO A : TABLEAU DE BORD THÉRAPEUTE
+    # SCÉNARIO A : TABLEAU DE BORD THÉRAPEUTE (COCKPIT)
     # -----------------------------------------------------
     if st.session_state.user_type == "therapeute":
         st.title("🩺 Espace Thérapeute")
+        
+        # --- EN-TÊTE : INFO PRO & DÉCONNEXION ---
         c_user, c_deco = st.columns([3, 1])
         with c_user:
-            st.write(f"Connecté : **{st.session_state.user_id}**")
+            st.write(f"Praticien connecté : **{st.session_state.user_id}**")
         with c_deco:
             if st.button("Se déconnecter", key="logout_th"):
                 st.session_state.authentifie = False
                 st.rerun()
-            
         st.divider()
+
+        # =========================================================
+        # 1. GESTION DES PATIENTS (CRÉATION & LISTE)
+        # =========================================================
+        
+        with st.expander("➕ Créer un nouveau patient (Générer Code)", expanded=False):
+             # Calcul automatique du prochain ID
+            df_pats = recuperer_mes_patients(st.session_state.user_id)
+            prochain_id = "PAT-001"
+            if not df_pats.empty:
+                # On essaie de trouver le dernier PAT-XXX
+                try:
+                    ids = df_pats["Identifiant"].tolist()
+                    nums = [int(x.split('-')[1]) for x in ids if x.startswith("PAT-")]
+                    if nums: prochain_id = f"PAT-{max(nums)+1:03d}"
+                except: pass
+
+            c_gen1, c_gen2 = st.columns([1, 2])
+            with c_gen1:
+                id_dossier = st.text_input("Identifiant Dossier", value=prochain_id)
+            with c_gen2:
+                st.write(" ") # Espace
+                if st.button("Générer l'accès"):
+                    access_code = generer_code_securise(prefix="TCC")
+                    try:
+                        from connect_db import save_data
+                        save_data("Codes_Patients", [
+                            access_code, 
+                            st.session_state.user_id, 
+                            id_dossier, 
+                            str(datetime.now().date())
+                        ])
+                        st.success(f"✅ Patient créé : {id_dossier}")
+                        st.info(f"🔑 CODE D'ACCÈS À DONNER AU PATIENT : **{access_code}**")
+                    except Exception as e:
+                        st.error(f"Erreur : {e}")
+
+        # =========================================================
+        # 2. SÉLECTION DU PATIENT À ANALYSER
+        # =========================================================
+        st.subheader("📂 Suivi Clinique")
+        
+        df_mes_patients = recuperer_mes_patients(st.session_state.user_id)
+        
+        if df_mes_patients.empty:
+            st.warning("Vous n'avez pas encore de patients enregistrés.")
+        else:
+            # Liste déroulante pour choisir le patient
+            liste_patients = df_mes_patients["Identifiant"].unique().tolist()
+            patient_selectionne = st.selectbox("Sélectionnez le dossier à consulter :", liste_patients)
+
+            if patient_selectionne:
+                st.markdown(f"### 👤 Dossier : {patient_selectionne}")
+                
+                # --- CHARGEMENT DES DONNÉES DU PATIENT SÉLECTIONNÉ ---
+                # On utilise des onglets pour organiser la vue
+                t1, t2, t3, t4, t5 = st.tabs(["🧩 Beck", "🌙 Sommeil", "📝 Activités", "🍷 Conso", "🛑 Compulsions"])
+                
+                # --- ONGLET BECK ---
+                with t1:
+                    try:
+                        from connect_db import load_data
+                        data_beck = load_data("Beck")
+                        if data_beck:
+                            df_b = pd.DataFrame(data_beck)
+                            # FILTRE SUR LE PATIENT SÉLECTIONNÉ
+                            df_b = df_b[df_b["Patient"] == patient_selectionne]
+                            
+                            if not df_b.empty:
+                                st.dataframe(df_b[["Date", "Situation", "Émotion", "Pensée Auto", "Pensée Rationnelle"]], use_container_width=True, hide_index=True)
+                            else:
+                                st.info("Aucune colonne de Beck remplie.")
+                    except: st.error("Erreur chargement Beck")
+
+                # --- ONGLET SOMMEIL ---
+                with t2:
+                    try:
+                        data_sommeil = load_data("Sommeil")
+                        if data_sommeil:
+                            df_s = pd.DataFrame(data_sommeil)
+                            # FILTRE
+                            df_s = df_s[df_s["Patient"] == patient_selectionne]
+                            
+                            if not df_s.empty:
+                                # Petit KPI rapide
+                                eff_moy = pd.to_numeric(df_s["Efficacité"].astype(str).str.replace('%',''), errors='coerce').mean()
+                                st.metric("Efficacité Moyenne", f"{eff_moy:.1f} %")
+                                st.dataframe(df_s, use_container_width=True, hide_index=True)
+                            else:
+                                st.info("Pas de données de sommeil.")
+                    except: st.error("Erreur chargement Sommeil")
+
+                # --- ONGLET ACTIVITÉS ---
+                with t3:
+                    try:
+                        data_act = load_data("Activites")
+                        if data_act:
+                            df_a = pd.DataFrame(data_act)
+                            # FILTRE
+                            df_a = df_a[df_a["Patient"] == patient_selectionne]
+                            if not df_a.empty:
+                                st.dataframe(df_a, use_container_width=True, hide_index=True)
+                            else:
+                                st.info("Pas d'activités enregistrées.")
+                    except: st.error("Erreur chargement Activités")
+
+                # --- ONGLET CONSO/ADDICTIONS ---
+                with t4:
+                    try:
+                        data_add = load_data("Addictions")
+                        if data_add:
+                            df_add = pd.DataFrame(data_add)
+                            df_add = df_add[df_add["Patient"] == patient_selectionne]
+                            if not df_add.empty:
+                                st.dataframe(df_add, use_container_width=True, hide_index=True)
+                            else:
+                                st.info("Pas de consommations/envies.")
+                    except: st.error("Erreur chargement Addictions")
+
+                # --- ONGLET COMPULSIONS ---
+                with t5:
+                    try:
+                        data_comp = load_data("Compulsions")
+                        if data_comp:
+                            df_c = pd.DataFrame(data_comp)
+                            df_c = df_c[df_c["Patient"] == patient_selectionne]
+                            if not df_c.empty:
+                                st.dataframe(df_c, use_container_width=True, hide_index=True)
+                            else:
+                                st.info("Pas de compulsions.")
+                    except: st.error("Erreur chargement Compulsions")
 
         # =========================================================
         # ZONE DE NOTIFICATION (CODE PATIENT)
