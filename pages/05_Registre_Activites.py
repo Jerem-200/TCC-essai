@@ -415,6 +415,41 @@ with tab2:
             else:
                 st.info("Historique vide.")
 
+# 6. SUPPRESSION HUMEUR DEPUIS L'HISTORIQUE
+        with st.expander("🗑️ Supprimer un relevé d'humeur"):
+            df_hum_del = st.session_state.data_humeur_jour.sort_values(by="Date", ascending=False)
+            
+            if not df_hum_del.empty:
+                # Création des labels
+                opts_hum = {}
+                for i, row in df_hum_del.iterrows():
+                    lbl = f"📅 {row['Date']} | Note : {row['Humeur Globale (0-10)']}/10"
+                    opts_hum[lbl] = i
+                
+                # Menu de sélection
+                choix_hum = st.selectbox("Sélectionnez l'humeur à supprimer :", list(opts_hum.keys()), index=None, key="sel_del_hum_tab2")
+                
+                # Bouton
+                if st.button("Confirmer la suppression", key="btn_del_hum_tab2") and choix_hum:
+                    idx = opts_hum[choix_hum]
+                    row_to_del = df_hum_del.loc[idx]
+                    
+                    # 1. Suppression Cloud
+                    try:
+                        from connect_db import delete_data_flexible
+                        delete_data_flexible("Humeur", {
+                            "Patient": CURRENT_USER_ID, 
+                            "Date": str(row_to_del['Date'])
+                        })
+                    except: pass
+                    
+                    # 2. Suppression Locale
+                    st.session_state.data_humeur_jour = st.session_state.data_humeur_jour.drop(idx).reset_index(drop=True)
+                    st.success("Humeur supprimée !")
+                    st.rerun()
+            else:
+                st.info("Aucun historique d'humeur.")
+
     else:
         st.info("Aucune activité enregistrée.")
 
