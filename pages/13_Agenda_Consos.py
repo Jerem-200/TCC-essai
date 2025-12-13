@@ -363,7 +363,7 @@ with tab1:
             st.info(f"Aucune donnée récente pour {substance_active}.")
 
 # ==============================================================================
-# ONGLET 2 : BILAN (TABLEAU ÉDITABLE + GRAPHIQUE ÉVOLUTION)
+# ONGLET 2 : BILAN (TABLEAU ÉDITABLE + GRAPHIQUES PRO)
 # ==============================================================================
 with tab2:
     st.header(f"Historique : {substance_active}")
@@ -383,7 +383,7 @@ with tab2:
         st.info("💡 Vous pouvez modifier les valeurs directement dans le tableau.")
         
         # --- A. TRADUCTION DU NOM (Code -> PAT-XXX) ---
-        nom_dossier = CURRENT_USER_ID # Par défaut
+        nom_dossier = CURRENT_USER_ID 
         try:
             from connect_db import load_data
             infos = load_data("Codes_Patients")
@@ -394,7 +394,7 @@ with tab2:
                 if not match.empty: nom_dossier = match.iloc[0][col_id]
         except: pass
         
-        # On injecte le nom lisible (PAT-001) pour l'affichage
+        # On injecte le nom lisible
         df_editor_view = df_filtre.copy()
         if "Patient" in df_editor_view.columns:
             df_editor_view["Patient"] = nom_dossier
@@ -402,11 +402,8 @@ with tab2:
         # --- B. TABLEAU ÉDITABLE ---
         edited_df = st.data_editor(
             df_editor_view, 
-            # On affiche la colonne Patient en premier
             column_order=["Patient", "Date", "Heure", "Substance", "Type", "Intensité", "Quantité", "Unité", "Pensées"], 
-            # On interdit de modifier le Patient et la Substance
             disabled=["Patient", "Substance"],
-            # J'ai retiré le renommage ici, la colonne s'appellera donc "Patient" par défaut
             use_container_width=True, 
             num_rows="dynamic",
             key=f"editor_{substance_active}"
@@ -414,24 +411,20 @@ with tab2:
         
         # --- C. GESTION DES MODIFICATIONS ---
         if not edited_df.equals(df_editor_view):
-            # Si modification détectée
-            
-            # 1. On remet le code technique (TCC-XYZ) pour la sauvegarde
             edited_df["Patient"] = CURRENT_USER_ID
             edited_df["Substance"] = substance_active 
-            
-            # 2. On fusionne et on recharge
             df_others = df_global[df_global["Substance"] != substance_active]
             st.session_state.data_addictions = pd.concat([df_others, edited_df], ignore_index=True)
             st.rerun()
 
         st.divider()
-        st.write(f"### Évolution : {substance_active}")
 
-        # --- A. PRÉPARATION DES DONNÉES ---
+        # --- D. GRAPHIQUES AVANCÉS ---
+        
+        # Préparation Données Chart
         df_chart = edited_df.copy()
         
-        # Création colonne Date complète (indispensable pour le filtrage)
+        # Création Date Complète
         try:
             df_chart['Full_Date'] = pd.to_datetime(
                 df_chart['Date'].astype(str) + ' ' + df_chart['Heure'].astype(str), 
@@ -440,108 +433,105 @@ with tab2:
         except:
             df_chart['Full_Date'] = pd.to_datetime(df_chart['Date'], errors='coerce')
         
-        # On s'assure qu'il n'y a pas de NaT (Not a Time)
         df_chart = df_chart.dropna(subset=['Full_Date'])
 
-        # --- B. FILTRE TEMPOREL (NOUVEAU) ---
+        # --- FILTRE TEMPOREL ---
         st.markdown("##### 📅 Période d'analyse")
         col_vue, col_date = st.columns([1, 2])
         
         with col_vue:
-            vue_temporelle = st.selectbox(
-                "Vue :", 
-                ["Tout l'historique", "Journée", "Semaine", "Mois"],
-                label_visibility="collapsed"
-            )
+            vue_temporelle = st.selectbox("Vue :", ["Tout l'historique", "Journée", "Semaine", "Mois"], label_visibility="collapsed")
 
         with col_date:
             date_ref = st.date_input("Choisir la date :", datetime.now(), label_visibility="collapsed")
 
+        # Variables dynamiques pour le titre et l'axe
+        titre_graphique = "Historique complet"
+        format_axe_x = '%d/%m'
+        titre_axe_x = "Date"
+
         # Application du filtre
         if vue_temporelle == "Journée":
-            # On garde uniquement les entrées de la date choisie
             df_chart = df_chart[df_chart['Full_Date'].dt.date == date_ref]
-            msg_filtre = f"Zoom sur la journée du {date_ref.strftime('%d/%m/%Y')}"
+            titre_graphique = f"Évolution du {date_ref.strftime('%d/%m/%Y')}"
+            format_axe_x = '%H:%M'
+            titre_axe_x = "Heure"
 
         elif vue_temporelle == "Semaine":
-            # On calcule le début (Lundi) et la fin (Dimanche) de la semaine de la date choisie
             start_week = date_ref - timedelta(days=date_ref.weekday())
             end_week = start_week + timedelta(days=6)
-            
-            df_chart = df_chart[
-                (df_chart['Full_Date'].dt.date >= start_week) & 
-                (df_chart['Full_Date'].dt.date <= end_week)
-            ]
-            msg_filtre = f"Semaine du {start_week.strftime('%d/%m')} au {end_week.strftime('%d/%m')}"
+            df_chart = df_chart[(df_chart['Full_Date'].dt.date >= start_week) & (df_chart['Full_Date'].dt.date <= end_week)]
+            titre_graphique = f"Évolution du {start_week.strftime('%d/%m/%y')} au {end_week.strftime('%d/%m/%y')}"
 
         elif vue_temporelle == "Mois":
-            # On filtre sur le mois et l'année de la date choisie
-            df_chart = df_chart[
-                (df_chart['Full_Date'].dt.month == date_ref.month) & 
-                (df_chart['Full_Date'].dt.year == date_ref.year)
-            ]
-            msg_filtre = f"Mois de {date_ref.strftime('%B %Y')}"
+            df_chart = df_chart[(df_chart['Full_Date'].dt.month == date_ref.month) & (df_chart['Full_Date'].dt.year == date_ref.year)]
+            titre_graphique = f"Évolution - Mois de {date_ref.strftime('%m/%Y')}"
             
         else:
-            msg_filtre = "Historique complet"
+            titre_graphique = "Évolution - Historique complet"
 
-        # Petit texte discret pour confirmer la vue
-        st.caption(f"🔎 {msg_filtre} ({len(df_chart)} entrées trouvées)")
-
-        # --- C. SÉPARATION ENVIES / CONSO ---
-        # Maintenant que df_chart est filtré, on sépare les types
+        # --- SÉPARATION & AGRÉGATION ---
+        # 1. ENVIES
         df_envie = df_chart[df_chart["Type"].str.contains("ENVIE", na=False)]
-        df_conso = df_chart[df_chart["Type"].str.contains("CONSOMMÉ", na=False)]
-
-        # --- GRAPHIQUE 1 : LES ENVIES ---
+        
         if not df_envie.empty:
-            st.subheader("⚡ Intensité des Envies")
+            st.subheader(f"⚡ {titre_graphique} (Envies)")
             
-            # Paramètres dynamiques du graphique selon la vue
-            # Si c'est une journée, on formate l'axe X en Heures:Minutes, sinon Date complète
-            format_x = '%H:%M' if vue_temporelle == "Journée" else '%d/%m %H:%M'
-            
-            chart_envie = alt.Chart(df_envie).mark_line(
+            # Agrégation par jour si vue large (pour éviter les points multiples)
+            if vue_temporelle != "Journée":
+                df_envie_plot = df_envie.groupby("Date").agg({"Intensité": "mean", "Full_Date": "first"}).reset_index()
+                tooltip_envie = ['Date', alt.Tooltip('Intensité', title="Moyenne Intensité", format=".1f")]
+            else:
+                df_envie_plot = df_envie
+                tooltip_envie = ['Date', 'Heure', 'Intensité', 'Pensées']
+
+            chart_envie = alt.Chart(df_envie_plot).mark_line(
                 point=alt.OverlayMarkDef(size=100, filled=True, color="#9B59B6")
             ).encode(
-                x=alt.X('Full_Date:T', title='Temps', axis=alt.Axis(format=format_x)),
+                x=alt.X('Full_Date:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x)),
                 y=alt.Y('Intensité:Q', title='Intensité (0-10)', scale=alt.Scale(domain=[0, 10])),
                 color=alt.value("#9B59B6"),
-                tooltip=['Date', 'Heure', 'Intensité', 'Pensées']
+                tooltip=tooltip_envie
             ).interactive()
             st.altair_chart(chart_envie, use_container_width=True)
-        elif vue_temporelle != "Tout l'historique" and "ENVIE" in str(st.session_state.data_addictions['Type'].values):
-            st.info(f"Aucune envie enregistrée sur cette période ({msg_filtre}).")
+        elif vue_temporelle != "Tout l'historique":
+            st.info("Aucune envie sur cette période.")
+
+        # 2. CONSOMMATIONS
+        df_conso = df_chart[df_chart["Type"].str.contains("CONSOMMÉ", na=False)]
         
-        # --- GRAPHIQUE 2 : LES CONSOMMATIONS ---
         if not df_conso.empty:
-            st.subheader("🍷 Quantités Consommées")
+            st.subheader(f"🍷 {titre_graphique} (Consommations)")
             
-            # Menu déroulant Unité
+            # Choix Unité
             unites_dispo = df_conso['Unité'].dropna().unique().tolist()
             if not unites_dispo: unites_dispo = ["Inconnu"]
-            
             choix_unite = st.radio("Unité :", options=["Tout voir"] + unites_dispo, horizontal=True)
 
             if choix_unite != "Tout voir":
-                data_plot = df_conso[df_conso['Unité'] == choix_unite]
+                data_plot_raw = df_conso[df_conso['Unité'] == choix_unite]
                 title_y = f"Quantité ({choix_unite})"
             else:
-                data_plot = df_conso
+                data_plot_raw = df_conso
                 title_y = "Quantité (Toutes unités)"
-                
-            format_x = '%H:%M' if vue_temporelle == "Journée" else '%d/%m %H:%M'
 
-            if not data_plot.empty:
+            if not data_plot_raw.empty:
+                # Agrégation par jour si vue large (Somme des quantités)
+                if vue_temporelle != "Journée":
+                    data_plot = data_plot_raw.groupby("Date").agg({"Quantité": "sum", "Full_Date": "first", "Unité": "first"}).reset_index()
+                    tooltip_conso = ['Date', alt.Tooltip('Quantité', title="Total Quantité"), 'Unité']
+                else:
+                    data_plot = data_plot_raw
+                    tooltip_conso = ['Date', 'Heure', 'Quantité', 'Unité', 'Pensées']
+
                 chart_conso = alt.Chart(data_plot).mark_bar(color="#E74C3C").encode(
-                    x=alt.X('Full_Date:T', title='Temps', axis=alt.Axis(format=format_x)),
+                    x=alt.X('Full_Date:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x)),
                     y=alt.Y('Quantité:Q', title=title_y),
-                    tooltip=['Date', 'Heure', 'Quantité', 'Unité', 'Pensées']
+                    tooltip=tooltip_conso
                 ).interactive()
                 st.altair_chart(chart_conso, use_container_width=True)
             else:
                 st.warning(f"Pas de consommation en '{choix_unite}' sur cette période.")
-
 
         # --- ZONE DE SUPPRESSION ---
         st.divider()
@@ -549,21 +539,16 @@ with tab2:
             df_history = st.session_state.data_addictions.sort_values(by=["Date", "Heure"], ascending=False)
             
             if not df_history.empty:
-                # Création des labels riches
                 options_history = {}
                 for idx, row in df_history.iterrows():
                     is_envie = "ENVIE" in str(row['Type'])
                     icone = "⚡" if is_envie else "🍷"
                     type_lbl = "Envie" if is_envie else "Conso"
-                    
                     raw_pensees = str(row.get('Pensées', ''))
                     pensees_txt = (raw_pensees[:30] + '...') if len(raw_pensees) > 30 else raw_pensees
                     
                     label = f"📅 {row['Date']} à {row['Heure']} | {icone} {type_lbl} | 📊 {row['Intensité']} | 📝 {pensees_txt}"
-                    
-                    if label in options_history:
-                        label = f"{label} (ID: {idx})"
-                        
+                    if label in options_history: label = f"{label} (ID: {idx})"
                     options_history[label] = idx
                 
                 choice_history = st.selectbox("Sélectionnez l'entrée à supprimer :", list(options_history.keys()), key="del_tab2", index=None)
@@ -576,20 +561,18 @@ with tab2:
                         from connect_db import delete_data_flexible
                         pid = CURRENT_USER_ID
                         delete_data_flexible("Addictions", {
-                            "Patient": pid,
+                            "Patient": pid, 
                             "Date": str(row_to_delete['Date']),
                             "Heure": str(row_to_delete['Heure']),
                             "Substance": str(row_to_delete['Substance'])
                         })
-                    except Exception as e:
-                        pass # Erreur silencieuse ou st.warning
+                    except Exception as e: pass
 
                     st.session_state.data_addictions = st.session_state.data_addictions.drop(idx_to_drop).reset_index(drop=True)
                     st.success("Entrée supprimée !")
                     st.rerun()
             else:
                 st.info("Historique vide.")
-
     else:
         st.info(f"Aucune donnée enregistrée pour '{substance_active}'.")
 
