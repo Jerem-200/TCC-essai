@@ -105,12 +105,34 @@ if not st.session_state.authentifie:
             
             if btn_pat:
                 clean_code = code_input.strip().upper()
+                
                 # Vérification
                 if verifier_code_patient(clean_code):
                     st.session_state.authentifie = True
                     st.session_state.user_type = "patient"
-                    st.session_state.user_id = clean_code
-                    st.success("Connexion réussie !")
+                    
+                    # --- CORRECTION : ON RÉCUPÈRE LE VRAI ID (PAT-01) ---
+                    # Par défaut, on garde le code, mais on va essayer de trouver mieux
+                    final_id = clean_code 
+                    
+                    try:
+                        from connect_db import load_data
+                        data_patients = load_data("Codes_Patients")
+                        if data_patients:
+                            df_p = pd.DataFrame(data_patients)
+                            # On cherche la ligne qui contient ce Code
+                            match = df_p[df_p["Code"].astype(str).str.upper() == clean_code]
+                            if not match.empty:
+                                # On capture la colonne Identifiant (ex: PAT-01)
+                                final_id = match.iloc[0]["Identifiant"]
+                    except Exception as e:
+                        print(f"Erreur récupération ID: {e}")
+
+                    # C'est ici que la magie opère : on stocke PAT-01 au lieu du code secret
+                    st.session_state.user_id = final_id 
+                    # --------------------------------------------------------
+
+                    st.success(f"Connexion réussie ! Bienvenue {final_id}")
                     time.sleep(0.5)
                     st.rerun()
                 else:
