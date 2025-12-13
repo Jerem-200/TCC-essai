@@ -10,13 +10,12 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.page_link("streamlit_app.py", label="Retourner à l'accueil pour se connecter", icon="🏠")
     st.stop() # Arrête le chargement du reste de la page
 
-# 1. Récupération sécurisée de l'ID (Compatible nouveau système)
+# 1. Récupération simple de l'ID
+# Grâce à votre modification dans l'accueil, ceci contient DÉJÀ "PAT-001"
 CURRENT_USER_ID = st.session_state.get("user_id", "")
-if not CURRENT_USER_ID:
-    CURRENT_USER_ID = st.session_state.get("patient_id", "")
 
 if not CURRENT_USER_ID:
-    st.error("Erreur d'identité. Veuillez vous reconnecter.")
+    st.error("Session expirée. Veuillez vous reconnecter.")
     st.stop()
 
 # 2. Verrouillage des données (Système Anti-Fuite)

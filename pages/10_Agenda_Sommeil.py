@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, time, timedelta
+import altair as alt # Import déplacé ici pour être propre
 
 st.set_page_config(page_title="Agenda du Sommeil", page_icon="🌙")
 
@@ -13,31 +14,12 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.page_link("streamlit_app.py", label="Retourner à l'accueil", icon="🏠")
     st.stop()
 
-# 1. Récupération sécurisée de l'ID
+# 1. Récupération simple de l'ID (Standardisé)
+# Grâce à votre modification dans l'accueil, ceci contient DÉJÀ "PAT-001"
 CURRENT_USER_ID = st.session_state.get("user_id", "")
-if not CURRENT_USER_ID:
-    CURRENT_USER_ID = st.session_state.get("patient_id", "")
-    # --- RÉCUPÉRATION DE L'IDENTIFIANT LISIBLE (PAT-001) ---
-# On en a besoin pour sauvegarder proprement dans le Sheet
-USER_IDENTIFIER = CURRENT_USER_ID # Par défaut, on garde le code
-try:
-    from connect_db import load_data
-    infos = load_data("Codes_Patients")
-    if infos:
-        df_infos = pd.DataFrame(infos)
-        # Recherche insensible à la casse
-        code_clean = str(CURRENT_USER_ID).strip().upper()
-        match = df_infos[df_infos["Code"].astype(str).str.strip().str.upper() == code_clean]
-        
-        if not match.empty:
-            col_id = "Identifiant" if "Identifiant" in df_infos.columns else "Commentaire"
-            USER_IDENTIFIER = str(match.iloc[0][col_id]).strip()
-except:
-    pass
-# -------------------------------------------------------
 
 if not CURRENT_USER_ID:
-    st.error("Erreur d'identité. Veuillez vous reconnecter.")
+    st.error("Session expirée. Veuillez vous reconnecter.")
     st.stop()
 
 # 2. Système Anti-Fuite
@@ -49,7 +31,7 @@ st.title("🌙 Agenda du Sommeil")
 st.info("Remplissez ce formulaire chaque matin pour analyser la qualité de votre sommeil.")
 
 # ==============================================================================
-# 1. INITIALISATION ET CHARGEMENT CLOUD (CORRIGÉ)
+# 1. INITIALISATION ET CHARGEMENT CLOUD
 # ==============================================================================
 if "data_sommeil" not in st.session_state:
     cols_sommeil = [
@@ -66,7 +48,7 @@ if "data_sommeil" not in st.session_state:
         if data_cloud:
             df_cloud = pd.DataFrame(data_cloud)
             
-            # --- CORRECTION CRUCIALE : Si colonne Patient manquante, on l'invente ---
+            # Correction colonne manquante
             if "Patient" not in df_cloud.columns:
                 df_cloud["Patient"] = str(CURRENT_USER_ID)
             
@@ -78,15 +60,13 @@ if "data_sommeil" not in st.session_state:
                     df_final[col] = df_cloud["Eveil Nocturne"]
 
             # =================================================================
-            # 🛑 FILTRAGE SÉCURITÉ (MISE À JOUR)
+            # 🛑 FILTRAGE SIMPLIFIÉ
             # =================================================================
-            # On accepte les lignes signées avec le Code (TCC-...) OU l'Identifiant (PAT-...)
-            ids_autorises = [str(CURRENT_USER_ID).strip(), str(USER_IDENTIFIER).strip()]
-            
-            # On nettoie la colonne patient et on filtre
-            df_final["Patient"] = df_final["Patient"].astype(str).str.strip()
-            df_final = df_final[df_final["Patient"].isin(ids_autorises)]
-            # =================================================================
+            if "Patient" in df_final.columns:
+                # On ne garde que les lignes du patient connecté (PAT-001)
+                df_final = df_final[df_final["Patient"].astype(str) == str(CURRENT_USER_ID)]
+            else:
+                df_final = pd.DataFrame(columns=cols_sommeil)
 
     except: pass
     st.session_state.data_sommeil = df_final
@@ -189,7 +169,7 @@ with tab1:
             r4.metric("Efficacité", f"{efficacite} %")
 
             new_row = {
-                "Patient": USER_IDENTIFIER,
+                "Patient": CURRENT_USER_ID, # Utilisation directe de l'ID session
                 "Date": str(date_nuit),
                 "Sieste": sieste_final, "Sport": sport_final, 
                 "Cafeine": cafe_final, "Alcool": alcool_final, "Medic_Sommeil": med_final,
@@ -205,7 +185,7 @@ with tab1:
             try:
                 from connect_db import save_data
                 save_data("Sommeil", [
-                    USER_IDENTIFIER, str(date_nuit), 
+                    CURRENT_USER_ID, str(date_nuit), 
                     sieste_final, sport_final, cafe_final, alcool_final, med_final,
                     str(h_coucher)[:5], latence, eveil_nocturne, str(h_lever)[:5],
                     format_minutes_en_h_m(tte_minutes),
@@ -240,7 +220,7 @@ with tab2:
         df_display = st.session_state.data_sommeil.copy()
         
         if "Patient" in df_display.columns:
-            df_display["Patient"] = str(USER_IDENTIFIER)
+            df_display["Patient"] = str(CURRENT_USER_ID)
 
         # 2. Affichage Tableau
         st.dataframe(
@@ -311,8 +291,7 @@ with tab2:
             st.divider()
 
             # --- D. VISUALISATION ---
-            import altair as alt
-
+            
             # GRAPHIQUE 1 : EFFICACITÉ
             st.subheader(f"🌙 Efficacité du Sommeil {titre_graphique}")
             chart_eff = alt.Chart(df_plot).mark_line(point=True, color="#3498db").encode(
@@ -360,9 +339,9 @@ with tab2:
                     
                     try:
                         from connect_db import delete_data_flexible
-                        # Suppression dans le Cloud
+                        # Suppression dans le Cloud avec CURRENT_USER_ID
                         delete_data_flexible("Sommeil", {
-                            "Patient": USER_IDENTIFIER, 
+                            "Patient": CURRENT_USER_ID, 
                             "Date": str(row_to_del['Date'])
                         })
                     except: pass
