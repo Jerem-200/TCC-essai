@@ -242,113 +242,129 @@ else:
             
 
 # -----------------------------------------------------
-    # SCÉNARIO B : TABLEAU DE BORD PATIENT (DESIGN APP MOBILE)
+    # SCÉNARIO B : TABLEAU DE BORD PATIENT (ORGANISÉ)
     # -----------------------------------------------------
     elif st.session_state.user_type == "patient":
         
-        # --- CSS POUR LE LOOK "APP MOBILE" ---
-        st.markdown("""
-            <style>
-            /* Cache le menu hamburger et le footer pour faire plus "App" */
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            
-            /* Grossir les titres des tuiles */
-            div[data-testid="stMetricValue"] {font-size: 20px;}
-            </style>
-            """, unsafe_allow_html=True)
-
-        # En-tête compact
-        c_titre, c_logout = st.columns([5, 1])
+        c_titre, c_logout = st.columns([4, 1])
         with c_titre:
-            st.markdown(f"### 👋 Bonjour")
+            st.title(f"🧠 Espace Patient")
         with c_logout:
-            if st.button("🚪", help="Se déconnecter"): # Bouton compact avec icone
+            if st.button("Se déconnecter"):
                 st.session_state.authentifie = False
                 st.session_state.user_id = "" 
                 st.rerun()
 
+        st.divider()
+
+        # --- SECTION 1 : AGENDAS (Suivi quotidien) ---
+        st.markdown("### 📅 Mes Agendas (Suivi quotidien)")
+        st.caption("À remplir régulièrement pour suivre vos habitudes.")
+        
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.warning("**Sommeil**")
+            st.page_link("pages/10_Agenda_Sommeil.py", label="Ouvrir", icon="🌙")
+        with c2:
+            st.warning("**Activités**")
+            st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="📝")
+        with c3:
+            st.warning("**Consommations**")
+            st.page_link("pages/13_Agenda_Consos.py", label="Ouvrir", icon="🍷")
+        with c4:
+            st.warning("**Compulsions**")
+            st.page_link("pages/14_Agenda_Compulsions.py", label="Ouvrir", icon="🛑")
+
         st.write("") # Espace
 
-        # --- SECTION 1 : LES AGENDAS (GRILLE 2x2) ---
-        st.markdown("##### 📅 Mes Agendas")
+        # --- SECTION 2 : OUTILS TCC (Exercices ponctuels) ---
+        st.markdown("### 🛠️ Outils Thérapeutiques (Exercices)")
+        st.caption("À utiliser face à une difficulté ou pour travailler sur soi.")
         
-        # On utilise des colonnes pour faire une grille
-        c1, c2 = st.columns(2)
-        
-        with c1:
-            with st.container(border=True):
-                st.markdown("<h1 style='text-align: center;'>🌙</h1>", unsafe_allow_html=True)
-                st.page_link("pages/10_Agenda_Sommeil.py", label="Sommeil", use_container_width=True)
-        
-        with c2:
-            with st.container(border=True):
-                st.markdown("<h1 style='text-align: center;'>📝</h1>", unsafe_allow_html=True)
-                st.page_link("pages/05_Registre_Activites.py", label="Activités", use_container_width=True)
+        c5, c6, c7 = st.columns(3)
+        with c5:
+            st.info("**Restructuration (Beck)**")
+            st.write("Analyser une pensée")
+            st.page_link("pages/01_Colonnes_Beck.py", label="Lancer", icon="🧩")
+            st.write("")
+            st.info("**Analyse SORC**")
+            st.write("Décortiquer une situation")
+            st.page_link("pages/12_Analyse_SORC.py", label="Lancer", icon="🔍")
+            
+        with c6:
+            st.info("**Résolution Problème**")
+            st.write("Trouver des solutions")
+            st.page_link("pages/06_Resolution_Probleme.py", label="Lancer", icon="💡")
+            st.write("")
+            st.info("**Balance Décisionnelle**")
+            st.write("Faire un choix")
+            st.page_link("pages/11_Balance_Decisionnelle.py", label="Lancer", icon="⚖️")
 
-        c3, c4 = st.columns(2)
-        
-        with c3:
-            with st.container(border=True):
-                st.markdown("<h1 style='text-align: center;'>🍷</h1>", unsafe_allow_html=True)
-                st.page_link("pages/13_Agenda_Consos.py", label="Conso", use_container_width=True)
-        
-        with c4:
-            with st.container(border=True):
-                st.markdown("<h1 style='text-align: center;'>🛑</h1>", unsafe_allow_html=True)
-                st.page_link("pages/14_Agenda_Compulsions.py", label="TOC/Comp.", use_container_width=True)
+        with c7:
+            st.info("**Exposition**")
+            st.write("Affronter une peur")
+            st.page_link("pages/09_Exposition.py", label="Lancer", icon="🧗")
+            st.write("")
+            st.info("**Relaxation**")
+            st.write("Se détendre")
+            st.page_link("pages/07_Relaxation.py", label="Lancer", icon="🧘")
 
-        st.write("") 
+        st.write("") # Espace
 
-        # --- SECTION 2 : OUTILS (LISTE VERTICALE) ---
-        st.markdown("##### 🛠️ Exercices")
+        # --- SECTION 3 : ANALYSE & RESSOURCES ---
+        st.markdown("### 📊 Mesures & Bilan")
         
-        # Format "Liste" plus facile à scroller pour les outils moins fréquents
-        with st.container(border=True):
-            col_ico, col_txt, col_btn = st.columns([1, 4, 2])
-            with col_ico: st.write("🧩")
-            with col_txt: st.write("**Colonnes de Beck**\n*Restructuration*")
-            with col_btn: st.page_link("pages/01_Colonnes_Beck.py", label="Ouvrir")
-
-        with st.container(border=True):
-            col_ico, col_txt, col_btn = st.columns([1, 4, 2])
-            with col_ico: st.write("⚖️")
-            with col_txt: st.write("**Balance Décisionnelle**\n*Faire un choix*")
-            with col_btn: st.page_link("pages/11_Balance_Decisionnelle.py", label="Ouvrir")
-        
-        with st.container(border=True):
-            col_ico, col_txt, col_btn = st.columns([1, 4, 2])
-            with col_ico: st.write("🧗")
-            with col_txt: st.write("**Exposition**\n*Affronter une peur*")
-            with col_btn: st.page_link("pages/09_Exposition.py", label="Ouvrir")
-
-        # Menu déroulant pour les autres outils (pour ne pas encombrer l'écran mobile)
-        with st.expander("Voir les autres outils (Relaxation, SORC...)"):
-             st.page_link("pages/12_Analyse_SORC.py", label="🔍 Analyse SORC", icon="🔍")
-             st.page_link("pages/06_Resolution_Probleme.py", label="💡 Résolution Problème", icon="💡")
-             st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation", icon="🧘")
-
-        st.write("")
-
-        # --- SECTION 3 : PROGRÈS (GROS BOUTONS COULEUR) ---
-        st.markdown("##### 📊 Mes Progrès")
-        
-        # Boutons pleine largeur pour les actions importantes
-        st.info("📉 **Mesurer mon humeur (BDI)**")
-        st.page_link("pages/02_Echelles_BDI.py", label="Faire le test maintenant", icon="👉")
-        
-        c_hist, c_exp = st.columns(2)
-        with c_hist:
-            st.page_link("pages/04_Historique.py", label="📜 Historique", use_container_width=True)
-        with c_exp:
-            st.page_link("pages/08_Export_Rapport.py", label="📤 Exporter", use_container_width=True)
+        c8, c9, c10 = st.columns(3)
+        with c8:
+            st.success("**Échelles (BDI)**")
+            st.page_link("pages/02_Echelles_BDI.py", label="Mesurer l'humeur", icon="📉")
+        with c9:
+            st.success("**Historique Global**")
+            st.page_link("pages/04_Historique.py", label="Voir mes progrès", icon="📜")
+        with c10:
+            st.success("**Exporter Données**")
+            st.page_link("pages/08_Export_Rapport.py", label="Créer un PDF", icon="📤")
 
         st.divider()
-        st.caption(f"Compagnon TCC • Dossier {st.session_state.user_id}")
+        
+        # Petit lien ressources discret en bas
+        st.page_link("pages/03_Ressources.py", label="📚 Consulter les Fiches & Ressources", icon="🔖")
 
-        # --- SIDEBAR (Minimaliste) ---
+
+        # --- SIDEBAR (MENU LATÉRAL) ---
         with st.sidebar:
-            st.write(f"👤 **{st.session_state.user_id}**")
+            
+            # LOGIQUE D'AFFICHAGE NOM PATIENT
+            display_id = st.session_state.user_id 
+            try:
+                from connect_db import load_data
+                infos = load_data("Codes_Patients")
+                if infos:
+                    df_infos = pd.DataFrame(infos)
+                    code_actuel = str(st.session_state.user_id).strip().upper()
+                    match = df_infos[df_infos["Code"].astype(str).str.strip().str.upper() == code_actuel]
+                    if not match.empty:
+                        col_id = "Identifiant" if "Identifiant" in df_infos.columns else "Commentaire"
+                        display_id = match.iloc[0][col_id]
+            except: pass
+            
+            st.write(f"👤 ID: **{display_id}**")
+            
             st.divider()
+            st.title("Navigation Rapide")
             st.page_link("streamlit_app.py", label="🏠 Accueil")
-            st.page_link("pages/03_Ressources.py", label="📚 Ressources & Fiches")
+            st.caption("Agendas")
+            st.page_link("pages/10_Agenda_Sommeil.py", label="🌙 Sommeil")
+            st.page_link("pages/05_Registre_Activites.py", label="📝 Activités")
+            st.page_link("pages/13_Agenda_Consos.py", label="🍷 Consommations")
+            st.page_link("pages/14_Agenda_Compulsions.py", label="🛑 Compulsions")
+            st.caption("Outils")
+            st.page_link("pages/01_Colonnes_Beck.py", label="🧩 Beck")
+            st.page_link("pages/12_Analyse_SORC.py", label="🔍 SORC")
+            st.page_link("pages/06_Resolution_Probleme.py", label="💡 Problèmes")
+            st.page_link("pages/11_Balance_Decisionnelle.py", label="⚖️ Balance")
+            st.page_link("pages/09_Exposition.py", label="🧗 Exposition")
+            st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
+            st.caption("Suivi")
+            st.page_link("pages/02_Echelles_BDI.py", label="📊 BDI")
+            st.page_link("pages/04_Historique.py", label="📜 Historique")
