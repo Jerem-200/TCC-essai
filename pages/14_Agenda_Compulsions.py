@@ -99,7 +99,7 @@ with tab1:
         with c_rep:
             repetitions = st.number_input("Nombre de répétitions", min_value=1, value=1, step=1)
         with c_dur:
-            # MODIFICATION ICI : Pas de 5 minutes (step=5)
+            # Pas de 5 minutes
             duree = st.number_input("Temps total (minutes)", min_value=0, value=5, step=5)
             
         st.write("")
@@ -167,21 +167,29 @@ with tab2:
         df_display["Répétitions"] = pd.to_numeric(df_display["Répétitions"], errors='coerce').fillna(0)
         df_display["Durée (min)"] = pd.to_numeric(df_display["Durée (min)"], errors='coerce').fillna(0)
         
-        # CRÉATION D'UNE DATE COMPLÈTE (DATE + HEURE) pour le graphique précis
-        # Cela permet d'afficher l'évolution au sein d'une même journée
+        # CRÉATION D'UNE DATE COMPLÈTE
         df_display["Datetime_Full"] = pd.to_datetime(
             df_display["Date"].astype(str) + " " + df_display["Heure"].astype(str), 
             errors='coerce'
         )
         
-        # 2. FILTRE TEMPOREL (Avec option Journée)
+        # 2. FILTRE TEMPOREL
         st.subheader("📅 Période d'analyse")
         col_vue, col_date = st.columns([1, 2])
         with col_vue:
-            # MODIFICATION : Ajout de "Journée"
             vue = st.selectbox("Vue :", ["Tout l'historique", "Semaine", "Mois", "Journée"], label_visibility="collapsed")
         with col_date:
             date_ref = st.date_input("Date de référence :", datetime.now(), label_visibility="collapsed")
+
+        # LOGIQUE D'AFFICHAGE DU GRAPHIQUE (Date vs Heure)
+        # Par défaut (Historique/Mois/Semaine) : On affiche jour/mois
+        format_axe_x = '%d/%m'
+        titre_axe_x = "Date"
+        
+        # Si Journée : On affiche Heure:Minute
+        if vue == "Journée":
+            format_axe_x = '%H:%M'
+            titre_axe_x = "Heure"
 
         # Application Filtre
         df_chart = df_display.copy().dropna(subset=["Datetime_Full"])
@@ -197,7 +205,6 @@ with tab2:
             st.caption(f"🔎 Mois de {date_ref.strftime('%B %Y')}")
             
         elif vue == "Journée":
-            # MODIFICATION : Filtre sur la journée précise
             df_chart = df_chart[df_chart['Datetime_Full'].dt.date == date_ref]
             st.caption(f"🔎 Journée du {date_ref.strftime('%d/%m/%Y')}")
 
@@ -211,26 +218,31 @@ with tab2:
             c2.metric("Temps Total", f"{int(df_chart['Durée (min)'].sum())} min")
             c3.metric("Moyenne Répétitions", f"{df_chart['Répétitions'].mean():.1f}")
 
-            # Graphique d'évolution
+            # Graphique d'évolution (Double Axe)
             st.subheader("📈 Évolution")
             
-            # MODIFICATION : Axe X utilise 'Datetime_Full' pour montrer les heures si on zoome sur une journée
+            # Base commune
             base = alt.Chart(df_chart).encode(
-                x=alt.X('Datetime_Full:T', title='Moment', axis=alt.Axis(format='%d/%m %H:%M'))
+                x=alt.X('Datetime_Full:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x))
             )
             
+            # Ligne 1 : Répétitions (Axe Y Gauche - Rouge)
             line_rep = base.mark_line(point=True, color="#e74c3c").encode(
-                y=alt.Y('Répétitions:Q', title='Répétitions'),
+                y=alt.Y('Répétitions:Q', title='Répétitions', axis=alt.Axis(titleColor="#e74c3c")),
                 tooltip=['Date', 'Heure', 'Nature', 'Répétitions']
             )
             
+            # Ligne 2 : Durée (Axe Y Droite - Bleu)
             line_dur = base.mark_line(point=True, color="#3498db", strokeDash=[5,5]).encode(
-                y=alt.Y('Durée (min):Q', title='Durée (min)'),
+                y=alt.Y('Durée (min):Q', title='Durée (min)', axis=alt.Axis(titleColor="#3498db")),
                 tooltip=['Date', 'Heure', 'Durée (min)']
             )
             
-            st.altair_chart((line_rep + line_dur).interactive(), use_container_width=True)
-            st.caption("🔴 Rouge : Nombre de répétitions | 🔵 Bleu (pointillés) : Durée en minutes")
+            # COMBINAISON AVEC ÉCHELLES INDÉPENDANTES
+            final_chart = alt.layer(line_rep, line_dur).resolve_scale(y='independent')
+            
+            st.altair_chart(final_chart.interactive(), use_container_width=True)
+            st.caption("🔴 Axe Gauche : Répétitions | 🔵 Axe Droit : Durée (min)")
 
             # Tableau détaillé
             st.subheader("📋 Détails")
