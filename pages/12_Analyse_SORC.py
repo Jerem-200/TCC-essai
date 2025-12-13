@@ -206,40 +206,87 @@ with tab2:
     if not st.session_state.data_sorc.empty:
         df_display = st.session_state.data_sorc.copy()
         
-        # Forçage affichage identifiant
+        # 1. Traduction Identifiant (TCC -> PAT)
         if "Patient" in df_display.columns:
             df_display["Patient"] = str(USER_IDENTIFIER)
             
-        # Tri par date
+        # 2. Sécurisation colonnes
+        if "Heure" not in df_display.columns: df_display["Heure"] = ""
+        if "Douleur Active" not in df_display.columns: df_display["Douleur Active"] = "Non"
+
+        # 3. Tri global
         if "Date" in df_display.columns:
             df_display = df_display.sort_values(by=["Date", "Heure"], ascending=False)
 
-        # 5. AFFICHAGE TABLEAU (Avec l'ordre imposé)
-        st.dataframe(
-            df_display,
-            use_container_width=True, 
-            hide_index=True,
-            column_config={
-                "Heure": st.column_config.TextColumn("Heure", width="small"), # Petit ajustement visuel
-                "Situation": st.column_config.TextColumn("Situation", width="medium"),
-                "Pensées": st.column_config.TextColumn("Pensées", width="medium"),
-                "Réponse": st.column_config.TextColumn("Comportement", width="medium"),
-                "Csq Court Terme": st.column_config.TextColumn("Csq Court", width="small"),
-                "Csq Long Terme": st.column_config.TextColumn("Csq Long", width="small"),
-                "Intensité Emo": st.column_config.NumberColumn("Int. Emo", format="%d/10"),
-                "Intensité Douleur": st.column_config.NumberColumn("Douleur", format="%d/10"),
-            }
-        )
-        
+        # --- SÉPARATION DES DONNÉES ---
+        # On filtre sur la colonne "Douleur Active" (qui contient "Oui" ou "Non")
+        df_sans_douleur = df_display[df_display["Douleur Active"] != "Oui"]
+        df_avec_douleur = df_display[df_display["Douleur Active"] == "Oui"]
+
+        # --- TABLEAU 1 : ANALYSES CLASSIQUES (Sans Douleur) ---
+        if not df_sans_douleur.empty:
+            st.subheader("🧘 Analyses Standards")
+            cols_std = [
+                "Date", "Heure", "Situation", 
+                "Pensées", "Émotions", "Intensité Emo", 
+                "Réponse", "Csg Court Terme", "Csg Long Terme"
+            ]
+            # On filtre pour éviter les bugs si une colonne manque
+            cols_final_std = [c for c in cols_std if c in df_sans_douleur.columns]
+            
+            st.dataframe(
+                df_sans_douleur[cols_final_std],
+                use_container_width=True, 
+                hide_index=True,
+                column_config={
+                    "Date": st.column_config.DateColumn("Date", format="DD/MM/YYYY"),
+                    "Heure": st.column_config.TimeColumn("Heure", format="HH:mm"),
+                    "Situation": st.column_config.TextColumn("Situation", width="medium"),
+                    "Pensées": st.column_config.TextColumn("Pensées", width="medium"),
+                    "Réponse": st.column_config.TextColumn("Comportement", width="medium"),
+                    "Intensité Emo": st.column_config.NumberColumn("Emo", format="%d/10"),
+                }
+            )
+            st.write("") # Espace
+
+        # --- TABLEAU 2 : ANALYSES DOULEURS (Colonnes Spécifiques) ---
+        if not df_avec_douleur.empty:
+            st.subheader("🩸 Analyses avec Douleurs Chroniques")
+            # Ici on ajoute les colonnes description et intensité de la douleur
+            cols_pain = [
+                "Date", "Heure", "Situation", 
+                "Desc Douleur", "Intensité Douleur", # <-- Colonnes spécifiques
+                "Pensées", "Émotions", "Intensité Emo", 
+                "Réponse", "Csg Court Terme", "Csg Long Terme"
+            ]
+            cols_final_pain = [c for c in cols_pain if c in df_avec_douleur.columns]
+
+            st.dataframe(
+                df_avec_douleur[cols_final_pain],
+                use_container_width=True, 
+                hide_index=True,
+                column_config={
+                    "Date": st.column_config.DateColumn("Date", format="DD/MM/YYYY"),
+                    "Heure": st.column_config.TimeColumn("Heure", format="HH:mm"),
+                    "Situation": st.column_config.TextColumn("Situation", width="medium"),
+                    "Desc Douleur": st.column_config.TextColumn("Description Douleur", width="medium"),
+                    "Intensité Douleur": st.column_config.NumberColumn("Doul.", format="%d/10"),
+                    "Intensité Emo": st.column_config.NumberColumn("Emo", format="%d/10"),
+                }
+            )
+
         st.divider()
         
-        # Suppression
+        # --- SUPPRESSION (Commune aux deux tableaux) ---
         with st.expander("🗑️ Supprimer une analyse"):
-            # On gère l'affichage du sélecteur même si l'heure est vide
             opts = {}
+            # On parcourt le dataframe GLOBAL pour avoir toutes les options dans le menu
             for i, r in df_display.iterrows():
                 h_str = f" à {r['Heure']}" if r.get('Heure') else ""
-                label = f"{r['Date']}{h_str} | {str(r['Situation'])[:30]}..."
+                # Petit indicateur visuel (🩸) si c'est une ligne douleur
+                is_pain = "🩸 " if r.get("Douleur Active") == "Oui" else ""
+                sit_str = str(r.get('Situation', '')) 
+                label = f"{is_pain}{r['Date']}{h_str} | {sit_str[:40]}..."
                 opts[label] = i
 
             choix = st.selectbox("Choisir l'entrée :", list(opts.keys()), index=None)
