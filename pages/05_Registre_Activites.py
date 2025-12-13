@@ -238,15 +238,14 @@ with tab2:
 
         st.divider()
 
-# --- FILTRE TEMPOREL ---
-        st.divider()
+        # --- FILTRE TEMPOREL ---
         st.subheader("📅 Période d'analyse")
         col_vue, col_date = st.columns([1, 2])
         
         with col_vue:
             vue_temporelle = st.selectbox(
                 "Vue :", 
-                ["Tout l'historique", "Semaine", "Mois"],
+                ["Tout l'historique", "Semaine", "Mois", "Journée"],
                 label_visibility="collapsed"
             )
 
@@ -260,26 +259,47 @@ with tab2:
         # Nettoyage et conversion
         cols_num = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
         for c in cols_num: df_filtre[c] = pd.to_numeric(df_filtre[c], errors='coerce')
-        df_filtre["Date"] = pd.to_datetime(df_filtre["Date"], errors='coerce')
-        df_filtre = df_filtre.dropna(subset=["Date", "Activité"])
+        
+        # Création Date Complète
+        df_filtre["Date_Obj"] = pd.to_datetime(df_filtre["Date"], errors='coerce')
+        df_filtre["Datetime_Full"] = pd.to_datetime(
+            df_filtre["Date"].astype(str) + " " + df_filtre["Heure"].astype(str), 
+            errors='coerce'
+        )
+        
+        df_filtre = df_filtre.dropna(subset=["Datetime_Full", "Activité"])
+
+        # Variables dynamiques
+        titre_graphique = "Historique complet"
+        format_axe_x = '%d/%m'
+        titre_axe_x = "Date"
 
         # Application du filtre
-        if vue_temporelle == "Semaine":
+        if vue_temporelle == "Journée":
+            df_filtre = df_filtre[df_filtre['Datetime_Full'].dt.date == date_ref]
+            titre_graphique = f"du {date_ref.strftime('%d/%m/%Y')}"
+            format_axe_x = '%H:%M'
+            titre_axe_x = "Heure"
+
+        elif vue_temporelle == "Semaine":
             start_week = date_ref - timedelta(days=date_ref.weekday())
             end_week = start_week + timedelta(days=6)
-            df_filtre = df_filtre[(df_filtre['Date'].dt.date >= start_week) & (df_filtre['Date'].dt.date <= end_week)]
+            df_filtre = df_filtre[(df_filtre['Datetime_Full'].dt.date >= start_week) & (df_filtre['Datetime_Full'].dt.date <= end_week)]
             st.caption(f"🔎 Semaine du {start_week.strftime('%d/%m')} au {end_week.strftime('%d/%m')}")
+            titre_graphique = f"du {start_week.strftime('%d/%m/%y')} au {end_week.strftime('%d/%m/%y')}"
 
         elif vue_temporelle == "Mois":
-            df_filtre = df_filtre[(df_filtre['Date'].dt.month == date_ref.month) & (df_filtre['Date'].dt.year == date_ref.year)]
+            df_filtre = df_filtre[(df_filtre['Datetime_Full'].dt.month == date_ref.month) & (df_filtre['Datetime_Full'].dt.year == date_ref.year)]
             st.caption(f"🔎 Mois de {date_ref.strftime('%B %Y')}")
+            titre_graphique = f"- Mois de {date_ref.strftime('%m/%Y')}"
             
         else:
             st.caption(f"🔎 Historique complet ({len(df_filtre)} activités)")
 
         if not df_filtre.empty:
+            
             # 2. GRAPHIQUE MOYENNES (Sur données filtrées)
-            st.subheader("📊 Moyennes par Activité")
+            st.subheader(f"📊 Moyennes par Activité {titre_graphique}")
             df_grp = df_filtre.groupby("Activité")[cols_num].mean().reset_index()
             df_long = df_grp.melt(id_vars=["Activité"], value_vars=cols_num, var_name="Critère", value_name="Note")
             
@@ -290,16 +310,29 @@ with tab2:
             ).properties(height=400)
             st.altair_chart(chart_bar, use_container_width=True)
 
-            # 3. GRAPHIQUE ÉVOLUTION (Sur données filtrées)
-            st.subheader("📈 Évolution des activités")
-            # On veut voir l'évolution du Plaisir/Maîtrise/Satisfaction au fil du temps
-            df_evol = df_filtre.melt(id_vars=["Date", "Heure", "Activité"], value_vars=cols_num, var_name="Critère", value_name="Note")
+            # 3. GRAPHIQUE ÉVOLUTION (Agrégation journalière si vue large)
+            st.subheader(f"📈 Évolution des activités {titre_graphique}")
+            
+            # Préparation pour le graphique ligne
+            if vue_temporelle != "Journée":
+                # Agrégation par jour (Moyenne des notes)
+                df_evol_raw = df_filtre.groupby("Date_Obj")[cols_num].mean().reset_index()
+                # On utilise Date_Obj pour l'axe X
+                x_axis_def = alt.X('Date_Obj:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x))
+            else:
+                # Pas d'agrégation, on garde chaque activité
+                df_evol_raw = df_filtre
+                # On utilise Datetime_Full pour l'axe X (avec les heures)
+                x_axis_def = alt.X('Datetime_Full:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x))
+
+            # Transformation format long pour Altair
+            df_evol = df_evol_raw.melt(id_vars=[x_axis_def.shorthand.split(':')[0]], value_vars=cols_num, var_name="Critère", value_name="Note")
             
             chart_line = alt.Chart(df_evol).mark_line(point=True).encode(
-                x=alt.X('Date:T', axis=alt.Axis(format='%d/%m')),
-                y=alt.Y('mean(Note):Q', title='Moyenne Journalière', scale=alt.Scale(domain=[0, 10])),
+                x=x_axis_def,
+                y=alt.Y('Note:Q', title='Note Moyenne', scale=alt.Scale(domain=[0, 10])),
                 color='Critère:N',
-                tooltip=['Date', 'Critère', alt.Tooltip('mean(Note)', format='.1f')]
+                tooltip=[alt.Tooltip(x_axis_def.shorthand.split(':')[0], title=titre_axe_x, format=format_axe_x), 'Critère', alt.Tooltip('Note', format='.1f')]
             ).properties(height=300).interactive()
             st.altair_chart(chart_line, use_container_width=True)
 
@@ -309,24 +342,28 @@ with tab2:
         st.divider()
         
         # 4. GRAPHIQUE HUMEUR (Indépendant pour l'instant, ou filtrable aussi si voulu)
-        st.subheader("🌈 Évolution de l'Humeur")
+        st.subheader(f"🌈 Évolution de l'Humeur {titre_graphique}")
         df_h = st.session_state.data_humeur_jour.copy()
+        
         if not df_h.empty:
-            df_h["Date"] = pd.to_datetime(df_h["Date"], errors='coerce')
+            df_h["Date_Obj"] = pd.to_datetime(df_h["Date"], errors='coerce')
             df_h["Humeur Globale (0-10)"] = pd.to_numeric(df_h["Humeur Globale (0-10)"], errors='coerce')
-            df_h = df_h.dropna(subset=["Date", "Humeur Globale (0-10)"]).sort_values("Date")
+            df_h = df_h.dropna(subset=["Date_Obj", "Humeur Globale (0-10)"]).sort_values("Date_Obj")
             
-            # On applique le même filtre temporel si on veut être cohérent
+            # Filtre Temporel Humeur
             if vue_temporelle == "Semaine":
-                df_h = df_h[(df_h['Date'].dt.date >= start_week) & (df_h['Date'].dt.date <= end_week)]
+                df_h = df_h[(df_h['Date_Obj'].dt.date >= start_week) & (df_h['Date_Obj'].dt.date <= end_week)]
             elif vue_temporelle == "Mois":
-                df_h = df_h[(df_h['Date'].dt.month == date_ref.month) & (df_h['Date'].dt.year == date_ref.year)]
+                df_h = df_h[(df_h['Date_Obj'].dt.month == date_ref.month) & (df_h['Date_Obj'].dt.year == date_ref.year)]
+            elif vue_temporelle == "Journée":
+                # Pour l'humeur (souvent une seule par jour), on affiche quand même la journée concernée
+                df_h = df_h[df_h['Date_Obj'].dt.date == date_ref]
 
             if not df_h.empty:
                 c_humeur = alt.Chart(df_h).mark_line(point=True, color="#FFA500").encode(
-                    x=alt.X('Date:T', axis=alt.Axis(format='%d/%m')),
+                    x=alt.X('Date_Obj:T', title="Date", axis=alt.Axis(format='%d/%m')),
                     y=alt.Y('Humeur Globale (0-10):Q', scale=alt.Scale(domain=[0, 10])),
-                    tooltip=['Date', 'Humeur Globale (0-10)']
+                    tooltip=[alt.Tooltip('Date_Obj', title='Date', format='%d/%m'), 'Humeur Globale (0-10)']
                 ).properties(height=300).interactive()
                 st.altair_chart(c_humeur, use_container_width=True)
             else:
