@@ -125,8 +125,7 @@ if not st.session_state.authentifie:
                             if not match.empty:
                                 # On capture la colonne Identifiant (ex: PAT-01)
                                 final_id = match.iloc[0]["Identifiant"]
-                    except Exception as e:
-                        print(f"Erreur récupération ID: {e}")
+                    except: pass
 
                     # C'est ici que la magie opère : on stocke PAT-01 au lieu du code secret
                     st.session_state.user_id = final_id 

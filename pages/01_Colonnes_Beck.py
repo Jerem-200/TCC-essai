@@ -139,7 +139,7 @@ with tab1:
 
         if submitted:
             # Récupération ID Patient
-            patient_id = CURRENT_USER_ID
+            patient_id = st.session_state.user_id
             
             # Création de la ligne de données
             new_row_dict = {
