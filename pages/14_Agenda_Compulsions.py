@@ -182,16 +182,15 @@ with tab2:
             date_ref = st.date_input("Date de référence :", datetime.now(), label_visibility="collapsed")
 
         # LOGIQUE D'AFFICHAGE DU GRAPHIQUE (Date vs Heure)
-        # Par défaut (Historique/Mois/Semaine) : On affiche jour/mois
         format_axe_x = '%d/%m'
         titre_axe_x = "Date"
-        
-        # Si Journée : On affiche Heure:Minute
+        titre_graphique = "Évolution de la durée et du nombre de répétitions" # Titre par défaut
+
         if vue == "Journée":
             format_axe_x = '%H:%M'
             titre_axe_x = "Heure"
 
-        # Application Filtre
+        # Application Filtre & Construction du Titre
         df_chart = df_display.copy().dropna(subset=["Datetime_Full"])
         
         if vue == "Semaine":
@@ -199,14 +198,24 @@ with tab2:
             end = start + timedelta(days=6)
             df_chart = df_chart[(df_chart['Datetime_Full'].dt.date >= start) & (df_chart['Datetime_Full'].dt.date <= end)]
             st.caption(f"🔎 Semaine du {start.strftime('%d/%m')} au {end.strftime('%d/%m')}")
+            # TITRE DYNAMIQUE
+            titre_graphique = f"Évolution du {start.strftime('%d/%m/%y')} au {end.strftime('%d/%m/%y')}"
             
         elif vue == "Mois":
             df_chart = df_chart[(df_chart['Datetime_Full'].dt.month == date_ref.month) & (df_chart['Datetime_Full'].dt.year == date_ref.year)]
             st.caption(f"🔎 Mois de {date_ref.strftime('%B %Y')}")
+            # TITRE DYNAMIQUE
+            titre_graphique = f"Évolution - Mois de {date_ref.strftime('%m/%Y')}"
             
         elif vue == "Journée":
             df_chart = df_chart[df_chart['Datetime_Full'].dt.date == date_ref]
             st.caption(f"🔎 Journée du {date_ref.strftime('%d/%m/%Y')}")
+            # TITRE DYNAMIQUE
+            titre_graphique = f"Évolution du {date_ref.strftime('%d/%m/%y')}"
+        
+        else:
+            # TITRE DYNAMIQUE
+            titre_graphique = "Évolution - Historique complet"
 
         st.divider()
 
@@ -218,8 +227,8 @@ with tab2:
             c2.metric("Temps Total", f"{int(df_chart['Durée (min)'].sum())} min")
             c3.metric("Moyenne Répétitions", f"{df_chart['Répétitions'].mean():.1f}")
 
-            # Graphique d'évolution (Double Axe)
-            st.subheader("📈 Évolution")
+            # Graphique d'évolution (Titre Dynamique)
+            st.subheader(f"📈 {titre_graphique}")
             
             # Base commune
             base = alt.Chart(df_chart).encode(
