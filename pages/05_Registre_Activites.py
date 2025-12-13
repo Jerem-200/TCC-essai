@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 from datetime import datetime
+from visualisations import afficher_activites
 
 st.set_page_config(page_title="Registre des Activités", page_icon="📝")
 
@@ -206,251 +207,68 @@ with tab1:
 with tab2:
     st.header("Historique & Analyse")
     
-    # 1. TABLEAU (Affichage Lecture Seule pour supporter la conversion de nom)
-    if not st.session_state.data_activites.empty:
-        df_display = st.session_state.data_activites.copy()
+    # 1. APPEL À LA FONCTION CENTRALISÉE
+    # C'est ici que ça change tout : une seule ligne pour tout afficher !
+    afficher_activites(
+        st.session_state.data_activites, 
+        st.session_state.data_humeur_jour, 
+        CURRENT_USER_ID
+    )
+
+    # 2. GESTION (SUPPRESSION) 
+    # On garde les fonctions de suppression ici car c'est de l'édition
+    st.divider()
+    with st.expander("🗑️ Gérer / Supprimer une entrée depuis l'historique"):
         
-        # --- RÉCUPÉRATION DU NOM DU DOSSIER (PAT-XXX) ---
-        nom_dossier = CURRENT_USER_ID
-        try:
-            from connect_db import load_data
-            infos = load_data("Codes_Patients")
-            if infos:
-                df_i = pd.DataFrame(infos)
-                col_id = "Identifiant" if "Identifiant" in df_i.columns else "Commentaire"
-                match = df_i[df_i["Code"] == CURRENT_USER_ID]
-                if not match.empty: nom_dossier = match.iloc[0][col_id]
-        except: pass
-        
-        # Remplacement pour l'affichage
-        if "Patient" in df_display.columns:
-            df_display["Patient"] = nom_dossier
-        
-        # Affichage
-        st.dataframe(
-            df_display.sort_values(by=["Date", "Heure"], ascending=False),
-            column_config={"Patient": st.column_config.TextColumn("Dossier")},
-            use_container_width=True,
-            hide_index=True
-        )
-        st.caption("Utilisez l'onglet 'Saisie' pour supprimer une ligne en cas d'erreur.")
-
-        st.divider()
-
-        # --- FILTRE TEMPOREL ---
-        st.subheader("📅 Période d'analyse")
-        col_vue, col_date = st.columns([1, 2])
-        
-        with col_vue:
-            # AJOUT DE L'OPTION "JOURNÉE" ICI
-            vue_temporelle = st.selectbox(
-                "Vue :", 
-                ["Tout l'historique", "Journée", "Semaine", "Mois"],
-                label_visibility="collapsed"
-            )
-
-        with col_date:
-            from datetime import timedelta
-            date_ref = st.date_input("Choisir la date de référence :", datetime.now(), label_visibility="collapsed")
-
-        # --- PRÉPARATION DES DONNÉES FILTRÉES ---
-        df_filtre = st.session_state.data_activites.copy()
-        
-        # Nettoyage et conversion
-        cols_num = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
-        for c in cols_num: df_filtre[c] = pd.to_numeric(df_filtre[c], errors='coerce')
-        
-        # Création Date Complète (Date + Heure)
-        df_filtre["Date_Obj"] = pd.to_datetime(df_filtre["Date"], errors='coerce')
-        df_filtre["Datetime_Full"] = pd.to_datetime(
-            df_filtre["Date"].astype(str) + " " + df_filtre["Heure"].astype(str), 
-            errors='coerce'
-        )
-        
-        df_filtre = df_filtre.dropna(subset=["Datetime_Full", "Activité"])
-
-        # Variables dynamiques pour le graphique
-        titre_graphique = "Historique complet"
-        format_axe_x = '%d/%m'
-        titre_axe_x = "Date"
-
-        # Application du filtre
-        if vue_temporelle == "Journée":
-            # Filtre sur la journée exacte
-            df_filtre = df_filtre[df_filtre['Datetime_Full'].dt.date == date_ref]
-            titre_graphique = f"du {date_ref.strftime('%d/%m/%Y')}"
-            # On change l'axe pour afficher les heures
-            format_axe_x = '%H:%M'
-            titre_axe_x = "Heure"
-
-        elif vue_temporelle == "Semaine":
-            start_week = date_ref - timedelta(days=date_ref.weekday())
-            end_week = start_week + timedelta(days=6)
-            df_filtre = df_filtre[(df_filtre['Datetime_Full'].dt.date >= start_week) & (df_filtre['Datetime_Full'].dt.date <= end_week)]
-            st.caption(f"🔎 Semaine du {start_week.strftime('%d/%m')} au {end_week.strftime('%d/%m')}")
-            titre_graphique = f"du {start_week.strftime('%d/%m/%y')} au {end_week.strftime('%d/%m/%y')}"
-
-        elif vue_temporelle == "Mois":
-            df_filtre = df_filtre[(df_filtre['Datetime_Full'].dt.month == date_ref.month) & (df_filtre['Datetime_Full'].dt.year == date_ref.year)]
-            st.caption(f"🔎 Mois de {date_ref.strftime('%B %Y')}")
-            titre_graphique = f"- Mois de {date_ref.strftime('%m/%Y')}"
+        # A. Suppression Activité
+        df_hist_del = st.session_state.data_activites.sort_values(by=["Date", "Heure"], ascending=False)
+        if not df_hist_del.empty:
+            opts_del = {}
+            for i, row in df_hist_del.iterrows():
+                lbl = f"📅 {row['Date']} ({row['Heure']}) | {row['Activité']} | P:{row.get('Plaisir (0-10)',0)} M:{row.get('Maîtrise (0-10)',0)}"
+                opts_del[lbl] = i
             
-        else:
-            st.caption(f"🔎 Historique complet ({len(df_filtre)} activités)")
+            choix_del = st.selectbox("Supprimer Activité :", list(opts_del.keys()), index=None, key="sel_del_tab2")
+            if st.button("Confirmer suppression activité", key="btn_del_tab2") and choix_del:
+                idx = opts_del[choix_del]
+                row_to_del = df_hist_del.loc[idx]
+                try:
+                    from connect_db import delete_data_flexible
+                    delete_data_flexible("Activites", {
+                        "Patient": CURRENT_USER_ID, 
+                        "Date": str(row_to_del['Date']),
+                        "Heure": str(row_to_del['Heure']),
+                        "Activité": str(row_to_del['Activité'])
+                    })
+                except: pass
+                st.session_state.data_activites = st.session_state.data_activites.drop(idx).reset_index(drop=True)
+                st.success("Effacé !")
+                st.rerun()
 
-        if not df_filtre.empty:
-            
-            # 2. GRAPHIQUE MOYENNES (Sur données filtrées)
-            st.subheader(f"📊 Moyennes par Activité {titre_graphique}")
-            df_grp = df_filtre.groupby("Activité")[cols_num].mean().reset_index()
-            df_long = df_grp.melt(id_vars=["Activité"], value_vars=cols_num, var_name="Critère", value_name="Note")
-            
-            chart_bar = alt.Chart(df_long).mark_bar().encode(
-                x=alt.X('Activité:N', axis=alt.Axis(labelAngle=-45)),
-                y=alt.Y('Note:Q', scale=alt.Scale(domain=[0, 10])),
-                color='Critère:N', xOffset='Critère:N', tooltip=['Activité', 'Critère', alt.Tooltip('Note', format='.1f')]
-            ).properties(height=400)
-            st.altair_chart(chart_bar, use_container_width=True)
+        st.write("---")
 
-            # 3. GRAPHIQUE ÉVOLUTION (Adaptatif Journée vs Semaine)
-            st.subheader(f"📈 Évolution des activités {titre_graphique}")
+        # B. Suppression Humeur
+        df_hum_del = st.session_state.data_humeur_jour.sort_values(by="Date", ascending=False)
+        if not df_hum_del.empty:
+            opts_hum = {}
+            for i, row in df_hum_del.iterrows():
+                lbl = f"📅 {row['Date']} | Note : {row['Humeur Globale (0-10)']}/10"
+                opts_hum[lbl] = i
             
-            # Préparation pour le graphique ligne
-            if vue_temporelle != "Journée":
-                # Agrégation par jour (Moyenne des notes) si on regarde une semaine ou un mois
-                df_evol_raw = df_filtre.groupby("Date_Obj")[cols_num].mean().reset_index()
-                # On utilise Date_Obj pour l'axe X (Date uniquement)
-                x_axis_def = alt.X('Date_Obj:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x))
-            else:
-                # Pas d'agrégation si on regarde une journée, on garde chaque activité précise
-                df_evol_raw = df_filtre
-                # On utilise Datetime_Full pour l'axe X (Date + Heure)
-                x_axis_def = alt.X('Datetime_Full:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x))
-
-            # Transformation format long pour Altair
-            # L'astuce ici est de récupérer le nom de la colonne utilisée pour l'axe X dynamiquement
-            nom_col_x = x_axis_def.shorthand.split(':')[0]
-            
-            df_evol = df_evol_raw.melt(id_vars=[nom_col_x], value_vars=cols_num, var_name="Critère", value_name="Note")
-            
-            chart_line = alt.Chart(df_evol).mark_line(point=True).encode(
-                x=x_axis_def,
-                y=alt.Y('Note:Q', title='Note (0-10)', scale=alt.Scale(domain=[0, 10])),
-                color='Critère:N',
-                tooltip=[alt.Tooltip(nom_col_x, title=titre_axe_x, format=format_axe_x), 'Critère', alt.Tooltip('Note', format='.1f')]
-            ).properties(height=300).interactive()
-            st.altair_chart(chart_line, use_container_width=True)
-
-        else:
-            st.info("Aucune activité sur cette période.")
-
-        st.divider()
-        
-        # 4. GRAPHIQUE HUMEUR
-        st.subheader(f"🌈 Évolution de l'Humeur {titre_graphique}")
-        df_h = st.session_state.data_humeur_jour.copy()
-        
-        if not df_h.empty:
-            df_h["Date_Obj"] = pd.to_datetime(df_h["Date"], errors='coerce')
-            df_h["Humeur Globale (0-10)"] = pd.to_numeric(df_h["Humeur Globale (0-10)"], errors='coerce')
-            df_h = df_h.dropna(subset=["Date_Obj", "Humeur Globale (0-10)"]).sort_values("Date_Obj")
-            
-            # Filtre Temporel Humeur
-            if vue_temporelle == "Semaine":
-                df_h = df_h[(df_h['Date_Obj'].dt.date >= start_week) & (df_h['Date_Obj'].dt.date <= end_week)]
-            elif vue_temporelle == "Mois":
-                df_h = df_h[(df_h['Date_Obj'].dt.month == date_ref.month) & (df_h['Date_Obj'].dt.year == date_ref.year)]
-            elif vue_temporelle == "Journée":
-                df_h = df_h[df_h['Date_Obj'].dt.date == date_ref]
-
-            if not df_h.empty:
-                c_humeur = alt.Chart(df_h).mark_line(point=True, color="#FFA500").encode(
-                    x=alt.X('Date_Obj:T', title="Date", axis=alt.Axis(format='%d/%m')),
-                    y=alt.Y('Humeur Globale (0-10):Q', scale=alt.Scale(domain=[0, 10])),
-                    tooltip=[alt.Tooltip('Date_Obj', title='Date', format='%d/%m'), 'Humeur Globale (0-10)']
-                ).properties(height=300).interactive()
-                st.altair_chart(c_humeur, use_container_width=True)
-            else:
-                st.info("Pas d'humeur enregistrée sur cette période.")
-        else:
-            st.info("Pas encore de données d'humeur.")
-# 5. SUPPRESSION DEPUIS L'HISTORIQUE
-        st.divider()
-        with st.expander("🗑️ Supprimer une activité"):
-            # On récupère toutes les activités triées par date
-            df_hist_del = st.session_state.data_activites.sort_values(by=["Date", "Heure"], ascending=False)
-            
-            if not df_hist_del.empty:
-                # Création des labels pour le menu déroulant
-                opts_del = {}
-                for i, row in df_hist_del.iterrows():
-                    # Format : Date (Heure) | Activité (Notes P/M/S)
-                    lbl = f"📅 {row['Date']} ({row['Heure']}) | {row['Activité']} | P:{row.get('Plaisir (0-10)',0)} M:{row.get('Maîtrise (0-10)',0)}"
-                    opts_del[lbl] = i
-                
-                # Menu de sélection
-                choix_del = st.selectbox("Sélectionnez l'activité à supprimer :", list(opts_del.keys()), index=None, key="sel_del_tab2")
-                
-                # Bouton d'action
-                if st.button("Confirmer la suppression", key="btn_del_tab2") and choix_del:
-                    idx = opts_del[choix_del]
-                    row_to_del = df_hist_del.loc[idx]
-                    
-                    # 1. Suppression Cloud
-                    try:
-                        from connect_db import delete_data_flexible
-                        delete_data_flexible("Activites", {
-                            "Patient": CURRENT_USER_ID, 
-                            "Date": str(row_to_del['Date']),
-                            "Heure": str(row_to_del['Heure']),
-                            "Activité": str(row_to_del['Activité'])
-                        })
-                    except: pass
-                    
-                    # 2. Suppression Locale
-                    st.session_state.data_activites = st.session_state.data_activites.drop(idx).reset_index(drop=True)
-                    st.success("Activité supprimée !")
-                    st.rerun()
-            else:
-                st.info("Historique vide.")
-
-# 6. SUPPRESSION HUMEUR DEPUIS L'HISTORIQUE
-        with st.expander("🗑️ Supprimer un relevé d'humeur"):
-            df_hum_del = st.session_state.data_humeur_jour.sort_values(by="Date", ascending=False)
-            
-            if not df_hum_del.empty:
-                # Création des labels
-                opts_hum = {}
-                for i, row in df_hum_del.iterrows():
-                    lbl = f"📅 {row['Date']} | Note : {row['Humeur Globale (0-10)']}/10"
-                    opts_hum[lbl] = i
-                
-                # Menu de sélection
-                choix_hum = st.selectbox("Sélectionnez l'humeur à supprimer :", list(opts_hum.keys()), index=None, key="sel_del_hum_tab2")
-                
-                # Bouton
-                if st.button("Confirmer la suppression", key="btn_del_hum_tab2") and choix_hum:
-                    idx = opts_hum[choix_hum]
-                    row_to_del = df_hum_del.loc[idx]
-                    
-                    # 1. Suppression Cloud
-                    try:
-                        from connect_db import delete_data_flexible
-                        delete_data_flexible("Humeur", {
-                            "Patient": CURRENT_USER_ID, 
-                            "Date": str(row_to_del['Date'])
-                        })
-                    except: pass
-                    
-                    # 2. Suppression Locale
-                    st.session_state.data_humeur_jour = st.session_state.data_humeur_jour.drop(idx).reset_index(drop=True)
-                    st.success("Humeur supprimée !")
-                    st.rerun()
-            else:
-                st.info("Aucun historique d'humeur.")
-
-    else:
-        st.info("Aucune activité enregistrée.")
+            choix_hum = st.selectbox("Supprimer Humeur :", list(opts_hum.keys()), index=None, key="sel_del_hum_tab2")
+            if st.button("Confirmer suppression humeur", key="btn_del_hum_tab2") and choix_hum:
+                idx = opts_hum[choix_hum]
+                row_to_del = df_hum_del.loc[idx]
+                try:
+                    from connect_db import delete_data_flexible
+                    delete_data_flexible("Humeur", {
+                        "Patient": CURRENT_USER_ID, 
+                        "Date": str(row_to_del['Date'])
+                    })
+                except: pass
+                st.session_state.data_humeur_jour = st.session_state.data_humeur_jour.drop(idx).reset_index(drop=True)
+                st.success("Effacé !")
+                st.rerun()
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
