@@ -14,37 +14,21 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.page_link("streamlit_app.py", label="Retourner à l'accueil", icon="🏠")
     st.stop()
 
-# 1. Récupération ID
+# 1. Récupération simple de l'ID (Standardisé)
+# Grâce à votre modification dans l'accueil, ceci contient DÉJÀ "PAT-001"
 CURRENT_USER_ID = st.session_state.get("user_id", "")
-if not CURRENT_USER_ID:
-    CURRENT_USER_ID = st.session_state.get("patient_id", "")
 
 if not CURRENT_USER_ID:
-    st.error("Erreur d'identité. Veuillez vous reconnecter.")
+    st.error("Session expirée. Veuillez vous reconnecter.")
     st.stop()
 
-# 2. Traduction Identifiant (PAT-001)
-USER_IDENTIFIER = CURRENT_USER_ID 
-try:
-    from connect_db import load_data
-    infos = load_data("Codes_Patients")
-    if infos:
-        df_infos = pd.DataFrame(infos)
-        code_clean = str(CURRENT_USER_ID).strip().upper()
-        match = df_infos[df_infos["Code"].astype(str).str.strip().str.upper() == code_clean]
-        if not match.empty:
-            col_id = "Identifiant" if "Identifiant" in df_infos.columns else "Commentaire"
-            val = str(match.iloc[0][col_id]).strip()
-            if val: USER_IDENTIFIER = val
-except: pass
-
-# 3. Anti-Fuite
+# 2. Anti-Fuite
 if "compulsion_owner" not in st.session_state or st.session_state.compulsion_owner != CURRENT_USER_ID:
     if "data_compulsions" in st.session_state: del st.session_state.data_compulsions
     st.session_state.compulsion_owner = CURRENT_USER_ID
 
 st.title("🛑 Agenda des Compulsions")
-st.info(f"Dossier : {USER_IDENTIFIER}")
+st.info(f"Suivi des rituels et compulsions pour le dossier : {CURRENT_USER_ID}")
 
 # ==============================================================================
 # 1. CHARGEMENT DES DONNÉES
@@ -59,17 +43,22 @@ if "data_compulsions" not in st.session_state:
         if data_cloud:
             df_cloud = pd.DataFrame(data_cloud)
             
+            # Correction si colonne manquante
             if "Patient" not in df_cloud.columns:
-                df_cloud["Patient"] = str(USER_IDENTIFIER)
+                df_cloud["Patient"] = str(CURRENT_USER_ID)
             
+            # Remplissage
             for col in COLS_COMP:
                 if col in df_cloud.columns:
                     df_init[col] = df_cloud[col]
             
-            ids_ok = [str(CURRENT_USER_ID).strip(), str(USER_IDENTIFIER).strip()]
-            df_init["Patient"] = df_init["Patient"].astype(str).str.strip()
-            df_init = df_init[df_init["Patient"].isin(ids_ok)]
+            # FILTRE SÉCURITÉ SIMPLIFIÉ
+            if "Patient" in df_init.columns:
+                df_init = df_init[df_init["Patient"].astype(str) == str(CURRENT_USER_ID)]
+            else:
+                df_init = pd.DataFrame(columns=COLS_COMP)
             
+            # Nettoyage numérique
             for c in ["Répétitions", "Durée (min)"]:
                 if c in df_init.columns:
                     df_init[c] = pd.to_numeric(df_init[c], errors='coerce').fillna(0).astype(int)
@@ -108,7 +97,7 @@ with tab1:
             heure_str = str(heure_evt)[:5]
             
             new_row = {
-                "Patient": USER_IDENTIFIER,
+                "Patient": CURRENT_USER_ID, # Utilisation directe
                 "Date": str(date_evt),
                 "Heure": heure_str,
                 "Nature": nature,
@@ -121,7 +110,7 @@ with tab1:
             try:
                 from connect_db import save_data
                 save_data("Compulsions", [
-                    USER_IDENTIFIER, str(date_evt), heure_str, 
+                    CURRENT_USER_ID, str(date_evt), heure_str, 
                     nature, repetitions, duree
                 ])
                 st.success("✅ Enregistré !")
@@ -142,7 +131,7 @@ with tab1:
                 try:
                     from connect_db import delete_data_flexible
                     delete_data_flexible("Compulsions", {
-                        "Patient": USER_IDENTIFIER, 
+                        "Patient": CURRENT_USER_ID, 
                         "Date": str(row['Date']),
                         "Nature": str(row['Nature'])
                     })
@@ -159,7 +148,7 @@ with tab2:
         df_display = st.session_state.data_compulsions.copy()
         
         # 1. Préparation Données
-        if "Patient" in df_display.columns: df_display["Patient"] = str(USER_IDENTIFIER)
+        if "Patient" in df_display.columns: df_display["Patient"] = str(CURRENT_USER_ID)
         if "Heure" not in df_display.columns: df_display["Heure"] = "00:00"
         
         # Conversion numérique
@@ -208,7 +197,7 @@ with tab2:
         elif vue == "Journée":
             df_filtered = df_filtered[df_filtered['Datetime_Full'].dt.date == date_ref]
             st.caption(f"🔎 Journée du {date_ref.strftime('%d/%m/%Y')}")
-            titre_graphique = f"Évolution du {date_ref.strftime('%d/%m/%y')}"
+            titre_graphique = f"Évolution du {date_ref.strftime('%d/%m/%Y')}"
         
         else:
             titre_graphique = "Évolution - Historique complet"
@@ -218,7 +207,7 @@ with tab2:
         # 3. STATISTIQUES & GRAPHIQUES
         if not df_filtered.empty:
             
-            # --- AGRÉGATION DES DONNÉES (Pour éviter les points multiples par date) ---
+            # --- AGRÉGATION DES DONNÉES ---
             if vue != "Journée":
                 # Si on est en vue Semaine/Mois/Historique, on groupe par jour et on fait la moyenne
                 df_to_plot = df_filtered.groupby("Date_Obj").agg({
@@ -226,17 +215,15 @@ with tab2:
                     "Durée (min)": "mean"
                 }).reset_index()
                 
-                # On arrondit pour l'affichage
                 df_to_plot["Répétitions"] = df_to_plot["Répétitions"].round(1)
                 df_to_plot["Durée (min)"] = df_to_plot["Durée (min)"].round(1)
                 
-                # Configuration axe X
                 x_axis_def = alt.X('Date_Obj:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x))
                 tooltip_rep = ['Date_Obj', alt.Tooltip('Répétitions', title="Moyenne Rép.")]
                 tooltip_dur = ['Date_Obj', alt.Tooltip('Durée (min)', title="Moyenne Durée")]
                 
             else:
-                # Si on est en vue Journée, on garde le détail heure par heure
+                # Vue Journée : détail heure par heure
                 df_to_plot = df_filtered
                 x_axis_def = alt.X('Datetime_Full:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x))
                 tooltip_rep = ['Date', 'Heure', 'Nature', 'Répétitions']
@@ -251,7 +238,6 @@ with tab2:
             # --- GRAPHIQUE ---
             st.subheader(f"📈 {titre_graphique}")
             
-            # Base commune
             base = alt.Chart(df_to_plot).encode(x=x_axis_def)
             
             # Ligne 1 : Répétitions (Axe Y Gauche - Rouge)
@@ -278,7 +264,7 @@ with tab2:
             
             st.caption("🔴 Axe Gauche : Répétitions | 🔵 Axe Droit : Durée (min)")
 
-            # Tableau détaillé (Toujours les données brutes)
+            # Tableau détaillé
             st.subheader("📋 Détails des épisodes")
             cols_show = ["Date", "Heure", "Nature", "Répétitions", "Durée (min)"]
             df_table = df_filtered.sort_values(by=["Date", "Heure"], ascending=False)
@@ -309,7 +295,7 @@ with tab2:
                 try:
                     from connect_db import delete_data_flexible
                     delete_data_flexible("Compulsions", {
-                        "Patient": USER_IDENTIFIER, 
+                        "Patient": CURRENT_USER_ID, 
                         "Date": str(row['Date']),
                         "Nature": str(row['Nature'])
                     })
