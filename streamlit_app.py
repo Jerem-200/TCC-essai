@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import altair as alt
 import time
 import secrets
 from datetime import datetime
@@ -16,19 +17,15 @@ def generer_code_securise(prefix="PAT", length=6):
     suffix = ''.join(secrets.choice(chars) for _ in range(length))
     return f"{prefix}-{suffix}"
 
-# --- INITIALISATION DE LA SESSION ---
-if "authentifie" not in st.session_state:
-    st.session_state.authentifie = False
-if "user_type" not in st.session_state:
-    st.session_state.user_type = None 
-if "user_id" not in st.session_state:
-    st.session_state.user_id = "" 
+# --- INITIALISATION SESSION ---
+if "authentifie" not in st.session_state: st.session_state.authentifie = False
+if "user_type" not in st.session_state: st.session_state.user_type = None 
+if "user_id" not in st.session_state: st.session_state.user_id = "" 
 
 # =========================================================
 # 1. FONCTIONS DE BASE DE DONNÉES (OPTIMISÉES AVEC CACHE)
 # =========================================================
 
-# Cache de 10 min pour les comptes thérapeutes (change rarement)
 @st.cache_data(ttl=600)
 def verifier_therapeute(identifiant, mot_de_passe):
     try:
@@ -38,18 +35,13 @@ def verifier_therapeute(identifiant, mot_de_passe):
             df = pd.DataFrame(data)
             df["Identifiant"] = df["Identifiant"].astype(str).str.strip()
             df["MotDePasse"] = df["MotDePasse"].astype(str).str.strip()
-            
             user_clean = str(identifiant).strip()
             pwd_clean = str(mot_de_passe).strip()
-
             user_row = df[(df["Identifiant"] == user_clean) & (df["MotDePasse"] == pwd_clean)]
-            if not user_row.empty:
-                return user_row.iloc[0]["ID"] 
-    except Exception as e:
-        st.error(f"Erreur connexion : {e}")
+            if not user_row.empty: return user_row.iloc[0]["ID"] 
+    except: pass
     return None
 
-# Cache de 5 min pour la liste des patients
 @st.cache_data(ttl=300)
 def recuperer_mes_patients(therapeute_id):
     try:
@@ -61,8 +53,7 @@ def recuperer_mes_patients(therapeute_id):
     except: pass
     return pd.DataFrame()
 
-# Cache de 2 min pour les données cliniques (Beck, Sommeil...)
-# Cela évite de recharger Google Sheet à chaque clic sur un onglet
+# Cache de 2 min pour les données cliniques
 @st.cache_data(ttl=120)
 def charger_donnees_specifiques(nom_onglet, patient_id):
     try:
@@ -70,13 +61,11 @@ def charger_donnees_specifiques(nom_onglet, patient_id):
         data = load_data(nom_onglet)
         if data:
             df = pd.DataFrame(data)
-            # On vérifie si la colonne Patient existe et on filtre
             if "Patient" in df.columns:
                 return df[df["Patient"] == patient_id]
     except: pass
     return pd.DataFrame()
 
-# Validation patient (Cache rapide)
 @st.cache_data(ttl=300)
 def verifier_code_patient(code):
     try:
@@ -85,8 +74,7 @@ def verifier_code_patient(code):
         if data:
             df = pd.DataFrame(data)
             if "Code" in df.columns:
-                if code.upper() in df["Code"].astype(str).str.upper().values:
-                    return True
+                if code.upper() in df["Code"].astype(str).str.upper().values: return True
     except: pass
     return False
 
@@ -100,7 +88,6 @@ if not st.session_state.authentifie:
 
     tab_patient, tab_pro = st.tabs(["👤 Accès Patient", "🩺 Accès Thérapeute"])
     
-    # --- A. PATIENT ---
     with tab_patient:
         st.info("🔒 Entrez votre code unique fourni par votre thérapeute.")
         with st.form("login_patient"):
@@ -111,7 +98,6 @@ if not st.session_state.authentifie:
                     st.session_state.authentifie = True
                     st.session_state.user_type = "patient"
                     
-                    # Récupération ID propre
                     final_id = clean_code 
                     try:
                         from connect_db import load_data
@@ -128,10 +114,8 @@ if not st.session_state.authentifie:
                     st.success(f"Bienvenue {final_id}")
                     time.sleep(0.5)
                     st.rerun()
-                else:
-                    st.error("❌ Code non reconnu.")
+                else: st.error("❌ Code non reconnu.")
 
-    # --- B. THÉRAPEUTE ---
     with tab_pro:
         st.warning("Espace réservé aux professionnels.")
         with st.form("login_therapeute"):
@@ -146,15 +130,14 @@ if not st.session_state.authentifie:
                     st.success(f"Bonjour {th_id}")
                     time.sleep(0.5)
                     st.rerun()
-                else:
-                    st.error("❌ Identifiants incorrects.")
+                else: st.error("❌ Identifiants incorrects.")
 
 # =========================================================
 # 3. TABLEAUX DE BORD (CONNECTÉ)
 # =========================================================
 else:
     # -----------------------------------------------------
-    # A. ESPACE THÉRAPEUTE (OPTIMISÉ)
+    # A. ESPACE THÉRAPEUTE (OPTIMISÉ & COMPLET)
     # -----------------------------------------------------
     if st.session_state.user_type == "therapeute":
         st.title("🩺 Espace Thérapeute")
@@ -188,10 +171,10 @@ else:
                         from connect_db import save_data
                         save_data("Codes_Patients", [ac_code, st.session_state.user_id, id_dossier, str(datetime.now().date())])
                         st.success(f"Créé : {id_dossier} -> Code : {ac_code}")
-                        recuperer_mes_patients.clear() # On vide le cache pour voir le nouveau
+                        recuperer_mes_patients.clear()
                     except Exception as e: st.error(e)
 
-        # 2. VISUALISATION (Lecture Seule Rapide)
+        # 2. VISUALISATION COMPLÈTE
         st.subheader("📂 Dossiers Patients")
         
         df_mes_patients = recuperer_mes_patients(st.session_state.user_id)
@@ -203,39 +186,136 @@ else:
             if patient_sel:
                 st.markdown(f"### 👤 {patient_sel}")
                 
-                # Onglets de consultation uniquement
-                t1, t2, t3, t4, t5 = st.tabs(["🧩 Beck", "🌙 Sommeil", "📝 Activités", "🍷 Conso", "🛑 Compulsions"])
+                # --- LES 10 ONGLETS ---
+                # On utilise des noms courts pour que ça rentre sur l'écran
+                t1, t2, t3, t4, t5, t6, t7, t8, t9, t10 = st.tabs([
+                    "🧩 Beck", "📉 BDI", "📝 Activités", "💡 Problèmes", "🧗 Expo", 
+                    "🌙 Sommeil", "⚖️ Balance", "🔍 SORC", "🍷 Conso", "🛑 Compulsions"
+                ])
                 
-                # On utilise la fonction optimisée 'charger_donnees_specifiques'
+                # 1. BECK
                 with t1:
                     df = charger_donnees_specifiques("Beck", patient_sel)
                     if not df.empty:
-                        st.dataframe(df[["Date", "Situation", "Émotion", "Pensée Auto", "Pensée Rationnelle"]], use_container_width=True, hide_index=True)
-                    else: st.info("Aucune donnée.")
+                        st.dataframe(df.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
+                    else: st.info("Aucune colonne de Beck.")
 
+                # 2. BDI (Avec Graphique)
                 with t2:
-                    df = charger_donnees_specifiques("Sommeil", patient_sel)
+                    df = charger_donnees_specifiques("BDI", patient_sel)
                     if not df.empty:
-                        if "Efficacité" in df.columns:
-                            val = pd.to_numeric(df["Efficacité"].astype(str).str.replace('%',''), errors='coerce').mean()
-                            st.metric("Efficacité Moyenne", f"{val:.1f}%")
-                        st.dataframe(df, use_container_width=True, hide_index=True)
-                    else: st.info("Aucune donnée.")
+                        # On suppose une colonne 'Score' ou 'Total' et 'Date'
+                        cols = df.columns
+                        col_score = next((c for c in cols if "score" in c.lower() or "total" in c.lower()), None)
+                        
+                        if col_score and "Date" in df.columns:
+                            df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
+                            df[col_score] = pd.to_numeric(df[col_score], errors='coerce')
+                            df = df.dropna(subset=["Date", col_score]).sort_values("Date")
+                            
+                            c_bdi = alt.Chart(df).mark_line(point=True, color="red").encode(
+                                x=alt.X('Date:T', axis=alt.Axis(format='%d/%m')),
+                                y=alt.Y(f'{col_score}:Q', title='Score Depression'),
+                                tooltip=['Date', col_score]
+                            ).interactive()
+                            st.altair_chart(c_bdi, use_container_width=True)
+                            st.dataframe(df, use_container_width=True)
+                        else:
+                            st.dataframe(df, use_container_width=True)
+                    else: st.info("Aucun test BDI.")
 
+                # 3. ACTIVITÉS (Avec Graphiques)
                 with t3:
                     df = charger_donnees_specifiques("Activites", patient_sel)
-                    if not df.empty: st.dataframe(df, use_container_width=True, hide_index=True)
-                    else: st.info("Aucune donnée.")
+                    if not df.empty:
+                        df["Date_Obj"] = pd.to_datetime(df["Date"], errors='coerce')
+                        cols_num = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
+                        for c in cols_num: 
+                            if c in df.columns: df[c] = pd.to_numeric(df[c], errors='coerce')
+                        
+                        # Graphique d'évolution
+                        df_evol = df.groupby("Date_Obj")[cols_num].mean().reset_index().melt('Date_Obj', var_name='Type', value_name='Note')
+                        chart = alt.Chart(df_evol).mark_line(point=True).encode(
+                            x='Date_Obj:T', y='Note:Q', color='Type:N', tooltip=['Date_Obj', 'Type', 'Note']
+                        ).interactive()
+                        st.altair_chart(chart, use_container_width=True)
+                        st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True)
+                    else: st.info("Aucune activité.")
 
+                # 4. PROBLÈMES
                 with t4:
-                    df = charger_donnees_specifiques("Addictions", patient_sel)
-                    if not df.empty: st.dataframe(df, use_container_width=True, hide_index=True)
-                    else: st.info("Aucune donnée.")
+                    df = charger_donnees_specifiques("Résolution_Problème", patient_sel)
+                    if not df.empty:
+                        st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True, hide_index=True)
+                    else: st.info("Aucun problème traité.")
 
+                # 5. EXPOSITION
                 with t5:
+                    df = charger_donnees_specifiques("Exposition", patient_sel)
+                    if not df.empty:
+                        st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True, hide_index=True)
+                    else: st.info("Aucune exposition.")
+
+                # 6. SOMMEIL (Complet)
+                with t6:
+                    df = charger_donnees_specifiques("Sommeil", patient_sel)
+                    if not df.empty:
+                        df["Date_Obj"] = pd.to_datetime(df["Date"], errors='coerce')
+                        if "Efficacité" in df.columns:
+                            df["Efficacité_Num"] = pd.to_numeric(df["Efficacité"].astype(str).str.replace('%',''), errors='coerce')
+                            
+                            c_eff = alt.Chart(df).mark_line(point=True, color="#3498db").encode(
+                                x='Date_Obj:T', y=alt.Y('Efficacité_Num:Q', title='Efficacité %'), tooltip=['Date', 'Efficacité']
+                            ).interactive()
+                            st.altair_chart(c_eff, use_container_width=True)
+                        st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True)
+                    else: st.info("Aucune donnée sommeil.")
+
+                # 7. BALANCE
+                with t7:
+                    df = charger_donnees_specifiques("Balance_Decisionnelle", patient_sel)
+                    if not df.empty:
+                        st.dataframe(df, use_container_width=True, hide_index=True)
+                    else: st.info("Aucune balance.")
+
+                # 8. SORC
+                with t8:
+                    df = charger_donnees_specifiques("SORC", patient_sel)
+                    if not df.empty:
+                        st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True, hide_index=True)
+                    else: st.info("Aucune analyse SORC.")
+
+                # 9. CONSO (Graphique)
+                with t9:
+                    df = charger_donnees_specifiques("Addictions", patient_sel)
+                    if not df.empty:
+                        try:
+                            df['Full_Date'] = pd.to_datetime(df['Date'].astype(str) + ' ' + df['Heure'].astype(str), errors='coerce')
+                        except: df['Full_Date'] = pd.to_datetime(df['Date'], errors='coerce')
+                        
+                        df_conso = df[df["Type"].astype(str).str.contains("CONSOMMÉ", na=False)]
+                        if not df_conso.empty and "Quantité" in df_conso.columns:
+                            df_conso["Quantité"] = pd.to_numeric(df_conso["Quantité"], errors='coerce')
+                            c_conso = alt.Chart(df_conso).mark_bar(color="#e74c3c").encode(
+                                x='Full_Date:T', y='Quantité:Q', tooltip=['Date', 'Substance', 'Quantité', 'Unité']
+                            ).interactive()
+                            st.altair_chart(c_conso, use_container_width=True)
+                        st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True)
+                    else: st.info("Aucune consommation.")
+
+                # 10. COMPULSIONS (Graphique)
+                with t10:
                     df = charger_donnees_specifiques("Compulsions", patient_sel)
-                    if not df.empty: st.dataframe(df, use_container_width=True, hide_index=True)
-                    else: st.info("Aucune donnée.")
+                    if not df.empty:
+                        df["Date_Obj"] = pd.to_datetime(df["Date"], errors='coerce')
+                        df["Répétitions"] = pd.to_numeric(df["Répétitions"], errors='coerce')
+                        
+                        base = alt.Chart(df).encode(x='Date_Obj:T')
+                        l_rep = base.mark_line(color="red").encode(y='Répétitions:Q')
+                        st.altair_chart(l_rep.interactive(), use_container_width=True)
+                        st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True)
+                    else: st.info("Aucune compulsion.")
+
         else:
             st.warning("Aucun patient trouvé.")
 
