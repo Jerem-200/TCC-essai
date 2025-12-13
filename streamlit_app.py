@@ -364,7 +364,7 @@ else:
                 if infos:
                     df_infos = pd.DataFrame(infos)
                     code_actuel = str(st.session_state.user_id).strip().upper()
-                    match = df_infos[df_infos["Code"].astype(str).str.strip().str.upper() == code_actuel]
+                    match = df_infos[df_infos["Identifiant"].astype(str).str.strip().str.upper() == code_actuel]
                     if not match.empty:
                         col_id = "Identifiant" if "Identifiant" in df_infos.columns else "Commentaire"
                         display_id = match.iloc[0][col_id]
