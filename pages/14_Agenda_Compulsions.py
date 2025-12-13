@@ -55,24 +55,21 @@ if "data_compulsions" not in st.session_state:
     df_init = pd.DataFrame(columns=COLS_COMP)
     try:
         from connect_db import load_data
-        data_cloud = load_data("Compulsions") # Onglet GSheet
+        data_cloud = load_data("Compulsions")
         if data_cloud:
             df_cloud = pd.DataFrame(data_cloud)
             
             if "Patient" not in df_cloud.columns:
                 df_cloud["Patient"] = str(USER_IDENTIFIER)
             
-            # Remplissage
             for col in COLS_COMP:
                 if col in df_cloud.columns:
                     df_init[col] = df_cloud[col]
             
-            # Filtre
             ids_ok = [str(CURRENT_USER_ID).strip(), str(USER_IDENTIFIER).strip()]
             df_init["Patient"] = df_init["Patient"].astype(str).str.strip()
             df_init = df_init[df_init["Patient"].isin(ids_ok)]
             
-            # Nettoyage numérique
             for c in ["Répétitions", "Durée (min)"]:
                 if c in df_init.columns:
                     df_init[c] = pd.to_numeric(df_init[c], errors='coerce').fillna(0).astype(int)
@@ -100,9 +97,10 @@ with tab1:
         
         c_rep, c_dur = st.columns(2)
         with c_rep:
-            repetitions = st.number_input("Nombre de répétitions", min_value=1, value=1, step=1, help="Combien de fois avez-vous répété le geste ?")
+            repetitions = st.number_input("Nombre de répétitions", min_value=1, value=1, step=1)
         with c_dur:
-            duree = st.number_input("Temps total (minutes)", min_value=0, value=5, step=1, help="Combien de temps cela a pris au total ?")
+            # MODIFICATION ICI : Pas de 5 minutes (step=5)
+            duree = st.number_input("Temps total (minutes)", min_value=0, value=5, step=5)
             
         st.write("")
         submitted = st.form_submit_button("Enregistrer", type="primary")
@@ -119,10 +117,8 @@ with tab1:
                 "Durée (min)": duree
             }
             
-            # Sauvegarde Locale
             st.session_state.data_compulsions = pd.concat([st.session_state.data_compulsions, pd.DataFrame([new_row])], ignore_index=True)
             
-            # Sauvegarde Cloud
             try:
                 from connect_db import save_data
                 save_data("Compulsions", [
@@ -133,7 +129,6 @@ with tab1:
             except Exception as e:
                 st.error(f"Erreur Cloud : {e}")
 
-    # Suppression rapide dernière entrée
     st.divider()
     with st.expander("🗑️ Annuler une saisie récente"):
         df_act = st.session_state.data_compulsions
@@ -164,33 +159,47 @@ with tab2:
     if not st.session_state.data_compulsions.empty:
         df_display = st.session_state.data_compulsions.copy()
         
-        # 1. Préparation
+        # 1. Préparation Données
         if "Patient" in df_display.columns: df_display["Patient"] = str(USER_IDENTIFIER)
-        if "Heure" not in df_display.columns: df_display["Heure"] = ""
+        if "Heure" not in df_display.columns: df_display["Heure"] = "00:00"
         
-        # Conversion Types pour Analyse
+        # Conversion numérique
         df_display["Répétitions"] = pd.to_numeric(df_display["Répétitions"], errors='coerce').fillna(0)
         df_display["Durée (min)"] = pd.to_numeric(df_display["Durée (min)"], errors='coerce').fillna(0)
-        df_display["Date_Obj"] = pd.to_datetime(df_display["Date"], errors='coerce')
         
-        # 2. FILTRE TEMPOREL (Comme demandé)
+        # CRÉATION D'UNE DATE COMPLÈTE (DATE + HEURE) pour le graphique précis
+        # Cela permet d'afficher l'évolution au sein d'une même journée
+        df_display["Datetime_Full"] = pd.to_datetime(
+            df_display["Date"].astype(str) + " " + df_display["Heure"].astype(str), 
+            errors='coerce'
+        )
+        
+        # 2. FILTRE TEMPOREL (Avec option Journée)
         st.subheader("📅 Période d'analyse")
         col_vue, col_date = st.columns([1, 2])
         with col_vue:
-            vue = st.selectbox("Vue :", ["Tout l'historique", "Semaine", "Mois"], label_visibility="collapsed")
+            # MODIFICATION : Ajout de "Journée"
+            vue = st.selectbox("Vue :", ["Tout l'historique", "Semaine", "Mois", "Journée"], label_visibility="collapsed")
         with col_date:
             date_ref = st.date_input("Date de référence :", datetime.now(), label_visibility="collapsed")
 
         # Application Filtre
-        df_chart = df_display.copy().dropna(subset=["Date_Obj"])
+        df_chart = df_display.copy().dropna(subset=["Datetime_Full"])
+        
         if vue == "Semaine":
             start = date_ref - timedelta(days=date_ref.weekday())
             end = start + timedelta(days=6)
-            df_chart = df_chart[(df_chart['Date_Obj'].dt.date >= start) & (df_chart['Date_Obj'].dt.date <= end)]
+            df_chart = df_chart[(df_chart['Datetime_Full'].dt.date >= start) & (df_chart['Datetime_Full'].dt.date <= end)]
             st.caption(f"🔎 Semaine du {start.strftime('%d/%m')} au {end.strftime('%d/%m')}")
+            
         elif vue == "Mois":
-            df_chart = df_chart[(df_chart['Date_Obj'].dt.month == date_ref.month) & (df_chart['Date_Obj'].dt.year == date_ref.year)]
+            df_chart = df_chart[(df_chart['Datetime_Full'].dt.month == date_ref.month) & (df_chart['Datetime_Full'].dt.year == date_ref.year)]
             st.caption(f"🔎 Mois de {date_ref.strftime('%B %Y')}")
+            
+        elif vue == "Journée":
+            # MODIFICATION : Filtre sur la journée précise
+            df_chart = df_chart[df_chart['Datetime_Full'].dt.date == date_ref]
+            st.caption(f"🔎 Journée du {date_ref.strftime('%d/%m/%Y')}")
 
         st.divider()
 
@@ -202,10 +211,13 @@ with tab2:
             c2.metric("Temps Total", f"{int(df_chart['Durée (min)'].sum())} min")
             c3.metric("Moyenne Répétitions", f"{df_chart['Répétitions'].mean():.1f}")
 
-            # Graphique d'évolution (Temps & Répétitions)
+            # Graphique d'évolution
             st.subheader("📈 Évolution")
             
-            base = alt.Chart(df_chart).encode(x=alt.X('Date_Obj:T', title='Date', axis=alt.Axis(format='%d/%m')))
+            # MODIFICATION : Axe X utilise 'Datetime_Full' pour montrer les heures si on zoome sur une journée
+            base = alt.Chart(df_chart).encode(
+                x=alt.X('Datetime_Full:T', title='Moment', axis=alt.Axis(format='%d/%m %H:%M'))
+            )
             
             line_rep = base.mark_line(point=True, color="#e74c3c").encode(
                 y=alt.Y('Répétitions:Q', title='Répétitions'),
@@ -214,7 +226,7 @@ with tab2:
             
             line_dur = base.mark_line(point=True, color="#3498db", strokeDash=[5,5]).encode(
                 y=alt.Y('Durée (min):Q', title='Durée (min)'),
-                tooltip=['Date', 'Durée (min)']
+                tooltip=['Date', 'Heure', 'Durée (min)']
             )
             
             st.altair_chart((line_rep + line_dur).interactive(), use_container_width=True)
@@ -223,7 +235,6 @@ with tab2:
             # Tableau détaillé
             st.subheader("📋 Détails")
             cols_show = ["Date", "Heure", "Nature", "Répétitions", "Durée (min)"]
-            # Tri
             df_chart = df_chart.sort_values(by=["Date", "Heure"], ascending=False)
             
             st.dataframe(
