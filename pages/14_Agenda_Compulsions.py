@@ -99,7 +99,6 @@ with tab1:
         with c_rep:
             repetitions = st.number_input("Nombre de répétitions", min_value=1, value=1, step=1)
         with c_dur:
-            # Pas de 5 minutes
             duree = st.number_input("Temps total (minutes)", min_value=0, value=5, step=5)
             
         st.write("")
@@ -168,6 +167,7 @@ with tab2:
         df_display["Durée (min)"] = pd.to_numeric(df_display["Durée (min)"], errors='coerce').fillna(0)
         
         # CRÉATION D'UNE DATE COMPLÈTE
+        df_display["Date_Obj"] = pd.to_datetime(df_display["Date"], errors='coerce')
         df_display["Datetime_Full"] = pd.to_datetime(
             df_display["Date"].astype(str) + " " + df_display["Heure"].astype(str), 
             errors='coerce'
@@ -181,85 +181,110 @@ with tab2:
         with col_date:
             date_ref = st.date_input("Date de référence :", datetime.now(), label_visibility="collapsed")
 
-        # LOGIQUE D'AFFICHAGE DU GRAPHIQUE (Date vs Heure)
+        # LOGIQUE D'AFFICHAGE DU GRAPHIQUE
         format_axe_x = '%d/%m'
         titre_axe_x = "Date"
-        titre_graphique = "Évolution de la durée et du nombre de répétitions" # Titre par défaut
-
+        titre_graphique = ""
+        
         if vue == "Journée":
             format_axe_x = '%H:%M'
             titre_axe_x = "Heure"
 
         # Application Filtre & Construction du Titre
-        df_chart = df_display.copy().dropna(subset=["Datetime_Full"])
+        df_filtered = df_display.copy().dropna(subset=["Datetime_Full"])
         
         if vue == "Semaine":
             start = date_ref - timedelta(days=date_ref.weekday())
             end = start + timedelta(days=6)
-            df_chart = df_chart[(df_chart['Datetime_Full'].dt.date >= start) & (df_chart['Datetime_Full'].dt.date <= end)]
+            df_filtered = df_filtered[(df_filtered['Datetime_Full'].dt.date >= start) & (df_filtered['Datetime_Full'].dt.date <= end)]
             st.caption(f"🔎 Semaine du {start.strftime('%d/%m')} au {end.strftime('%d/%m')}")
-            # TITRE DYNAMIQUE
             titre_graphique = f"Évolution du {start.strftime('%d/%m/%y')} au {end.strftime('%d/%m/%y')}"
             
         elif vue == "Mois":
-            df_chart = df_chart[(df_chart['Datetime_Full'].dt.month == date_ref.month) & (df_chart['Datetime_Full'].dt.year == date_ref.year)]
+            df_filtered = df_filtered[(df_filtered['Datetime_Full'].dt.month == date_ref.month) & (df_filtered['Datetime_Full'].dt.year == date_ref.year)]
             st.caption(f"🔎 Mois de {date_ref.strftime('%B %Y')}")
-            # TITRE DYNAMIQUE
             titre_graphique = f"Évolution - Mois de {date_ref.strftime('%m/%Y')}"
             
         elif vue == "Journée":
-            df_chart = df_chart[df_chart['Datetime_Full'].dt.date == date_ref]
+            df_filtered = df_filtered[df_filtered['Datetime_Full'].dt.date == date_ref]
             st.caption(f"🔎 Journée du {date_ref.strftime('%d/%m/%Y')}")
-            # TITRE DYNAMIQUE
             titre_graphique = f"Évolution du {date_ref.strftime('%d/%m/%y')}"
         
         else:
-            # TITRE DYNAMIQUE
             titre_graphique = "Évolution - Historique complet"
 
         st.divider()
 
         # 3. STATISTIQUES & GRAPHIQUES
-        if not df_chart.empty:
-            # KPI
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Total Épisodes", len(df_chart))
-            c2.metric("Temps Total", f"{int(df_chart['Durée (min)'].sum())} min")
-            c3.metric("Moyenne Répétitions", f"{df_chart['Répétitions'].mean():.1f}")
+        if not df_filtered.empty:
+            
+            # --- AGRÉGATION DES DONNÉES (Pour éviter les points multiples par date) ---
+            if vue != "Journée":
+                # Si on est en vue Semaine/Mois/Historique, on groupe par jour et on fait la moyenne
+                df_to_plot = df_filtered.groupby("Date_Obj").agg({
+                    "Répétitions": "mean",
+                    "Durée (min)": "mean"
+                }).reset_index()
+                
+                # On arrondit pour l'affichage
+                df_to_plot["Répétitions"] = df_to_plot["Répétitions"].round(1)
+                df_to_plot["Durée (min)"] = df_to_plot["Durée (min)"].round(1)
+                
+                # Configuration axe X
+                x_axis_def = alt.X('Date_Obj:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x))
+                tooltip_rep = ['Date_Obj', alt.Tooltip('Répétitions', title="Moyenne Rép.")]
+                tooltip_dur = ['Date_Obj', alt.Tooltip('Durée (min)', title="Moyenne Durée")]
+                
+            else:
+                # Si on est en vue Journée, on garde le détail heure par heure
+                df_to_plot = df_filtered
+                x_axis_def = alt.X('Datetime_Full:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x))
+                tooltip_rep = ['Date', 'Heure', 'Nature', 'Répétitions']
+                tooltip_dur = ['Date', 'Heure', 'Nature', 'Durée (min)']
 
-            # Graphique d'évolution (Titre Dynamique)
+            # --- KPI ---
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Total Épisodes", len(df_filtered))
+            c2.metric("Temps Total (Cumulé)", f"{int(df_filtered['Durée (min)'].sum())} min")
+            c3.metric("Moyenne Répétitions", f"{df_filtered['Répétitions'].mean():.1f}")
+
+            # --- GRAPHIQUE ---
             st.subheader(f"📈 {titre_graphique}")
             
             # Base commune
-            base = alt.Chart(df_chart).encode(
-                x=alt.X('Datetime_Full:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x))
-            )
+            base = alt.Chart(df_to_plot).encode(x=x_axis_def)
             
             # Ligne 1 : Répétitions (Axe Y Gauche - Rouge)
             line_rep = base.mark_line(point=True, color="#e74c3c").encode(
-                y=alt.Y('Répétitions:Q', title='Répétitions', axis=alt.Axis(titleColor="#e74c3c")),
-                tooltip=['Date', 'Heure', 'Nature', 'Répétitions']
+                y=alt.Y('Répétitions:Q', title='Moy. Répétitions' if vue != "Journée" else 'Répétitions', axis=alt.Axis(titleColor="#e74c3c")),
+                tooltip=tooltip_rep
             )
             
             # Ligne 2 : Durée (Axe Y Droite - Bleu)
             line_dur = base.mark_line(point=True, color="#3498db", strokeDash=[5,5]).encode(
-                y=alt.Y('Durée (min):Q', title='Durée (min)', axis=alt.Axis(titleColor="#3498db")),
-                tooltip=['Date', 'Heure', 'Durée (min)']
+                y=alt.Y('Durée (min):Q', title='Moy. Durée (min)' if vue != "Journée" else 'Durée (min)', axis=alt.Axis(titleColor="#3498db")),
+                tooltip=tooltip_dur
             )
             
-            # COMBINAISON AVEC ÉCHELLES INDÉPENDANTES
+            # COMBINAISON
             final_chart = alt.layer(line_rep, line_dur).resolve_scale(y='independent')
             
             st.altair_chart(final_chart.interactive(), use_container_width=True)
+            
+            if vue != "Journée":
+                st.caption("ℹ️ Les points représentent la **moyenne journalière**.")
+            else:
+                st.caption("ℹ️ Les points représentent chaque épisode de la journée.")
+            
             st.caption("🔴 Axe Gauche : Répétitions | 🔵 Axe Droit : Durée (min)")
 
-            # Tableau détaillé
-            st.subheader("📋 Détails")
+            # Tableau détaillé (Toujours les données brutes)
+            st.subheader("📋 Détails des épisodes")
             cols_show = ["Date", "Heure", "Nature", "Répétitions", "Durée (min)"]
-            df_chart = df_chart.sort_values(by=["Date", "Heure"], ascending=False)
+            df_table = df_filtered.sort_values(by=["Date", "Heure"], ascending=False)
             
             st.dataframe(
-                df_chart[cols_show], 
+                df_table[cols_show], 
                 use_container_width=True, 
                 hide_index=True,
                 column_config={
