@@ -375,6 +375,45 @@ with tab2:
                 st.info("Pas d'humeur enregistrée sur cette période.")
         else:
             st.info("Pas encore de données d'humeur.")
+# 5. SUPPRESSION DEPUIS L'HISTORIQUE
+        st.divider()
+        with st.expander("🗑️ Supprimer une entrée depuis l'historique"):
+            # On récupère toutes les activités triées par date
+            df_hist_del = st.session_state.data_activites.sort_values(by=["Date", "Heure"], ascending=False)
+            
+            if not df_hist_del.empty:
+                # Création des labels pour le menu déroulant
+                opts_del = {}
+                for i, row in df_hist_del.iterrows():
+                    # Format : Date (Heure) | Activité (Notes P/M/S)
+                    lbl = f"📅 {row['Date']} ({row['Heure']}) | {row['Activité']} | P:{row.get('Plaisir (0-10)',0)} M:{row.get('Maîtrise (0-10)',0)}"
+                    opts_del[lbl] = i
+                
+                # Menu de sélection
+                choix_del = st.selectbox("Sélectionnez l'activité à supprimer :", list(opts_del.keys()), index=None, key="sel_del_tab2")
+                
+                # Bouton d'action
+                if st.button("Confirmer la suppression", key="btn_del_tab2") and choix_del:
+                    idx = opts_del[choix_del]
+                    row_to_del = df_hist_del.loc[idx]
+                    
+                    # 1. Suppression Cloud
+                    try:
+                        from connect_db import delete_data_flexible
+                        delete_data_flexible("Activites", {
+                            "Patient": CURRENT_USER_ID, 
+                            "Date": str(row_to_del['Date']),
+                            "Heure": str(row_to_del['Heure']),
+                            "Activité": str(row_to_del['Activité'])
+                        })
+                    except: pass
+                    
+                    # 2. Suppression Locale
+                    st.session_state.data_activites = st.session_state.data_activites.drop(idx).reset_index(drop=True)
+                    st.success("Activité supprimée !")
+                    st.rerun()
+            else:
+                st.info("Historique vide.")
 
     else:
         st.info("Aucune activité enregistrée.")
