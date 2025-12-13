@@ -242,129 +242,129 @@ else:
             
 
 # -----------------------------------------------------
-    # SCÉNARIO B : TABLEAU DE BORD PATIENT
+    # SCÉNARIO B : TABLEAU DE BORD PATIENT (ORGANISÉ)
     # -----------------------------------------------------
     elif st.session_state.user_type == "patient":
         
         c_titre, c_logout = st.columns([4, 1])
         with c_titre:
-            st.title(f"🧠 Bonjour")
+            st.title(f"🧠 Espace Patient")
         with c_logout:
             if st.button("Se déconnecter"):
                 st.session_state.authentifie = False
-                # CORRECTION 1 : On vide user_id (et non patient_id qui n'existe pas)
                 st.session_state.user_id = "" 
                 st.rerun()
 
-        st.subheader("Tableau de bord personnel")
         st.divider()
 
-        # --- LIGNE 1 : COGNITIF & ANALYSE ---
-        c1, c2, c3 = st.columns(3)
+        # --- SECTION 1 : AGENDAS (Suivi quotidien) ---
+        st.markdown("### 📅 Mes Agendas (Suivi quotidien)")
+        st.caption("À remplir régulièrement pour suivre vos habitudes.")
+        
+        c1, c2, c3, c4 = st.columns(4)
         with c1:
-            st.info("### 🧩 Restructuration")
-            st.write("Colonnes de Beck")
-            st.page_link("pages/01_Colonnes_Beck.py", label="Lancer", icon="➡️")
+            st.warning("**Sommeil**")
+            st.page_link("pages/10_Agenda_Sommeil.py", label="Ouvrir", icon="🌙")
         with c2:
-            st.info("### 📊 Échelles (BDI)")
-            st.write("Suivi de l'humeur")
-            st.page_link("pages/02_Echelles_BDI.py", label="Tester", icon="➡️")
+            st.warning("**Activités**")
+            st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="📝")
         with c3:
-            st.info("### ⚖️ Balance décisionnelle")
-            st.write("Pour & Contre")
-            st.page_link("pages/11_Balance_Decisionnelle.py", label="Peser", icon="➡️")
-
-        st.divider()
-
-        # --- LIGNE 2 : ACTION & PROBLÈMES ---
-        c4, c5, c6 = st.columns(3)
+            st.warning("**Consommations**")
+            st.page_link("pages/13_Agenda_Consos.py", label="Ouvrir", icon="🍷")
         with c4:
-            st.error("### 🧘 Relaxation")
-            st.write("Respiration & Détente")
-            st.page_link("pages/07_Relaxation.py", label="Lancer", icon="➡️")
+            st.warning("**Compulsions**")
+            st.page_link("pages/14_Agenda_Compulsions.py", label="Ouvrir", icon="🛑")
+
+        st.write("") # Espace
+
+        # --- SECTION 2 : OUTILS TCC (Exercices ponctuels) ---
+        st.markdown("### 🛠️ Outils Thérapeutiques (Exercices)")
+        st.caption("À utiliser face à une difficulté ou pour travailler sur soi.")
+        
+        c5, c6, c7 = st.columns(3)
         with c5:
-            st.error("### 💡 Résolution de problème")
-            st.write("Trouver des solutions")
-            st.page_link("pages/06_Resolution_Probleme.py", label="Lancer", icon="➡️")
+            st.info("**Restructuration (Beck)**")
+            st.write("Analyser une pensée")
+            st.page_link("pages/01_Colonnes_Beck.py", label="Lancer", icon="🧩")
+            st.write("")
+            st.info("**Analyse SORC**")
+            st.write("Décortiquer une situation")
+            st.page_link("pages/12_Analyse_SORC.py", label="Lancer", icon="🔍")
+            
         with c6:
-            st.error("### 🧗 Exposition")
-            st.write("Affronter ses peurs")
-            st.page_link("pages/09_Exposition.py", label="Planifier", icon="➡️")
+            st.info("**Résolution Problème**")
+            st.write("Trouver des solutions")
+            st.page_link("pages/06_Resolution_Probleme.py", label="Lancer", icon="💡")
+            st.write("")
+            st.info("**Balance Décisionnelle**")
+            st.write("Faire un choix")
+            st.page_link("pages/11_Balance_Decisionnelle.py", label="Lancer", icon="⚖️")
 
-        st.divider()
-
-        # --- LIGNE 3 : PHYSIOLOGIE & BIEN-ÊTRE ---
-        c7, c8, c9 = st.columns(3)
         with c7:
-            st.warning("### 🌙 Agenda du sommeil")
-            st.write("Agenda du sommeil")
-            st.page_link("pages/10_Agenda_Sommeil.py", label="Noter", icon="➡️")
+            st.info("**Exposition**")
+            st.write("Affronter une peur")
+            st.page_link("pages/09_Exposition.py", label="Lancer", icon="🧗")
+            st.write("")
+            st.info("**Relaxation**")
+            st.write("Se détendre")
+            st.page_link("pages/07_Relaxation.py", label="Lancer", icon="🧘")
+
+        st.write("") # Espace
+
+        # --- SECTION 3 : ANALYSE & RESSOURCES ---
+        st.markdown("### 📊 Mesures & Bilan")
+        
+        c8, c9, c10 = st.columns(3)
         with c8:
-            st.warning("### 📝 Agenda des activités")
-            st.write("Plaisir & Maîtrise")
-            st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="➡️")
+            st.success("**Échelles (BDI)**")
+            st.page_link("pages/02_Echelles_BDI.py", label="Mesurer l'humeur", icon="📉")
         with c9:
-            st.warning("### 🍷 Agenda de consommation") 
-            st.write("Envies & Substances")
-            st.page_link("pages/13_Agenda_Consos.py", label="Ouvrir", icon="➡️") 
+            st.success("**Historique Global**")
+            st.page_link("pages/04_Historique.py", label="Voir mes progrès", icon="📜")
+        with c10:
+            st.success("**Exporter Données**")
+            st.page_link("pages/08_Export_Rapport.py", label="Créer un PDF", icon="📤")
 
         st.divider()
+        
+        # Petit lien ressources discret en bas
+        st.page_link("pages/03_Ressources.py", label="📚 Consulter les Fiches & Ressources", icon="🔖")
 
-        # --- LIGNE 4 : SUIVI & RESSOURCES ---
-        c10, c11, c12 = st.columns(3)
-        with c10:
-            st.success("### 📜 Historique")
-            st.write("Mes progrès")
-            st.page_link("pages/04_Historique.py", label="Consulter", icon="📅")
-        with c11:
-            st.success("### 📩 Export")
-            st.write("Envoyer rapport")
-            st.page_link("pages/08_Export_Rapport.py", label="Générer", icon="📤")
-        with c12:
-            st.success("### 📚 Ressources")
-            st.write("Fiches pratiques")
-            st.page_link("pages/03_Ressources.py", label="Lire", icon="📚")
 
         # --- SIDEBAR (MENU LATÉRAL) ---
         with st.sidebar:
             
-            # --- LOGIQUE DE TRADUCTION (Code TCC -> PAT-001) ---
-            # 1. Par défaut, on affiche le code (au cas où on ne trouve pas le nom)
+            # LOGIQUE D'AFFICHAGE NOM PATIENT
             display_id = st.session_state.user_id 
-            
-            # 2. On cherche le "Vrai Nom" dans la base
             try:
                 from connect_db import load_data
                 infos = load_data("Codes_Patients")
                 if infos:
                     df_infos = pd.DataFrame(infos)
-                    # Recherche insensible aux majuscules/espaces
                     code_actuel = str(st.session_state.user_id).strip().upper()
-                    
-                    # On cherche la ligne correspondante
                     match = df_infos[df_infos["Code"].astype(str).str.strip().str.upper() == code_actuel]
-                    
                     if not match.empty:
-                        # On récupère l'Identifiant (ou Commentaire)
                         col_id = "Identifiant" if "Identifiant" in df_infos.columns else "Commentaire"
                         display_id = match.iloc[0][col_id]
-            except:
-                pass # Si erreur technique, on reste sur le code par défaut
+            except: pass
             
-            # 3. Affichage du résultat
             st.write(f"👤 ID: **{display_id}**")
             
             st.divider()
-            st.title("Navigation")
+            st.title("Navigation Rapide")
             st.page_link("streamlit_app.py", label="🏠 Accueil")
-            st.page_link("pages/01_Colonnes_Beck.py", label="🧩 Tableau de Beck")
-            st.page_link("pages/02_Echelles_BDI.py", label="📊 BDI")
-            st.page_link("pages/05_Registre_Activites.py", label="📝 Agenda des activités")
-            st.page_link("pages/06_Resolution_Probleme.py", label="💡 Résolution Problèmes")
-            st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
-            st.page_link("pages/09_Exposition.py", label="🧗 Exposition")
+            st.caption("Agendas")
             st.page_link("pages/10_Agenda_Sommeil.py", label="🌙 Sommeil")
-            st.page_link("pages/11_Balance_Decisionnelle.py", label="⚖️ Balance")
-            st.page_link("pages/13_Agenda_Consos.py", label="🍷 Consommation")
-            st.page_link("pages/03_Ressources.py", label="📚 Ressources")
+            st.page_link("pages/05_Registre_Activites.py", label="📝 Activités")
+            st.page_link("pages/13_Agenda_Consos.py", label="🍷 Consommations")
+            st.page_link("pages/14_Agenda_Compulsions.py", label="🛑 Compulsions")
+            st.caption("Outils")
+            st.page_link("pages/01_Colonnes_Beck.py", label="🧩 Beck")
             st.page_link("pages/12_Analyse_SORC.py", label="🔍 SORC")
+            st.page_link("pages/06_Resolution_Probleme.py", label="💡 Problèmes")
+            st.page_link("pages/11_Balance_Decisionnelle.py", label="⚖️ Balance")
+            st.page_link("pages/09_Exposition.py", label="🧗 Exposition")
+            st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
+            st.caption("Suivi")
+            st.page_link("pages/02_Echelles_BDI.py", label="📊 BDI")
+            st.page_link("pages/04_Historique.py", label="📜 Historique")
