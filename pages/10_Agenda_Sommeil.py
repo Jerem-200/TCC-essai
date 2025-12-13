@@ -234,65 +234,39 @@ with tab1:
 with tab2:
     st.header("📊 Tableau de bord")
     
-    # On vérifie s'il y a des données
     if not st.session_state.data_sommeil.empty:
         
-        # 1. On travaille sur une copie pour l'affichage
+        # 1. Préparation pour affichage
         df_display = st.session_state.data_sommeil.copy()
         
-        # 2. On récupère l'identifiant "joli" (PAT-001)
-        identifiant_final = CURRENT_USER_ID # Par défaut
-        
-        try:
-            from connect_db import load_data
-            infos = load_data("Codes_Patients")
-            if infos:
-                df_i = pd.DataFrame(infos)
-                # Recherche insensible à la casse/espaces
-                match = df_i[df_i["Code"].astype(str).str.strip() == str(CURRENT_USER_ID).strip()]
-                if not match.empty:
-                    col_id = "Identifiant" if "Identifiant" in df_i.columns else "Commentaire"
-                    identifiant_final = match.iloc[0][col_id]
-        except: pass
+        if "Patient" in df_display.columns:
+            df_display["Patient"] = str(USER_IDENTIFIER)
 
-        # 3. FORÇAGE VISUEL (Le Correctif)
-        # Même si la colonne est vide dans Excel, on la remplit ici pour l'affichage
-        df_display["Patient"] = str(identifiant_final)
-
-        # 4. AFFICHAGE
+        # 2. Affichage Tableau
         st.dataframe(
             df_display, 
             use_container_width=True, 
-            hide_index=True # Supprime la colonne de chiffres 0,1,2...
+            hide_index=True 
         )
         
         st.divider()
         
-        # 5. GRAPHIQUES (Suite du code...)
-# 5. ANALYSE AVANCÉE (FILTRES & GRAPHIQUES)
+        # 3. ANALYSE AVANCÉE (FILTRES & GRAPHIQUES)
         
         # --- A. PRÉPARATION DES DONNÉES ---
-        # ⚠️ CORRECTION ICI : On définit 'df' avant de l'utiliser
-        df = st.session_state.data_sommeil.copy()
-        
-        # On crée df_chart pour les graphiques
-        df_chart = df.copy()
-        
-        # Conversion des dates et des chiffres pour qu'Altair puisse les lire
-        df_chart["Date"] = pd.to_datetime(df_chart["Date"], errors='coerce')
+        df_chart = st.session_state.data_sommeil.copy()
+        df_chart["Date_Obj"] = pd.to_datetime(df_chart["Date"], errors='coerce')
         
         # Nettoyage des colonnes numériques
         cols_num = ["Efficacité", "Forme", "Qualité"]
         for c in cols_num:
             if c in df_chart.columns:
-                # On enlève le '%' si présent et on convertit en nombre
                 df_chart[c] = pd.to_numeric(df_chart[c].astype(str).str.replace('%', ''), errors='coerce')
             
-        # On enlève les lignes sans date valide
-        df_chart = df_chart.dropna(subset=["Date"])
+        df_chart = df_chart.dropna(subset=["Date_Obj"])
 
         # --- B. FILTRE TEMPOREL ---
-        st.write("### 📅 Période d'analyse")
+        st.markdown("##### 📅 Période d'analyse")
         col_vue, col_date = st.columns([1, 2])
         
         with col_vue:
@@ -303,81 +277,76 @@ with tab2:
             )
 
         with col_date:
-            from datetime import timedelta
             date_ref = st.date_input("Choisir la date de référence :", datetime.now(), label_visibility="collapsed")
 
+        # Variables dynamiques
+        titre_graphique = "Historique complet"
+        
         # Application du filtre
         if vue_temporelle == "Semaine":
             start_week = date_ref - timedelta(days=date_ref.weekday())
             end_week = start_week + timedelta(days=6)
-            df_chart = df_chart[(df_chart['Date'].dt.date >= start_week) & (df_chart['Date'].dt.date <= end_week)]
+            df_chart = df_chart[(df_chart['Date_Obj'].dt.date >= start_week) & (df_chart['Date_Obj'].dt.date <= end_week)]
             st.caption(f"🔎 Semaine du {start_week.strftime('%d/%m')} au {end_week.strftime('%d/%m')}")
+            titre_graphique = f"du {start_week.strftime('%d/%m/%y')} au {end_week.strftime('%d/%m/%y')}"
 
         elif vue_temporelle == "Mois":
-            df_chart = df_chart[(df_chart['Date'].dt.month == date_ref.month) & (df_chart['Date'].dt.year == date_ref.year)]
+            df_chart = df_chart[(df_chart['Date_Obj'].dt.month == date_ref.month) & (df_chart['Date_Obj'].dt.year == date_ref.year)]
             st.caption(f"🔎 Mois de {date_ref.strftime('%B %Y')}")
+            titre_graphique = f"- Mois de {date_ref.strftime('%m/%Y')}"
             
         else:
             st.caption(f"🔎 Historique complet ({len(df_chart)} nuits)")
 
-        # --- C. CALCUL DES MOYENNES (Sur la période filtrée) ---
+        # --- C. AGRÉGATION (Moyenne par jour pour éviter doublons graphiques) ---
         if not df_chart.empty:
+            df_plot = df_chart.groupby("Date_Obj")[cols_num].mean().reset_index()
+            
+            # KPI
             c1, c2, c3 = st.columns(3)
-            with c1:
-                if "Efficacité" in df_chart.columns:
-                    moy_eff = df_chart["Efficacité"].mean()
-                    st.metric("Efficacité", f"{moy_eff:.1f} %")
-            with c2:
-                if "Forme" in df_chart.columns:
-                    moy_forme = df_chart["Forme"].mean()
-                    st.metric("Forme", f"{moy_forme:.1f} / 5")
-            with c3:
-                if "Qualité" in df_chart.columns:
-                    moy_qual = df_chart["Qualité"].mean()
-                    st.metric("Qualité", f"{moy_qual:.1f} / 5")
+            with c1: st.metric("Efficacité Moyenne", f"{df_plot['Efficacité'].mean():.1f} %")
+            with c2: st.metric("Forme Moyenne", f"{df_plot['Forme'].mean():.1f} / 5")
+            with c3: st.metric("Qualité Moyenne", f"{df_plot['Qualité'].mean():.1f} / 5")
         
-        st.divider()
+            st.divider()
 
-        # --- D. VISUALISATION ---
-        import altair as alt
+            # --- D. VISUALISATION ---
+            import altair as alt
 
-        if not df_chart.empty:
-            # GRAPHIQUE 1 : EFFICACITÉ DU SOMMEIL
-            if "Efficacité" in df_chart.columns:
-                st.subheader("🌙 Efficacité du Sommeil (%)")
-                chart_eff = alt.Chart(df_chart).mark_line(point=True, color="#3498db").encode(
-                    x=alt.X('Date:T', axis=alt.Axis(format='%d/%m')),
-                    y=alt.Y('Efficacité:Q', scale=alt.Scale(domain=[0, 100])),
-                    tooltip=['Date', 'Efficacité', 'Heure Coucher', 'Heure Lever']
-                ).interactive()
-                st.altair_chart(chart_eff, use_container_width=True)
+            # GRAPHIQUE 1 : EFFICACITÉ
+            st.subheader(f"🌙 Efficacité du Sommeil {titre_graphique}")
+            chart_eff = alt.Chart(df_plot).mark_line(point=True, color="#3498db").encode(
+                x=alt.X('Date_Obj:T', title='Date', axis=alt.Axis(format='%d/%m')),
+                y=alt.Y('Efficacité:Q', title='Efficacité (%)', scale=alt.Scale(domain=[0, 100])),
+                tooltip=[alt.Tooltip('Date_Obj', title='Date', format='%d/%m/%Y'), 'Efficacité']
+            ).interactive()
+            st.altair_chart(chart_eff, use_container_width=True)
 
             # GRAPHIQUE 2 : FORME & QUALITÉ
-            if "Forme" in df_chart.columns and "Qualité" in df_chart.columns:
-                st.subheader("🔋 Forme & ✨ Qualité")
-                
-                base = alt.Chart(df_chart).encode(x=alt.X('Date:T', axis=alt.Axis(format='%d/%m')))
+            st.subheader(f"🔋 Forme & Qualité {titre_graphique}")
+            
+            base = alt.Chart(df_plot).encode(x=alt.X('Date_Obj:T', title='Date', axis=alt.Axis(format='%d/%m')))
 
-                line_forme = base.mark_line(point=True, color="#e67e22").encode(
-                    y=alt.Y('Forme:Q', scale=alt.Scale(domain=[0, 6]), title="Note (0-5)"),
-                    tooltip=['Date', 'Forme']
-                )
-                
-                line_qualite = base.mark_line(point=True, color="#9b59b6", strokeDash=[5, 5]).encode(
-                    y=alt.Y('Qualité:Q'),
-                    tooltip=['Date', 'Qualité']
-                )
+            line_forme = base.mark_line(point=True, color="#e67e22").encode(
+                y=alt.Y('Forme:Q', scale=alt.Scale(domain=[0, 6]), title="Note (0-5)"),
+                tooltip=[alt.Tooltip('Date_Obj', title='Date', format='%d/%m/%Y'), 'Forme']
+            )
+            
+            line_qualite = base.mark_line(point=True, color="#9b59b6", strokeDash=[5, 5]).encode(
+                y=alt.Y('Qualité:Q'),
+                tooltip=[alt.Tooltip('Date_Obj', title='Date', format='%d/%m/%Y'), 'Qualité']
+            )
 
-                st.altair_chart((line_forme + line_qualite).interactive(), use_container_width=True)
-                st.caption("🟠 Trait continu : Forme | 🟣 Pointillés : Qualité du sommeil")
+            st.altair_chart((line_forme + line_qualite).interactive(), use_container_width=True)
+            st.caption("🟠 Trait continu : Forme | 🟣 Pointillés : Qualité du sommeil")
 
         else:
             st.info("Aucune donnée sur cette période.")
 
-        # 6. SUPPRESSION
+        # 4. SUPPRESSION
         st.divider()
         with st.expander("🗑️ Supprimer une entrée"):
-            df_h = df.sort_values(by="Date", ascending=False)
+            df_h = st.session_state.data_sommeil.sort_values(by="Date", ascending=False)
             options_history = {
                 f"📅 {row['Date']} | Efficacité: {row.get('Efficacité', '?')}%": i 
                 for i, row in df_h.iterrows()
@@ -391,9 +360,9 @@ with tab2:
                     
                     try:
                         from connect_db import delete_data_flexible
-                        # Suppression dans le Cloud avec l'ID sécurisé
+                        # Suppression dans le Cloud
                         delete_data_flexible("Sommeil", {
-                            "Patient": USER_IDENTIFIER, # On utilise l'identifiant pour cibler la ligne
+                            "Patient": USER_IDENTIFIER, 
                             "Date": str(row_to_del['Date'])
                         })
                     except: pass
