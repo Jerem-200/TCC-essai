@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import time
 import secrets
-import string
 from datetime import datetime
 
 st.set_page_config(page_title="Compagnon TCC", page_icon="🧠", layout="wide")
@@ -13,7 +12,6 @@ st.set_page_config(page_title="Compagnon TCC", page_icon="🧠", layout="wide")
 
 def generer_code_securise(prefix="PAT", length=6):
     """Génère un code aléatoire sécurisé (ex: PAT-X9J2M)"""
-    # On évite I, 1, O, 0 pour éviter les confusions de lecture
     chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" 
     suffix = ''.join(secrets.choice(chars) for _ in range(length))
     return f"{prefix}-{suffix}"
@@ -38,20 +36,15 @@ def verifier_therapeute(identifiant, mot_de_passe):
         data = load_data("Therapeutes")
         if data:
             df = pd.DataFrame(data)
-            
-            # --- BLINDAGE : Nettoyage des espaces et conversion en texte ---
-            # On s'assure que les colonnes sont bien lues comme du texte
             df["Identifiant"] = df["Identifiant"].astype(str).str.strip()
             df["MotDePasse"] = df["MotDePasse"].astype(str).str.strip()
             
             user_clean = str(identifiant).strip()
             pwd_clean = str(mot_de_passe).strip()
 
-            # Recherche de la ligne correspondante
             user_row = df[(df["Identifiant"] == user_clean) & (df["MotDePasse"] == pwd_clean)]
             
             if not user_row.empty:
-                # On retourne la colonne 'ID' (ex: TH-01)
                 return user_row.iloc[0]["ID"] 
     except Exception as e:
         st.error(f"Erreur connexion Thérapeute : {e}")
@@ -66,7 +59,6 @@ def verifier_code_patient(code):
         if data:
             df = pd.DataFrame(data)
             if "Code" in df.columns:
-                # Vérification insensible à la casse (majuscule/minuscule)
                 if code.upper() in df["Code"].astype(str).str.upper().values:
                     return True
     except Exception as e:
@@ -80,7 +72,6 @@ def recuperer_mes_patients(therapeute_id):
         data = load_data("Codes_Patients")
         if data:
             df = pd.DataFrame(data)
-            # On filtre pour ne garder que ceux créés par CE thérapeute
             return df[df["Therapeute_ID"] == therapeute_id]
     except: pass
     return pd.DataFrame()
@@ -93,7 +84,6 @@ if not st.session_state.authentifie:
     st.title("🧠 Compagnon TCC")
     st.write("Bienvenue dans votre espace de travail thérapeutique.")
 
-    # ONGLETS POUR LA DOUBLE ENTRÉE
     tab_patient, tab_pro = st.tabs(["👤 Accès Patient", "🩺 Accès Thérapeute"])
     
     # --- A. CONNEXION PATIENT ---
@@ -106,32 +96,27 @@ if not st.session_state.authentifie:
             if btn_pat:
                 clean_code = code_input.strip().upper()
                 
-                # Vérification
                 if verifier_code_patient(clean_code):
                     st.session_state.authentifie = True
                     st.session_state.user_type = "patient"
                     
-                    # --- CORRECTION : ON RÉCUPÈRE LE VRAI ID (PAT-01) ---
-                    # Par défaut, on garde le code, mais on va essayer de trouver mieux
+                    # RÉCUPÉRATION DU VRAI ID (PAT-001)
                     final_id = clean_code 
-                    
                     try:
                         from connect_db import load_data
                         data_patients = load_data("Codes_Patients")
                         if data_patients:
                             df_p = pd.DataFrame(data_patients)
-                            # On cherche la ligne qui contient ce Code
                             match = df_p[df_p["Code"].astype(str).str.upper() == clean_code]
                             if not match.empty:
-                                # On capture la colonne Identifiant (ex: PAT-01)
-                                final_id = match.iloc[0]["Identifiant"]
+                                # On essaie de prendre 'Identifiant', sinon 'Commentaire'
+                                col_cible = "Identifiant" if "Identifiant" in df_p.columns else "Commentaire"
+                                if col_cible in df_p.columns:
+                                    final_id = match.iloc[0][col_cible]
                     except Exception as e:
                         print(f"Erreur conversion ID: {e}")
 
-                    # C'est ici que la magie opère : on stocke PAT-01 au lieu du code secret
                     st.session_state.user_id = final_id 
-                    # --------------------------------------------------------
-
                     st.success(f"Connexion réussie ! Bienvenue {final_id}")
                     time.sleep(0.5)
                     st.rerun()
@@ -162,13 +147,13 @@ if not st.session_state.authentifie:
 # 3. TABLEAUX DE BORD (CONNECTÉ)
 # =========================================================
 else:
-# -----------------------------------------------------
+    # -----------------------------------------------------
     # SCÉNARIO A : TABLEAU DE BORD THÉRAPEUTE (COCKPIT)
     # -----------------------------------------------------
     if st.session_state.user_type == "therapeute":
         st.title("🩺 Espace Thérapeute")
         
-        # --- EN-TÊTE : INFO PRO & DÉCONNEXION ---
+        # --- EN-TÊTE ---
         c_user, c_deco = st.columns([3, 1])
         with c_user:
             st.write(f"Praticien connecté : **{st.session_state.user_id}**")
@@ -178,19 +163,15 @@ else:
                 st.rerun()
         st.divider()
 
-        # =========================================================
-        # 1. GESTION DES PATIENTS (CRÉATION & LISTE)
-        # =========================================================
-        
+        # --- 1. GESTION DES PATIENTS ---
         with st.expander("➕ Créer un nouveau patient (Générer Code)", expanded=False):
-             # Calcul automatique du prochain ID
+            # Calcul auto ID
             df_pats = recuperer_mes_patients(st.session_state.user_id)
             prochain_id = "PAT-001"
             if not df_pats.empty:
-                # On essaie de trouver le dernier PAT-XXX
                 try:
                     ids = df_pats["Identifiant"].tolist()
-                    nums = [int(x.split('-')[1]) for x in ids if x.startswith("PAT-")]
+                    nums = [int(x.split('-')[1]) for x in ids if x.startswith("PAT-") and '-' in x]
                     if nums: prochain_id = f"PAT-{max(nums)+1:03d}"
                 except: pass
 
@@ -198,7 +179,7 @@ else:
             with c_gen1:
                 id_dossier = st.text_input("Identifiant Dossier", value=prochain_id)
             with c_gen2:
-                st.write(" ") # Espace
+                st.write(" ")
                 if st.button("Générer l'accès"):
                     access_code = generer_code_securise(prefix="TCC")
                     try:
@@ -214,9 +195,7 @@ else:
                     except Exception as e:
                         st.error(f"Erreur : {e}")
 
-        # =========================================================
-        # 2. SÉLECTION DU PATIENT À ANALYSER
-        # =========================================================
+        # --- 2. SÉLECTION DU PATIENT À ANALYSER ---
         st.subheader("📂 Suivi Clinique")
         
         df_mes_patients = recuperer_mes_patients(st.session_state.user_id)
@@ -224,179 +203,89 @@ else:
         if df_mes_patients.empty:
             st.warning("Vous n'avez pas encore de patients enregistrés.")
         else:
-            # Liste déroulante pour choisir le patient
             liste_patients = df_mes_patients["Identifiant"].unique().tolist()
             patient_selectionne = st.selectbox("Sélectionnez le dossier à consulter :", liste_patients)
 
             if patient_selectionne:
                 st.markdown(f"### 👤 Dossier : {patient_selectionne}")
                 
-                # --- CHARGEMENT DES DONNÉES DU PATIENT SÉLECTIONNÉ ---
-                # On utilise des onglets pour organiser la vue
+                # ONGLETS DE VISUALISATION
                 t1, t2, t3, t4, t5 = st.tabs(["🧩 Beck", "🌙 Sommeil", "📝 Activités", "🍷 Conso", "🛑 Compulsions"])
                 
-                # --- ONGLET BECK ---
+                # BECK
                 with t1:
                     try:
                         from connect_db import load_data
                         data_beck = load_data("Beck")
                         if data_beck:
                             df_b = pd.DataFrame(data_beck)
-                            # FILTRE SUR LE PATIENT SÉLECTIONNÉ
-                            df_b = df_b[df_b["Patient"] == patient_selectionne]
-                            
-                            if not df_b.empty:
-                                st.dataframe(df_b[["Date", "Situation", "Émotion", "Pensée Auto", "Pensée Rationnelle"]], use_container_width=True, hide_index=True)
-                            else:
-                                st.info("Aucune colonne de Beck remplie.")
+                            if "Patient" in df_b.columns:
+                                df_b = df_b[df_b["Patient"] == patient_selectionne]
+                                if not df_b.empty:
+                                    st.dataframe(df_b[["Date", "Situation", "Émotion", "Pensée Auto", "Pensée Rationnelle"]], use_container_width=True, hide_index=True)
+                                else: st.info("Aucune donnée.")
                     except: st.error("Erreur chargement Beck")
 
-                # --- ONGLET SOMMEIL ---
+                # SOMMEIL
                 with t2:
                     try:
                         data_sommeil = load_data("Sommeil")
                         if data_sommeil:
                             df_s = pd.DataFrame(data_sommeil)
-                            # FILTRE
-                            df_s = df_s[df_s["Patient"] == patient_selectionne]
-                            
-                            if not df_s.empty:
-                                # Petit KPI rapide
-                                eff_moy = pd.to_numeric(df_s["Efficacité"].astype(str).str.replace('%',''), errors='coerce').mean()
-                                st.metric("Efficacité Moyenne", f"{eff_moy:.1f} %")
-                                st.dataframe(df_s, use_container_width=True, hide_index=True)
-                            else:
-                                st.info("Pas de données de sommeil.")
+                            if "Patient" in df_s.columns:
+                                df_s = df_s[df_s["Patient"] == patient_selectionne]
+                                if not df_s.empty:
+                                    # Petit KPI
+                                    cols_kpi = ["Efficacité", "Qualité", "Forme"]
+                                    if "Efficacité" in df_s.columns:
+                                        eff_val = pd.to_numeric(df_s["Efficacité"].astype(str).str.replace('%',''), errors='coerce').mean()
+                                        st.metric("Efficacité Moyenne", f"{eff_val:.1f} %")
+                                    st.dataframe(df_s, use_container_width=True, hide_index=True)
+                                else: st.info("Aucune donnée.")
                     except: st.error("Erreur chargement Sommeil")
 
-                # --- ONGLET ACTIVITÉS ---
+                # ACTIVITÉS
                 with t3:
                     try:
                         data_act = load_data("Activites")
                         if data_act:
                             df_a = pd.DataFrame(data_act)
-                            # FILTRE
-                            df_a = df_a[df_a["Patient"] == patient_selectionne]
-                            if not df_a.empty:
-                                st.dataframe(df_a, use_container_width=True, hide_index=True)
-                            else:
-                                st.info("Pas d'activités enregistrées.")
+                            if "Patient" in df_a.columns:
+                                df_a = df_a[df_a["Patient"] == patient_selectionne]
+                                if not df_a.empty:
+                                    st.dataframe(df_a, use_container_width=True, hide_index=True)
+                                else: st.info("Aucune donnée.")
                     except: st.error("Erreur chargement Activités")
 
-                # --- ONGLET CONSO/ADDICTIONS ---
+                # ADDICTIONS
                 with t4:
                     try:
                         data_add = load_data("Addictions")
                         if data_add:
                             df_add = pd.DataFrame(data_add)
-                            df_add = df_add[df_add["Patient"] == patient_selectionne]
-                            if not df_add.empty:
-                                st.dataframe(df_add, use_container_width=True, hide_index=True)
-                            else:
-                                st.info("Pas de consommations/envies.")
+                            if "Patient" in df_add.columns:
+                                df_add = df_add[df_add["Patient"] == patient_selectionne]
+                                if not df_add.empty:
+                                    st.dataframe(df_add, use_container_width=True, hide_index=True)
+                                else: st.info("Aucune donnée.")
                     except: st.error("Erreur chargement Addictions")
 
-                # --- ONGLET COMPULSIONS ---
+                # COMPULSIONS
                 with t5:
                     try:
                         data_comp = load_data("Compulsions")
                         if data_comp:
                             df_c = pd.DataFrame(data_comp)
-                            df_c = df_c[df_c["Patient"] == patient_selectionne]
-                            if not df_c.empty:
-                                st.dataframe(df_c, use_container_width=True, hide_index=True)
-                            else:
-                                st.info("Pas de compulsions.")
+                            if "Patient" in df_c.columns:
+                                df_c = df_c[df_c["Patient"] == patient_selectionne]
+                                if not df_c.empty:
+                                    st.dataframe(df_c, use_container_width=True, hide_index=True)
+                                else: st.info("Aucune donnée.")
                     except: st.error("Erreur chargement Compulsions")
 
-        # =========================================================
-        # ZONE DE NOTIFICATION (CODE PATIENT)
-        # C'est ici que le code s'affiche et RESTE affiché
-        # =========================================================
-        if "new_patient_created" in st.session_state and st.session_state.new_patient_created:
-            info = st.session_state.new_patient_created
-            
-            st.success("✅ Création réussie !")
-            with st.container(border=True):
-                st.markdown(f"### 📂 Dossier : **{info['id']}**")
-                st.markdown("Transmettez ce code d'accès au patient :")
-                st.code(info['code'], language="text")
-                st.warning("⚠️ Notez-le dans votre dossier papier maintenant.")
-                
-                # Le bouton pour fermer la notification manuellement
-                if st.button("C'est bon, j'ai noté le code"):
-                    # On nettoie la mémoire et on ferme
-                    del st.session_state.new_patient_created
-                    st.rerun()
-            st.divider()
-        # =========================================================
-        
-        # --- 1. PROVISIONING (AUTOMATISÉ) ---
-        st.subheader("➕ Nouveau Patient")
-        
-        # Calcul automatique du prochain ID
-        df_pats = recuperer_mes_patients(st.session_state.user_id)
-        prochain_id = "PAT-001"
-        if not df_pats.empty:
-            ids_existants = df_pats["Identifiant"].tolist()
-            for i in range(1, 1000):
-                test_id = f"PAT-{i:03d}"
-                if test_id not in ids_existants:
-                    prochain_id = test_id
-                    break
 
-        st.info(f"Création du dossier : **{prochain_id}**")
-        
-        with st.form("create_patient"):
-            # Plus besoin de colonnes (c1, c2) car il n'y a qu'un seul champ
-            id_dossier = st.text_input("Identifiant (Auto)", value=prochain_id, disabled=True)
-            
-            submitted = st.form_submit_button("Générer l'accès")
-            
-            if submitted:
-                # Génération Code
-                access_code = generer_code_securise(prefix="TCC")
-                
-                try:
-                    from connect_db import save_data
-                    save_data("Codes_Patients", [
-                        access_code, 
-                        st.session_state.user_id, 
-                        id_dossier, 
-                        str(datetime.now().date())
-                    ])
-                    
-                    # Stockage session pour affichage persistant (Pop-up vert)
-                    st.session_state.new_patient_created = {
-                        "id": id_dossier,
-                        "code": access_code
-                    }
-                    st.rerun()
-                    
-                except Exception as e:
-                    st.error(f"Erreur : {e}")
-        
-        # --- 2. LISTE DE MES PATIENTS ---
-        st.subheader("📂 Mes Patients actifs")
-        df_pats = recuperer_mes_patients(st.session_state.user_id)
-        
-        if not df_pats.empty:
-            # On affiche uniquement les colonnes utiles
-            cols_to_show = ["Code", "Identifiant", "Date_Creation"]
-            # On vérifie qu'elles existent pour éviter les bugs
-            final_cols = [c for c in cols_to_show if c in df_pats.columns]
-            
-            st.dataframe(
-                df_pats[final_cols], 
-                use_container_width=True, 
-                hide_index=True
-            )
-        else:
-            st.info("Aucun patient enregistré pour le moment.")
-            
-
-# -----------------------------------------------------
-    # SCÉNARIO B : TABLEAU DE BORD PATIENT (ORGANISÉ)
+    # -----------------------------------------------------
+    # SCÉNARIO B : TABLEAU DE BORD PATIENT
     # -----------------------------------------------------
     elif st.session_state.user_type == "patient":
         
@@ -429,7 +318,7 @@ else:
             st.warning("**Compulsions**")
             st.page_link("pages/14_Agenda_Compulsions.py", label="Ouvrir", icon="🛑")
 
-        st.write("") # Espace
+        st.write("") 
 
         # --- SECTION 2 : OUTILS TCC (Exercices ponctuels) ---
         st.markdown("### 🛠️ Outils Thérapeutiques (Exercices)")
@@ -463,7 +352,7 @@ else:
             st.write("Se détendre")
             st.page_link("pages/07_Relaxation.py", label="Lancer", icon="🧘")
 
-        st.write("") # Espace
+        st.write("") 
 
         # --- SECTION 3 : ANALYSE & RESSOURCES ---
         st.markdown("### 📊 Mesures & Bilan")
@@ -480,21 +369,23 @@ else:
             st.page_link("pages/08_Export_Rapport.py", label="Créer un PDF", icon="📤")
 
         st.divider()
-        
-        # Petit lien ressources discret en bas
         st.page_link("pages/03_Ressources.py", label="📚 Consulter les Fiches & Ressources", icon="🔖")
 
 
-        # --- SIDEBAR (MENU LATÉRAL) ---
-        with st.sidebar:
-            
-            # LOGIQUE D'AFFICHAGE NOM PATIENT
+    # =========================================================
+    # 4. SIDEBAR (MENU LATÉRAL) - CORRIGÉ
+    # =========================================================
+    with st.sidebar:
+        
+        # A. LOGIQUE PATIENT (ID + MENU COMPLET)
+        if st.session_state.user_type == "patient":
             display_id = st.session_state.user_id 
             try:
                 from connect_db import load_data
                 infos = load_data("Codes_Patients")
                 if infos:
                     df_infos = pd.DataFrame(infos)
+                    # On utilise l'Identifiant (PAT-XXX) pour chercher
                     code_actuel = str(st.session_state.user_id).strip().upper()
                     match = df_infos[df_infos["Identifiant"].astype(str).str.strip().str.upper() == code_actuel]
                     if not match.empty:
@@ -503,8 +394,8 @@ else:
             except: pass
             
             st.write(f"👤 ID: **{display_id}**")
-            
             st.divider()
+            
             st.title("Navigation Rapide")
             st.page_link("streamlit_app.py", label="🏠 Accueil")
             st.caption("Agendas")
@@ -522,3 +413,8 @@ else:
             st.caption("Suivi")
             st.page_link("pages/02_Echelles_BDI.py", label="📊 BDI")
             st.page_link("pages/04_Historique.py", label="📜 Historique")
+
+        # B. LOGIQUE THÉRAPEUTE (JUSTE RETOUR ACCUEIL)
+        else:
+            st.title("Navigation")
+            st.page_link("streamlit_app.py", label="🏠 Accueil")
