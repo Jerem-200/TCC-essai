@@ -5,7 +5,7 @@ from datetime import datetime
 st.set_page_config(page_title="Colonnes de Beck", page_icon="🧩")
 
 # ==============================================================================
-# 0. SÉCURITÉ & NETTOYAGE (ANTI-FUITE DE DONNÉES)
+# 0. SÉCURITÉ & RÉCUPÉRATION IDENTITÉ
 # ==============================================================================
 
 # 1. Vérification de l'authentification
@@ -14,18 +14,15 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.page_link("streamlit_app.py", label="Retourner à l'accueil", icon="🏠")
     st.stop()
 
-# 2. Récupération sécurisée de l'ID (CORRIGÉ)
-# On cherche d'abord 'user_id' (nouveau système), sinon 'patient_id' (ancien système)
+# 2. Récupération simple de l'ID
+# Grâce à votre modification dans l'accueil, ceci contient DÉJÀ "PAT-001"
 CURRENT_USER_ID = st.session_state.get("user_id", "")
-if not CURRENT_USER_ID:
-    CURRENT_USER_ID = st.session_state.get("patient_id", "")
 
 if not CURRENT_USER_ID:
-    st.error("Erreur d'identité (Session vide). Veuillez retourner à l'accueil pour vous reconnecter.")
+    st.error("Session expirée. Veuillez vous reconnecter.")
     st.stop()
 
 # 3. VERROUILLAGE DES DONNÉES (Système Anti-Fuite)
-# Si on change d'utilisateur, on vide le cache spécifique à cette page
 if "beck_owner" not in st.session_state or st.session_state.beck_owner != CURRENT_USER_ID:
     if "data_beck" in st.session_state:
         del st.session_state.data_beck
@@ -138,12 +135,9 @@ with tab1:
         submitted = st.form_submit_button("Enregistrer l'exercice")
 
         if submitted:
-            # Récupération ID Patient
-            patient_id = st.session_state.user_id
-            
             # Création de la ligne de données
             new_row_dict = {
-                "Patient": patient_id,
+                "Patient": CURRENT_USER_ID,
                 "Date": str(date_event),
                 "Situation": f"{lieu} - {situation}",
                 "Émotion": emotion,
@@ -182,37 +176,10 @@ with tab2:
         df_history = df_history[df_history["Patient"] == CURRENT_USER_ID]
     
     if not df_history.empty:
-        
-        # --- MODIFICATION POUR AFFICHER PAT-001 AU LIEU DU CODE ---
-        # 1. On crée une copie pour l'affichage
-        df_display = df_history.copy()
-        
-        # 2. On va chercher le "Vrai nom" (PAT-001) dans la base
-        nom_affichable = CURRENT_USER_ID # Par défaut, on garde le code si on ne trouve rien
-        try:
-            from connect_db import load_data
-            # On charge la liste des codes pour trouver le nom associé
-            infos_patients = load_data("Codes_Patients")
-            if infos_patients:
-                df_infos = pd.DataFrame(infos_patients)
-                # On cherche la ligne qui correspond au code connecté
-                # (Assurez-vous que la colonne dans Excel s'appelle 'Identifiant' ou 'Commentaire')
-                col_id = "Identifiant" if "Identifiant" in df_infos.columns else "Commentaire"
-                
-                match = df_infos[df_infos["Code"] == CURRENT_USER_ID]
-                if not match.empty:
-                    # On récupère PAT-001
-                    nom_affichable = match.iloc[0][col_id]
-        except:
-            pass
-        
-        # 3. On remplace la colonne Patient par le nom lisible
-        df_display["Patient"] = nom_affichable
-        # -----------------------------------------------------------
 
         # A. TABLEAU
         st.dataframe(
-            df_display.sort_values(by="Date", ascending=False), 
+            df_history.sort_values(by="Date", ascending=False), 
             use_container_width=True,
             column_config={
                 "Patient": st.column_config.TextColumn("Dossier", width="small"), # On renomme l'entête
