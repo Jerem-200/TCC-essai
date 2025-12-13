@@ -25,10 +25,10 @@ if "user_id" not in st.session_state:
     st.session_state.user_id = "" 
 
 # =========================================================
-# 1. FONCTIONS DE BASE DE DONNÉES
+# 1. FONCTIONS DE BASE DE DONNÉES (OPTIMISÉES)
 # =========================================================
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=300) # Cache de 5 minutes pour éviter de recharger à chaque clic
 def verifier_therapeute(identifiant, mot_de_passe):
     """Vérifie les accès dans l'onglet 'Therapeutes'"""
     try:
@@ -50,7 +50,7 @@ def verifier_therapeute(identifiant, mot_de_passe):
         st.error(f"Erreur connexion Thérapeute : {e}")
     return None
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=300)
 def verifier_code_patient(code):
     """Vérifie si le code existe dans 'Codes_Patients'"""
     try:
@@ -65,6 +65,8 @@ def verifier_code_patient(code):
         st.error(f"Erreur connexion Patient : {e}")
     return False
 
+# Optimisation : On ne charge pas à chaque interaction, on utilise le cache
+@st.cache_data(ttl=60) 
 def recuperer_mes_patients(therapeute_id):
     """Récupère la liste des patients liés à ce thérapeute"""
     try:
@@ -73,6 +75,19 @@ def recuperer_mes_patients(therapeute_id):
         if data:
             df = pd.DataFrame(data)
             return df[df["Therapeute_ID"] == therapeute_id]
+    except: pass
+    return pd.DataFrame()
+
+# Nouvelle fonction optimisée pour charger les données d'un seul patient
+@st.cache_data(ttl=60)
+def charger_donnees_patient(type_donnee, patient_id):
+    try:
+        from connect_db import load_data
+        data = load_data(type_donnee)
+        if data:
+            df = pd.DataFrame(data)
+            if "Patient" in df.columns:
+                return df[df["Patient"] == patient_id]
     except: pass
     return pd.DataFrame()
 
@@ -109,7 +124,6 @@ if not st.session_state.authentifie:
                             df_p = pd.DataFrame(data_patients)
                             match = df_p[df_p["Code"].astype(str).str.upper() == clean_code]
                             if not match.empty:
-                                # On essaie de prendre 'Identifiant', sinon 'Commentaire'
                                 col_cible = "Identifiant" if "Identifiant" in df_p.columns else "Commentaire"
                                 if col_cible in df_p.columns:
                                     final_id = match.iloc[0][col_cible]
@@ -192,6 +206,8 @@ else:
                         ])
                         st.success(f"✅ Patient créé : {id_dossier}")
                         st.info(f"🔑 CODE D'ACCÈS À DONNER AU PATIENT : **{access_code}**")
+                        # On invalide le cache pour voir le nouveau patient tout de suite
+                        recuperer_mes_patients.clear()
                     except Exception as e:
                         st.error(f"Erreur : {e}")
 
@@ -214,74 +230,87 @@ else:
                 
                 # BECK
                 with t1:
-                    try:
-                        from connect_db import load_data
-                        data_beck = load_data("Beck")
-                        if data_beck:
-                            df_b = pd.DataFrame(data_beck)
-                            if "Patient" in df_b.columns:
-                                df_b = df_b[df_b["Patient"] == patient_selectionne]
-                                if not df_b.empty:
-                                    st.dataframe(df_b[["Date", "Situation", "Émotion", "Pensée Auto", "Pensée Rationnelle"]], use_container_width=True, hide_index=True)
-                                else: st.info("Aucune donnée.")
-                    except: st.error("Erreur chargement Beck")
+                    st.caption(f"Exercices de restructuration cognitive pour {patient_selectionne}")
+
+                    # A. FORMULAIRE DE SAISIE "EN SÉANCE"
+                    with st.expander("➕ Remplir une colonne de Beck avec le patient (En séance)"):
+                        with st.form("beck_therapeute_form"):
+                            c_dt, c_sit = st.columns([1, 2])
+                            date_th = c_dt.date_input("Date", datetime.now(), key="th_date")
+                            situation_th = c_sit.text_input("Situation", key="th_sit")
+                            
+                            c_emo, c_int = st.columns(2)
+                            emo_th = c_emo.text_input("Émotion", key="th_emo")
+                            int_th = c_int.slider("Intensité (0-10)", 0, 10, 7, key="th_int")
+                            
+                            pensee_th = st.text_area("Pensée Automatique", key="th_auto")
+                            rationnel_th = st.text_area("Pensée Alternative / Rationnelle", key="th_rat")
+                            
+                            submit_th = st.form_submit_button("Enregistrer dans le dossier du patient")
+
+                            if submit_th:
+                                new_entry = [
+                                    patient_selectionne, 
+                                    str(date_th), situation_th, emo_th, int_th, 
+                                    pensee_th, 0, rationnel_th, 0, 0, 0
+                                ]
+                                try:
+                                    from connect_db import save_data
+                                    save_data("Beck", new_entry)
+                                    st.success(f"✅ Exercice ajouté !")
+                                    time.sleep(1)
+                                    # On invalide le cache pour voir la nouvelle donnée
+                                    charger_donnees_patient.clear()
+                                    st.rerun() 
+                                except Exception as e:
+                                    st.error(f"Erreur : {e}")
+
+                    st.divider()
+
+                    # B. AFFICHAGE DE L'HISTORIQUE (Lecture seule)
+                    df_b = charger_donnees_patient("Beck", patient_selectionne)
+                    if not df_b.empty:
+                        # On trie par date récente
+                        if "Date" in df_b.columns:
+                            df_b = df_b.sort_values(by="Date", ascending=False)
+                        st.dataframe(
+                            df_b[["Date", "Situation", "Émotion", "Pensée Auto", "Pensée Rationnelle"]], 
+                            use_container_width=True, 
+                            hide_index=True
+                        )
+                    else:
+                        st.info("Ce patient n'a pas encore rempli de colonnes de Beck.")
 
                 # SOMMEIL
                 with t2:
-                    try:
-                        data_sommeil = load_data("Sommeil")
-                        if data_sommeil:
-                            df_s = pd.DataFrame(data_sommeil)
-                            if "Patient" in df_s.columns:
-                                df_s = df_s[df_s["Patient"] == patient_selectionne]
-                                if not df_s.empty:
-                                    # Petit KPI
-                                    cols_kpi = ["Efficacité", "Qualité", "Forme"]
-                                    if "Efficacité" in df_s.columns:
-                                        eff_val = pd.to_numeric(df_s["Efficacité"].astype(str).str.replace('%',''), errors='coerce').mean()
-                                        st.metric("Efficacité Moyenne", f"{eff_val:.1f} %")
-                                    st.dataframe(df_s, use_container_width=True, hide_index=True)
-                                else: st.info("Aucune donnée.")
-                    except: st.error("Erreur chargement Sommeil")
+                    df_s = charger_donnees_patient("Sommeil", patient_selectionne)
+                    if not df_s.empty:
+                        if "Efficacité" in df_s.columns:
+                            eff_val = pd.to_numeric(df_s["Efficacité"].astype(str).str.replace('%',''), errors='coerce').mean()
+                            st.metric("Efficacité Moyenne", f"{eff_val:.1f} %")
+                        st.dataframe(df_s, use_container_width=True, hide_index=True)
+                    else: st.info("Aucune donnée.")
 
                 # ACTIVITÉS
                 with t3:
-                    try:
-                        data_act = load_data("Activites")
-                        if data_act:
-                            df_a = pd.DataFrame(data_act)
-                            if "Patient" in df_a.columns:
-                                df_a = df_a[df_a["Patient"] == patient_selectionne]
-                                if not df_a.empty:
-                                    st.dataframe(df_a, use_container_width=True, hide_index=True)
-                                else: st.info("Aucune donnée.")
-                    except: st.error("Erreur chargement Activités")
+                    df_a = charger_donnees_patient("Activites", patient_selectionne)
+                    if not df_a.empty:
+                        st.dataframe(df_a, use_container_width=True, hide_index=True)
+                    else: st.info("Aucune donnée.")
 
                 # ADDICTIONS
                 with t4:
-                    try:
-                        data_add = load_data("Addictions")
-                        if data_add:
-                            df_add = pd.DataFrame(data_add)
-                            if "Patient" in df_add.columns:
-                                df_add = df_add[df_add["Patient"] == patient_selectionne]
-                                if not df_add.empty:
-                                    st.dataframe(df_add, use_container_width=True, hide_index=True)
-                                else: st.info("Aucune donnée.")
-                    except: st.error("Erreur chargement Addictions")
+                    df_add = charger_donnees_patient("Addictions", patient_selectionne)
+                    if not df_add.empty:
+                        st.dataframe(df_add, use_container_width=True, hide_index=True)
+                    else: st.info("Aucune donnée.")
 
                 # COMPULSIONS
                 with t5:
-                    try:
-                        data_comp = load_data("Compulsions")
-                        if data_comp:
-                            df_c = pd.DataFrame(data_comp)
-                            if "Patient" in df_c.columns:
-                                df_c = df_c[df_c["Patient"] == patient_selectionne]
-                                if not df_c.empty:
-                                    st.dataframe(df_c, use_container_width=True, hide_index=True)
-                                else: st.info("Aucune donnée.")
-                    except: st.error("Erreur chargement Compulsions")
+                    df_c = charger_donnees_patient("Compulsions", patient_selectionne)
+                    if not df_c.empty:
+                        st.dataframe(df_c, use_container_width=True, hide_index=True)
+                    else: st.info("Aucune donnée.")
 
 
     # -----------------------------------------------------
