@@ -243,9 +243,10 @@ with tab2:
         col_vue, col_date = st.columns([1, 2])
         
         with col_vue:
+            # AJOUT DE L'OPTION "JOURNÉE" ICI
             vue_temporelle = st.selectbox(
                 "Vue :", 
-                ["Tout l'historique", "Semaine", "Mois", "Journée"],
+                ["Tout l'historique", "Journée", "Semaine", "Mois"],
                 label_visibility="collapsed"
             )
 
@@ -260,7 +261,7 @@ with tab2:
         cols_num = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
         for c in cols_num: df_filtre[c] = pd.to_numeric(df_filtre[c], errors='coerce')
         
-        # Création Date Complète
+        # Création Date Complète (Date + Heure)
         df_filtre["Date_Obj"] = pd.to_datetime(df_filtre["Date"], errors='coerce')
         df_filtre["Datetime_Full"] = pd.to_datetime(
             df_filtre["Date"].astype(str) + " " + df_filtre["Heure"].astype(str), 
@@ -269,15 +270,17 @@ with tab2:
         
         df_filtre = df_filtre.dropna(subset=["Datetime_Full", "Activité"])
 
-        # Variables dynamiques
+        # Variables dynamiques pour le graphique
         titre_graphique = "Historique complet"
         format_axe_x = '%d/%m'
         titre_axe_x = "Date"
 
         # Application du filtre
         if vue_temporelle == "Journée":
+            # Filtre sur la journée exacte
             df_filtre = df_filtre[df_filtre['Datetime_Full'].dt.date == date_ref]
             titre_graphique = f"du {date_ref.strftime('%d/%m/%Y')}"
+            # On change l'axe pour afficher les heures
             format_axe_x = '%H:%M'
             titre_axe_x = "Heure"
 
@@ -310,29 +313,32 @@ with tab2:
             ).properties(height=400)
             st.altair_chart(chart_bar, use_container_width=True)
 
-            # 3. GRAPHIQUE ÉVOLUTION (Agrégation journalière si vue large)
+            # 3. GRAPHIQUE ÉVOLUTION (Adaptatif Journée vs Semaine)
             st.subheader(f"📈 Évolution des activités {titre_graphique}")
             
             # Préparation pour le graphique ligne
             if vue_temporelle != "Journée":
-                # Agrégation par jour (Moyenne des notes)
+                # Agrégation par jour (Moyenne des notes) si on regarde une semaine ou un mois
                 df_evol_raw = df_filtre.groupby("Date_Obj")[cols_num].mean().reset_index()
-                # On utilise Date_Obj pour l'axe X
+                # On utilise Date_Obj pour l'axe X (Date uniquement)
                 x_axis_def = alt.X('Date_Obj:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x))
             else:
-                # Pas d'agrégation, on garde chaque activité
+                # Pas d'agrégation si on regarde une journée, on garde chaque activité précise
                 df_evol_raw = df_filtre
-                # On utilise Datetime_Full pour l'axe X (avec les heures)
+                # On utilise Datetime_Full pour l'axe X (Date + Heure)
                 x_axis_def = alt.X('Datetime_Full:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x))
 
             # Transformation format long pour Altair
-            df_evol = df_evol_raw.melt(id_vars=[x_axis_def.shorthand.split(':')[0]], value_vars=cols_num, var_name="Critère", value_name="Note")
+            # L'astuce ici est de récupérer le nom de la colonne utilisée pour l'axe X dynamiquement
+            nom_col_x = x_axis_def.shorthand.split(':')[0]
+            
+            df_evol = df_evol_raw.melt(id_vars=[nom_col_x], value_vars=cols_num, var_name="Critère", value_name="Note")
             
             chart_line = alt.Chart(df_evol).mark_line(point=True).encode(
                 x=x_axis_def,
-                y=alt.Y('Note:Q', title='Note Moyenne', scale=alt.Scale(domain=[0, 10])),
+                y=alt.Y('Note:Q', title='Note (0-10)', scale=alt.Scale(domain=[0, 10])),
                 color='Critère:N',
-                tooltip=[alt.Tooltip(x_axis_def.shorthand.split(':')[0], title=titre_axe_x, format=format_axe_x), 'Critère', alt.Tooltip('Note', format='.1f')]
+                tooltip=[alt.Tooltip(nom_col_x, title=titre_axe_x, format=format_axe_x), 'Critère', alt.Tooltip('Note', format='.1f')]
             ).properties(height=300).interactive()
             st.altair_chart(chart_line, use_container_width=True)
 
@@ -341,7 +347,7 @@ with tab2:
 
         st.divider()
         
-        # 4. GRAPHIQUE HUMEUR (Indépendant pour l'instant, ou filtrable aussi si voulu)
+        # 4. GRAPHIQUE HUMEUR
         st.subheader(f"🌈 Évolution de l'Humeur {titre_graphique}")
         df_h = st.session_state.data_humeur_jour.copy()
         
@@ -356,7 +362,6 @@ with tab2:
             elif vue_temporelle == "Mois":
                 df_h = df_h[(df_h['Date_Obj'].dt.month == date_ref.month) & (df_h['Date_Obj'].dt.year == date_ref.year)]
             elif vue_temporelle == "Journée":
-                # Pour l'humeur (souvent une seule par jour), on affiche quand même la journée concernée
                 df_h = df_h[df_h['Date_Obj'].dt.date == date_ref]
 
             if not df_h.empty:
