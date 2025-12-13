@@ -377,7 +377,7 @@ with tab2:
             st.info("Pas encore de données d'humeur.")
 # 5. SUPPRESSION DEPUIS L'HISTORIQUE
         st.divider()
-        with st.expander("🗑️ Supprimer une entrée depuis l'historique"):
+        with st.expander("🗑️ Supprimer une activité"):
             # On récupère toutes les activités triées par date
             df_hist_del = st.session_state.data_activites.sort_values(by=["Date", "Heure"], ascending=False)
             
