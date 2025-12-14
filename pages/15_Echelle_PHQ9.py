@@ -23,7 +23,7 @@ if "phq9_owner" not in st.session_state or st.session_state.phq9_owner != CURREN
     st.session_state.phq9_owner = CURRENT_USER_ID
 
 st.title("📉 Questionnaire PHQ-9")
-st.caption("Au cours des **2 dernières semaines**, à quelle fréquence avez-vous été gêné(e) par les problèmes suivants ?")
+st.caption("Au cours des **2 dernières semaines**, selon quelle fréquence avez-vous été gêné(e) par les problèmes suivants ?")
 
 # ==============================================================================
 # 1. CHARGEMENT
@@ -61,10 +61,10 @@ QUESTIONS = [
     "3. Difficultés à s'endormir ou à rester endormi(e), ou dormir trop",
     "4. Se sentir fatigué(e) ou manquer d'énergie",
     "5. Avoir peu d'appétit ou manger trop",
-    "6. Avoir une mauvaise opinion de soi-même (sentiment d'échec/culpabilité)",
-    "7. Avoir du mal à se concentrer (lecture, télévision...)",
-    "8. Bouger/parler si lentement que les autres l'ont remarqué. Ou être si agité(e) que vous bougez plus que d'habitude",
-    "9. Penser qu'il vaudrait mieux mourir ou envisager de vous faire du mal"
+    "6. Avoir une mauvaise opinion de soi-même, ou avoir le sentiment d’être nul(le), ou d’avoir déçu sa famille ou s’être déçu(e) soi-même",
+    "7. Avoir du mal à se concentrer, par exemple, pour lire le journal ou regarder la télévision",
+    "8. Bouger ou parler si lentement que les autres auraient pu le remarquer.   Ou au contraire, être si agité(e) que vous avez eu du mal à tenir en place par rapport à d’habitude",
+    "9. Penser qu’il vaudrait mieux mourir ou envisager de vous faire du mal d’une manière ou d’une autre"
 ]
 
 OPTIONS = ["Jamais (0)", "Plusieurs jours (1)", "Plus de la moitié du temps (2)", "Presque tous les jours (3)"]
