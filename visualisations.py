@@ -430,3 +430,51 @@ def afficher_phq9(df_phq, current_user_id):
             st.warning("Colonne 'Score Total' manquante.")
     else:
         st.info("Aucune donnée PHQ-9.")
+
+# ==============================================================================
+# 7. VISUEL GAD-7 (ANXIÉTÉ)
+# ==============================================================================
+def afficher_gad7(df_gad, current_user_id):
+    if not df_gad.empty:
+        # A. TABLEAU
+        df_display = df_gad.copy()
+        if "Patient" in df_display.columns:
+            df_display["Patient"] = str(current_user_id)
+        
+        st.dataframe(
+            df_display.sort_values(by="Date", ascending=False),
+            use_container_width=True,
+            hide_index=True
+        )
+        st.divider()
+
+        # B. GRAPHIQUE
+        df_chart = df_gad.copy()
+        df_chart["Date_Obj"] = pd.to_datetime(df_chart["Date"], errors='coerce')
+        
+        if "Score Total" in df_chart.columns:
+            df_chart["Score Total"] = pd.to_numeric(df_chart["Score Total"], errors='coerce')
+            df_chart = df_chart.dropna(subset=["Date_Obj", "Score Total"])
+
+            st.subheader("📉 Niveau d'Anxiété (0-21)")
+            
+            # Graphique (Couleur Teal pour l'anxiété)
+            c_gad = alt.Chart(df_chart).mark_line(point=True, color="#1ABC9C").encode(
+                x=alt.X('Date_Obj:T', axis=alt.Axis(format='%d/%m'), title="Date"),
+                y=alt.Y('Score Total:Q', scale=alt.Scale(domain=[0, 21])),
+                tooltip=['Date', 'Score Total', 'Sévérité']
+            ).interactive()
+            
+            st.altair_chart(c_gad, use_container_width=True)
+            
+            with st.expander("ℹ️ Interprétation des scores GAD-7"):
+                st.markdown("""
+                * **0-4 :** Anxiété minimale
+                * **5-9 :** Anxiété légère
+                * **10-14 :** Anxiété modérée
+                * **15-21 :** Anxiété sévère
+                """)
+        else:
+            st.warning("Données de score manquantes.")
+    else:
+        st.info("Aucune donnée GAD-7.")
