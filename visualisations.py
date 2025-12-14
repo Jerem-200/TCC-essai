@@ -420,7 +420,7 @@ def afficher_phq9(df_phq, current_user_id):
             
             with st.expander("ℹ️ Interprétation des scores"):
                 st.markdown("""
-                * **0-4 :** Absence de dépression
+                * **0-4 :** Dépression minimale 
                 * **5-9 :** Dépression légère
                 * **10-14 :** Dépression modérée
                 * **15-19 :** Dépression modérément sévère

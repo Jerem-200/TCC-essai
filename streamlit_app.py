@@ -422,6 +422,7 @@ else:
             st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
             st.caption("Suivi")
             st.page_link("pages/02_Echelles_BDI.py", label="📊 BDI")
+            st.page_link("pages/15_Echelle_PHQ9.py", label="📉 PHQ-9") 
             st.page_link("pages/04_Historique.py", label="📜 Historique")
 
         # B. LOGIQUE THÉRAPEUTE (JUSTE RETOUR ACCUEIL)
