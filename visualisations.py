@@ -380,3 +380,53 @@ def afficher_tableau_simple(df, colonnes_utiles=None):
             st.dataframe(df_tri, use_container_width=True, hide_index=True)
     else:
         st.info("Aucune donnée.")
+
+# ==============================================================================
+# 6. VISUEL PHQ-9
+# ==============================================================================
+def afficher_phq9(df_phq, current_user_id):
+    if not df_phq.empty:
+        # A. TABLEAU
+        df_display = df_phq.copy()
+        if "Patient" in df_display.columns:
+            df_display["Patient"] = str(current_user_id)
+        
+        st.dataframe(
+            df_display.sort_values(by="Date", ascending=False),
+            use_container_width=True,
+            hide_index=True
+        )
+        st.divider()
+
+        # B. GRAPHIQUE
+        df_chart = df_phq.copy()
+        df_chart["Date_Obj"] = pd.to_datetime(df_chart["Date"], errors='coerce')
+        
+        # Nettoyage Score
+        if "Score Total" in df_chart.columns:
+            df_chart["Score Total"] = pd.to_numeric(df_chart["Score Total"], errors='coerce')
+            df_chart = df_chart.dropna(subset=["Date_Obj", "Score Total"])
+
+            st.subheader("📉 Évolution du Score (0-27)")
+            
+            # Graphique avec zones de sévérité (Optionnel, ici simple ligne)
+            c_phq = alt.Chart(df_chart).mark_line(point=True, color="#E74C3C").encode(
+                x=alt.X('Date_Obj:T', axis=alt.Axis(format='%d/%m'), title="Date"),
+                y=alt.Y('Score Total:Q', scale=alt.Scale(domain=[0, 27])),
+                tooltip=['Date', 'Score Total', 'Sévérité']
+            ).interactive()
+            
+            st.altair_chart(c_phq, use_container_width=True)
+            
+            with st.expander("ℹ️ Interprétation des scores"):
+                st.markdown("""
+                * **0-4 :** Absence de dépression
+                * **5-9 :** Dépression légère
+                * **10-14 :** Dépression modérée
+                * **15-19 :** Dépression modérément sévère
+                * **20-27 :** Dépression sévère
+                """)
+        else:
+            st.warning("Colonne 'Score Total' manquante.")
+    else:
+        st.info("Aucune donnée PHQ-9.")

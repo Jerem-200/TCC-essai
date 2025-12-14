@@ -189,8 +189,8 @@ else:
                 
                 # --- LES 10 ONGLETS ---
                 # On utilise des noms courts pour que ça rentre sur l'écran
-                t1, t2, t3, t4, t5, t6, t7, t8, t9, t10 = st.tabs([
-                    "🧩 Beck", "📉 BDI", "📝 Activités", "💡 Problèmes", "🧗 Expo", 
+                t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11 = st.tabs([
+                    "🧩 Beck", "📉 BDI", "📉 PHQ-9", "📝 Activités", "💡 Problèmes", "🧗 Expo", 
                     "🌙 Sommeil", "⚖️ Balance", "🔍 SORC", "🍷 Conso", "🛑 Compulsions"
                 ])
                 
@@ -225,8 +225,15 @@ else:
                             st.dataframe(df, use_container_width=True)
                     else: st.info("Aucun test BDI.")
 
-                # 3. ACTIVITÉS (Avec Graphiques)
                 with t3:
+                    from visualisations import afficher_phq9
+                    # On charge les données du patient sélectionné
+                    df = charger_donnees_specifiques("PHQ9", patient_sel)
+                    # On affiche avec la fonction partagée
+                    afficher_phq9(df, patient_sel)
+
+                # 3. ACTIVITÉS (Avec Graphiques)
+                with t4:
                     df_act = charger_donnees_specifiques("Activites", patient_sel)
                     # On charge aussi l'humeur pour l'afficher dans le même onglet comme pour le patient
                     df_hum = charger_donnees_specifiques("Humeur", patient_sel)
@@ -236,49 +243,49 @@ else:
                     else: st.info("Aucune activité.")
 
                 # 4. PROBLÈMES
-                with t4:
+                with t5:
                     df = charger_donnees_specifiques("Résolution_Problème", patient_sel)
                     if not df.empty:
                         st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True, hide_index=True)
                     else: st.info("Aucun problème traité.")
 
                 # 5. EXPOSITION
-                with t5:
+                with t6:
                     df = charger_donnees_specifiques("Exposition", patient_sel)
                     if not df.empty:
                         st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True, hide_index=True)
                     else: st.info("Aucune exposition.")
 
                 # 6. SOMMEIL (Complet)
-                with t6:
+                with t7:
                     df = charger_donnees_specifiques("Sommeil", patient_sel)
                     if not df.empty:
                         afficher_sommeil(df, patient_sel)
                     else: st.info("Aucune donnée sommeil.")
 
                 # 7. BALANCE
-                with t7:
+                with t8:
                     df = charger_donnees_specifiques("Balance_Decisionnelle", patient_sel)
                     if not df.empty:
                         st.dataframe(df, use_container_width=True, hide_index=True)
                     else: st.info("Aucune balance.")
 
                 # 8. SORC
-                with t8:
+                with t9:
                     df = charger_donnees_specifiques("SORC", patient_sel)
                     if not df.empty:
                         st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True, hide_index=True)
                     else: st.info("Aucune analyse SORC.")
 
                 # 9. CONSO (Graphique)
-                with t9:
+                with t10:
                     df = charger_donnees_specifiques("Addictions", patient_sel)
                     if not df.empty:
                         afficher_conso(df, patient_sel)
                     else: st.info("Aucune consommation.")
 
                 # 10. COMPULSIONS (Graphique)
-                with t10:
+                with t11:
                     df = charger_donnees_specifiques("Compulsions", patient_sel)
                     if not df.empty:
                         afficher_compulsions(df, patient_sel)
