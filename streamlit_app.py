@@ -4,6 +4,7 @@ import altair as alt
 import time
 import secrets
 from datetime import datetime
+from visualisations import afficher_activites, afficher_sommeil, afficher_conso, afficher_compulsions
 
 st.set_page_config(page_title="Compagnon TCC", page_icon="🧠", layout="wide")
 
@@ -226,20 +227,12 @@ else:
 
                 # 3. ACTIVITÉS (Avec Graphiques)
                 with t3:
-                    df = charger_donnees_specifiques("Activites", patient_sel)
-                    if not df.empty:
-                        df["Date_Obj"] = pd.to_datetime(df["Date"], errors='coerce')
-                        cols_num = ["Plaisir (0-10)", "Maîtrise (0-10)", "Satisfaction (0-10)"]
-                        for c in cols_num: 
-                            if c in df.columns: df[c] = pd.to_numeric(df[c], errors='coerce')
-                        
-                        # Graphique d'évolution
-                        df_evol = df.groupby("Date_Obj")[cols_num].mean().reset_index().melt('Date_Obj', var_name='Type', value_name='Note')
-                        chart = alt.Chart(df_evol).mark_line(point=True).encode(
-                            x='Date_Obj:T', y='Note:Q', color='Type:N', tooltip=['Date_Obj', 'Type', 'Note']
-                        ).interactive()
-                        st.altair_chart(chart, use_container_width=True)
-                        st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True)
+                    df_act = charger_donnees_specifiques("Activites", patient_sel)
+                    # On charge aussi l'humeur pour l'afficher dans le même onglet comme pour le patient
+                    df_hum = charger_donnees_specifiques("Humeur", patient_sel)
+                    
+                    if not df_act.empty or not df_hum.empty:
+                        afficher_activites(df_act, df_hum, patient_sel)
                     else: st.info("Aucune activité.")
 
                 # 4. PROBLÈMES
@@ -260,15 +253,7 @@ else:
                 with t6:
                     df = charger_donnees_specifiques("Sommeil", patient_sel)
                     if not df.empty:
-                        df["Date_Obj"] = pd.to_datetime(df["Date"], errors='coerce')
-                        if "Efficacité" in df.columns:
-                            df["Efficacité_Num"] = pd.to_numeric(df["Efficacité"].astype(str).str.replace('%',''), errors='coerce')
-                            
-                            c_eff = alt.Chart(df).mark_line(point=True, color="#3498db").encode(
-                                x='Date_Obj:T', y=alt.Y('Efficacité_Num:Q', title='Efficacité %'), tooltip=['Date', 'Efficacité']
-                            ).interactive()
-                            st.altair_chart(c_eff, use_container_width=True)
-                        st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True)
+                        afficher_sommeil(df, patient_sel)
                     else: st.info("Aucune donnée sommeil.")
 
                 # 7. BALANCE
@@ -289,38 +274,21 @@ else:
                 with t9:
                     df = charger_donnees_specifiques("Addictions", patient_sel)
                     if not df.empty:
-                        try:
-                            df['Full_Date'] = pd.to_datetime(df['Date'].astype(str) + ' ' + df['Heure'].astype(str), errors='coerce')
-                        except: df['Full_Date'] = pd.to_datetime(df['Date'], errors='coerce')
-                        
-                        df_conso = df[df["Type"].astype(str).str.contains("CONSOMMÉ", na=False)]
-                        if not df_conso.empty and "Quantité" in df_conso.columns:
-                            df_conso["Quantité"] = pd.to_numeric(df_conso["Quantité"], errors='coerce')
-                            c_conso = alt.Chart(df_conso).mark_bar(color="#e74c3c").encode(
-                                x='Full_Date:T', y='Quantité:Q', tooltip=['Date', 'Substance', 'Quantité', 'Unité']
-                            ).interactive()
-                            st.altair_chart(c_conso, use_container_width=True)
-                        st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True)
+                        afficher_conso(df, patient_sel)
                     else: st.info("Aucune consommation.")
 
                 # 10. COMPULSIONS (Graphique)
                 with t10:
                     df = charger_donnees_specifiques("Compulsions", patient_sel)
                     if not df.empty:
-                        df["Date_Obj"] = pd.to_datetime(df["Date"], errors='coerce')
-                        df["Répétitions"] = pd.to_numeric(df["Répétitions"], errors='coerce')
-                        
-                        base = alt.Chart(df).encode(x='Date_Obj:T')
-                        l_rep = base.mark_line(color="red").encode(y='Répétitions:Q')
-                        st.altair_chart(l_rep.interactive(), use_container_width=True)
-                        st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True)
+                        afficher_compulsions(df, patient_sel)
                     else: st.info("Aucune compulsion.")
 
         else:
             st.warning("Aucun patient trouvé.")
 
     # -----------------------------------------------------
-    # SCÉNARIO B : TABLEAU DE BORD PATIENT
+    # B. ESPACE PATIENT (Classique)
     # -----------------------------------------------------
     elif st.session_state.user_type == "patient":
         
