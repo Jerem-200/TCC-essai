@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 from datetime import datetime, timedelta
+from visualisations import afficher_conso
 
 st.set_page_config(page_title="Agenda des Compulsions", page_icon="🛑")
 

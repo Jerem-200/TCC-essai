@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 from datetime import datetime, time, timedelta
+from visualisations import afficher_conso
 
 st.set_page_config(page_title="Agenda Consos", page_icon="🍷")
 
@@ -325,27 +326,30 @@ with tab1:
 with tab2:
     st.header(f"Historique : {substance_active}")
     
+    # 1. PRÉPARATION DONNÉES FILTRÉES POUR AFFICHAGE
     df_global = st.session_state.data_addictions
-
     if "Quantité" not in df_global.columns: df_global["Quantité"] = 0.0
     if "Unité" not in df_global.columns: df_global["Unité"] = ""
-        
-    st.session_state.data_addictions = df_global 
     
-    # Filtre substance active
-    df_filtre = df_global[df_global["Substance"] == substance_active].sort_values(by=["Date", "Heure"], ascending=False).reset_index(drop=True)
+    # On filtre sur la substance active pour l'affichage
+    df_filtre = df_global[df_global["Substance"] == substance_active]
     
-    if not df_filtre.empty:
-        st.info("💡 Vous pouvez modifier les valeurs directement dans le tableau.")
-        
-        # Affichage avec le nom propre (CURRENT_USER_ID)
-        df_editor_view = df_filtre.copy()
-        if "Patient" in df_editor_view.columns:
-            df_editor_view["Patient"] = str(CURRENT_USER_ID)
+    # 2. APPEL À LA FONCTION CENTRALISÉE
+    # On passe uniquement les données filtrées à la fonction d'affichage
+    afficher_conso(df_filtre, CURRENT_USER_ID)
 
-        # TABLEAU ÉDITABLE
+    # 3. ÉDITION (TABLEAU ÉDITABLE LOCAL)
+    # On garde le tableau éditable ici car c'est une fonction spécifique au patient
+    if not df_filtre.empty:
+        st.divider()
+        st.subheader("✏️ Édition Rapide")
+        st.caption("Modifiez directement les valeurs dans le tableau ci-dessous.")
+        
+        df_view = df_filtre.sort_values(by=["Date", "Heure"], ascending=False).reset_index(drop=True)
+        if "Patient" in df_view.columns: df_view["Patient"] = str(CURRENT_USER_ID)
+
         edited_df = st.data_editor(
-            df_editor_view, 
+            df_view, 
             column_order=["Patient", "Date", "Heure", "Substance", "Type", "Intensité", "Quantité", "Unité", "Pensées"], 
             disabled=["Patient", "Substance"],
             use_container_width=True, 
@@ -353,158 +357,54 @@ with tab2:
             key=f"editor_{substance_active}"
         )
         
-        # GESTION DES MODIFICATIONS
-        if not edited_df.equals(df_editor_view):
+        # Sauvegarde des modifs
+        if not edited_df.equals(df_view):
             edited_df["Patient"] = CURRENT_USER_ID
             edited_df["Substance"] = substance_active 
+            # On recombine avec les autres substances
             df_others = df_global[df_global["Substance"] != substance_active]
             st.session_state.data_addictions = pd.concat([df_others, edited_df], ignore_index=True)
             st.rerun()
 
-        st.divider()
-
-        # --- GRAPHIQUES AVANCÉS ---
-        df_chart = edited_df.copy()
-        try:
-            df_chart['Full_Date'] = pd.to_datetime(
-                df_chart['Date'].astype(str) + ' ' + df_chart['Heure'].astype(str), 
-                format="%Y-%m-%d %H:%M", errors='coerce'
-            )
-        except:
-            df_chart['Full_Date'] = pd.to_datetime(df_chart['Date'], errors='coerce')
+    # 4. SUPPRESSION (HISTORIQUE)
+    st.divider()
+    with st.expander("🗑️ Supprimer une entrée depuis l'historique"):
+        df_history = st.session_state.data_addictions.sort_values(by=["Date", "Heure"], ascending=False)
         
-        df_chart = df_chart.dropna(subset=['Full_Date'])
-
-        # Filtre Temporel
-        st.markdown("##### 📅 Période d'analyse")
-        col_vue, col_date = st.columns([1, 2])
-        
-        with col_vue:
-            vue_temporelle = st.selectbox("Vue :", ["Tout l'historique", "Journée", "Semaine", "Mois"], label_visibility="collapsed")
-
-        with col_date:
-            date_ref = st.date_input("Choisir la date :", datetime.now(), label_visibility="collapsed")
-
-        titre_graphique = "Historique complet"
-        format_axe_x = '%d/%m'
-        titre_axe_x = "Date"
-
-        if vue_temporelle == "Journée":
-            df_chart = df_chart[df_chart['Full_Date'].dt.date == date_ref]
-            titre_graphique = f"Évolution du {date_ref.strftime('%d/%m/%Y')}"
-            format_axe_x = '%H:%M'
-            titre_axe_x = "Heure"
-
-        elif vue_temporelle == "Semaine":
-            start_week = date_ref - timedelta(days=date_ref.weekday())
-            end_week = start_week + timedelta(days=6)
-            df_chart = df_chart[(df_chart['Full_Date'].dt.date >= start_week) & (df_chart['Full_Date'].dt.date <= end_week)]
-            titre_graphique = f"Évolution du {start_week.strftime('%d/%m/%y')} au {end_week.strftime('%d/%m/%y')}"
-
-        elif vue_temporelle == "Mois":
-            df_chart = df_chart[(df_chart['Full_Date'].dt.month == date_ref.month) & (df_chart['Full_Date'].dt.year == date_ref.year)]
-            titre_graphique = f"Évolution - Mois de {date_ref.strftime('%m/%Y')}"
-
-        # 1. ENVIES
-        df_envie = df_chart[df_chart["Type"].str.contains("ENVIE", na=False)]
-        
-        if not df_envie.empty:
-            st.subheader(f"⚡ {titre_graphique} (Envies)")
-            
-            if vue_temporelle != "Journée":
-                df_envie_plot = df_envie.groupby("Date").agg({"Intensité": "mean", "Full_Date": "first"}).reset_index()
-                tooltip_envie = ['Date', alt.Tooltip('Intensité', title="Moyenne Intensité", format=".1f")]
-            else:
-                df_envie_plot = df_envie
-                tooltip_envie = ['Date', 'Heure', 'Intensité', 'Pensées']
-
-            chart_envie = alt.Chart(df_envie_plot).mark_line(
-                point=alt.OverlayMarkDef(size=100, filled=True, color="#9B59B6")
-            ).encode(
-                x=alt.X('Full_Date:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x)),
-                y=alt.Y('Intensité:Q', title='Intensité (0-10)', scale=alt.Scale(domain=[0, 10])),
-                color=alt.value("#9B59B6"),
-                tooltip=tooltip_envie
-            ).interactive()
-            st.altair_chart(chart_envie, use_container_width=True)
-        elif vue_temporelle != "Tout l'historique":
-            st.info("Aucune envie sur cette période.")
-
-        # 2. CONSOMMATIONS
-        df_conso = df_chart[df_chart["Type"].str.contains("CONSOMMÉ", na=False)]
-        
-        if not df_conso.empty:
-            st.subheader(f"🍷 {titre_graphique} (Consommations)")
-            
-            unites_dispo = df_conso['Unité'].dropna().unique().tolist()
-            if not unites_dispo: unites_dispo = ["Inconnu"]
-            choix_unite = st.radio("Unité :", options=["Tout voir"] + unites_dispo, horizontal=True)
-
-            if choix_unite != "Tout voir":
-                data_plot_raw = df_conso[df_conso['Unité'] == choix_unite]
-                title_y = f"Quantité ({choix_unite})"
-            else:
-                data_plot_raw = df_conso
-                title_y = "Quantité (Toutes unités)"
-
-            if not data_plot_raw.empty:
-                if vue_temporelle != "Journée":
-                    data_plot = data_plot_raw.groupby("Date").agg({"Quantité": "sum", "Full_Date": "first", "Unité": "first"}).reset_index()
-                    tooltip_conso = ['Date', alt.Tooltip('Quantité', title="Total Quantité"), 'Unité']
-                else:
-                    data_plot = data_plot_raw
-                    tooltip_conso = ['Date', 'Heure', 'Quantité', 'Unité', 'Pensées']
-
-                chart_conso = alt.Chart(data_plot).mark_bar(color="#E74C3C").encode(
-                    x=alt.X('Full_Date:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x)),
-                    y=alt.Y('Quantité:Q', title=title_y),
-                    tooltip=tooltip_conso
-                ).interactive()
-                st.altair_chart(chart_conso, use_container_width=True)
-            else:
-                st.warning(f"Pas de consommation en '{choix_unite}' sur cette période.")
-
-        # ZONE DE SUPPRESSION (HISTORIQUE)
-        st.divider()
-        with st.expander("🗑️ Supprimer une entrée depuis l'historique"):
-            df_history = st.session_state.data_addictions.sort_values(by=["Date", "Heure"], ascending=False)
-            
-            if not df_history.empty:
-                options_history = {}
-                for idx, row in df_history.iterrows():
-                    is_envie = "ENVIE" in str(row['Type'])
-                    icone = "⚡" if is_envie else "🍷"
-                    type_lbl = "Envie" if is_envie else "Conso"
-                    raw_pensees = str(row.get('Pensées', ''))
-                    pensees_txt = (raw_pensees[:30] + '...') if len(raw_pensees) > 30 else raw_pensees
-                    
-                    label = f"📅 {row['Date']} à {row['Heure']} | {icone} {type_lbl} | 📊 {row['Intensité']} | 📝 {pensees_txt}"
-                    if label in options_history: label = f"{label} (ID: {idx})"
-                    options_history[label] = idx
+        if not df_history.empty:
+            options_history = {}
+            for idx, row in df_history.iterrows():
+                is_envie = "ENVIE" in str(row['Type'])
+                icone = "⚡" if is_envie else "🍷"
+                type_lbl = "Envie" if is_envie else "Conso"
+                raw_pensees = str(row.get('Pensées', ''))
+                pensees_txt = (raw_pensees[:30] + '...') if len(raw_pensees) > 30 else raw_pensees
                 
-                choice_history = st.selectbox("Sélectionnez l'entrée à supprimer :", list(options_history.keys()), key="del_tab2", index=None)
-                
-                if st.button("Confirmer la suppression", key="btn_del_tab2") and choice_history:
-                    idx_to_drop = options_history[choice_history]
-                    row_to_delete = df_history.loc[idx_to_drop]
+                label = f"📅 {row['Date']} à {row['Heure']} | {icone} {type_lbl} | 📊 {row['Intensité']} | 📝 {pensees_txt}"
+                if label in options_history: label = f"{label} (ID: {idx})"
+                options_history[label] = idx
+            
+            choice_history = st.selectbox("Sélectionnez l'entrée à supprimer :", list(options_history.keys()), key="del_tab2", index=None)
+            
+            if st.button("Confirmer la suppression", key="btn_del_tab2") and choice_history:
+                idx_to_drop = options_history[choice_history]
+                row_to_delete = df_history.loc[idx_to_drop]
 
-                    try:
-                        from connect_db import delete_data_flexible
-                        delete_data_flexible("Addictions", {
-                            "Patient": CURRENT_USER_ID, 
-                            "Date": str(row_to_delete['Date']),
-                            "Heure": str(row_to_delete['Heure']),
-                            "Substance": str(row_to_delete['Substance'])
-                        })
-                    except Exception as e: pass
+                try:
+                    from connect_db import delete_data_flexible
+                    delete_data_flexible("Addictions", {
+                        "Patient": CURRENT_USER_ID, 
+                        "Date": str(row_to_delete['Date']),
+                        "Heure": str(row_to_delete['Heure']),
+                        "Substance": str(row_to_delete['Substance'])
+                    })
+                except Exception as e: pass
 
-                    st.session_state.data_addictions = st.session_state.data_addictions.drop(idx_to_drop).reset_index(drop=True)
-                    st.success("Entrée supprimée !")
-                    st.rerun()
-            else:
-                st.info("Historique vide.")
-    else:
-        st.info(f"Aucune donnée enregistrée pour '{substance_active}'.")
+                st.session_state.data_addictions = st.session_state.data_addictions.drop(idx_to_drop).reset_index(drop=True)
+                st.success("Entrée supprimée !")
+                st.rerun()
+        else:
+            st.info("Historique vide.")
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
