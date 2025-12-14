@@ -145,146 +145,14 @@ with tab1:
 with tab2:
     st.header("📊 Tableau de bord")
     
-    if not st.session_state.data_compulsions.empty:
-        df_display = st.session_state.data_compulsions.copy()
-        
-        # 1. Préparation Données
-        if "Patient" in df_display.columns: df_display["Patient"] = str(CURRENT_USER_ID)
-        if "Heure" not in df_display.columns: df_display["Heure"] = "00:00"
-        
-        # Conversion numérique
-        df_display["Répétitions"] = pd.to_numeric(df_display["Répétitions"], errors='coerce').fillna(0)
-        df_display["Durée (min)"] = pd.to_numeric(df_display["Durée (min)"], errors='coerce').fillna(0)
-        
-        # CRÉATION D'UNE DATE COMPLÈTE
-        df_display["Date_Obj"] = pd.to_datetime(df_display["Date"], errors='coerce')
-        df_display["Datetime_Full"] = pd.to_datetime(
-            df_display["Date"].astype(str) + " " + df_display["Heure"].astype(str), 
-            errors='coerce'
-        )
-        
-        # 2. FILTRE TEMPOREL
-        st.subheader("📅 Période d'analyse")
-        col_vue, col_date = st.columns([1, 2])
-        with col_vue:
-            vue = st.selectbox("Vue :", ["Tout l'historique", "Semaine", "Mois", "Journée"], label_visibility="collapsed")
-        with col_date:
-            date_ref = st.date_input("Date de référence :", datetime.now(), label_visibility="collapsed")
+    # APPEL UNIQUE À LA FONCTION CENTRALISÉE
+    afficher_compulsions(st.session_state.data_compulsions, CURRENT_USER_ID)
 
-        # LOGIQUE D'AFFICHAGE DU GRAPHIQUE
-        format_axe_x = '%d/%m'
-        titre_axe_x = "Date"
-        titre_graphique = ""
-        
-        if vue == "Journée":
-            format_axe_x = '%H:%M'
-            titre_axe_x = "Heure"
-
-        # Application Filtre & Construction du Titre
-        df_filtered = df_display.copy().dropna(subset=["Datetime_Full"])
-        
-        if vue == "Semaine":
-            start = date_ref - timedelta(days=date_ref.weekday())
-            end = start + timedelta(days=6)
-            df_filtered = df_filtered[(df_filtered['Datetime_Full'].dt.date >= start) & (df_filtered['Datetime_Full'].dt.date <= end)]
-            st.caption(f"🔎 Semaine du {start.strftime('%d/%m')} au {end.strftime('%d/%m')}")
-            titre_graphique = f"Évolution du {start.strftime('%d/%m/%y')} au {end.strftime('%d/%m/%y')}"
-            
-        elif vue == "Mois":
-            df_filtered = df_filtered[(df_filtered['Datetime_Full'].dt.month == date_ref.month) & (df_filtered['Datetime_Full'].dt.year == date_ref.year)]
-            st.caption(f"🔎 Mois de {date_ref.strftime('%B %Y')}")
-            titre_graphique = f"Évolution - Mois de {date_ref.strftime('%m/%Y')}"
-            
-        elif vue == "Journée":
-            df_filtered = df_filtered[df_filtered['Datetime_Full'].dt.date == date_ref]
-            st.caption(f"🔎 Journée du {date_ref.strftime('%d/%m/%Y')}")
-            titre_graphique = f"Évolution du {date_ref.strftime('%d/%m/%Y')}"
-        
-        else:
-            titre_graphique = "Évolution - Historique complet"
-
-        st.divider()
-
-        # 3. STATISTIQUES & GRAPHIQUES
-        if not df_filtered.empty:
-            
-            # --- AGRÉGATION DES DONNÉES ---
-            if vue != "Journée":
-                # Si on est en vue Semaine/Mois/Historique, on groupe par jour et on fait la moyenne
-                df_to_plot = df_filtered.groupby("Date_Obj").agg({
-                    "Répétitions": "mean",
-                    "Durée (min)": "mean"
-                }).reset_index()
-                
-                df_to_plot["Répétitions"] = df_to_plot["Répétitions"].round(1)
-                df_to_plot["Durée (min)"] = df_to_plot["Durée (min)"].round(1)
-                
-                x_axis_def = alt.X('Date_Obj:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x))
-                tooltip_rep = ['Date_Obj', alt.Tooltip('Répétitions', title="Moyenne Rép.")]
-                tooltip_dur = ['Date_Obj', alt.Tooltip('Durée (min)', title="Moyenne Durée")]
-                
-            else:
-                # Vue Journée : détail heure par heure
-                df_to_plot = df_filtered
-                x_axis_def = alt.X('Datetime_Full:T', title=titre_axe_x, axis=alt.Axis(format=format_axe_x))
-                tooltip_rep = ['Date', 'Heure', 'Nature', 'Répétitions']
-                tooltip_dur = ['Date', 'Heure', 'Nature', 'Durée (min)']
-
-            # --- KPI ---
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Total Épisodes", len(df_filtered))
-            c2.metric("Temps Total (Cumulé)", f"{int(df_filtered['Durée (min)'].sum())} min")
-            c3.metric("Moyenne Répétitions", f"{df_filtered['Répétitions'].mean():.1f}")
-
-            # --- GRAPHIQUE ---
-            st.subheader(f"📈 {titre_graphique}")
-            
-            base = alt.Chart(df_to_plot).encode(x=x_axis_def)
-            
-            # Ligne 1 : Répétitions (Axe Y Gauche - Rouge)
-            line_rep = base.mark_line(point=True, color="#e74c3c").encode(
-                y=alt.Y('Répétitions:Q', title='Moy. Répétitions' if vue != "Journée" else 'Répétitions', axis=alt.Axis(titleColor="#e74c3c")),
-                tooltip=tooltip_rep
-            )
-            
-            # Ligne 2 : Durée (Axe Y Droite - Bleu)
-            line_dur = base.mark_line(point=True, color="#3498db", strokeDash=[5,5]).encode(
-                y=alt.Y('Durée (min):Q', title='Moy. Durée (min)' if vue != "Journée" else 'Durée (min)', axis=alt.Axis(titleColor="#3498db")),
-                tooltip=tooltip_dur
-            )
-            
-            # COMBINAISON
-            final_chart = alt.layer(line_rep, line_dur).resolve_scale(y='independent')
-            
-            st.altair_chart(final_chart.interactive(), use_container_width=True)
-            
-            if vue != "Journée":
-                st.caption("ℹ️ Les points représentent la **moyenne journalière**.")
-            else:
-                st.caption("ℹ️ Les points représentent chaque épisode de la journée.")
-            
-            st.caption("🔴 Axe Gauche : Répétitions | 🔵 Axe Droit : Durée (min)")
-
-            # Tableau détaillé
-            st.subheader("📋 Détails des épisodes")
-            cols_show = ["Date", "Heure", "Nature", "Répétitions", "Durée (min)"]
-            df_table = df_filtered.sort_values(by=["Date", "Heure"], ascending=False)
-            
-            st.dataframe(
-                df_table[cols_show], 
-                use_container_width=True, 
-                hide_index=True,
-                column_config={
-                    "Heure": st.column_config.TimeColumn("Heure", format="HH:mm"),
-                    "Durée (min)": st.column_config.NumberColumn("Durée", format="%d min"),
-                }
-            )
-        else:
-            st.info("Aucune donnée sur cette période.")
-
-        # 4. Suppression Historique
-        st.divider()
-        with st.expander("🗑️ Supprimer une entrée ancienne"):
+    # 4. Suppression Historique
+    st.divider()
+    with st.expander("🗑️ Supprimer une entrée ancienne"):
+        df_display = st.session_state.data_compulsions
+        if not df_display.empty:
             opts = {}
             for i, r in df_display.sort_values(by=["Date", "Heure"], ascending=False).iterrows():
                 opts[f"{r['Date']} {r['Heure']} | {r['Nature']}"] = i
@@ -304,9 +172,8 @@ with tab2:
                 st.session_state.data_compulsions = st.session_state.data_compulsions.drop(idx).reset_index(drop=True)
                 st.success("Supprimé !")
                 st.rerun()
-
-    else:
-        st.info("Aucune compulsion enregistrée.")
+        else:
+            st.info("Historique vide.")
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
