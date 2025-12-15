@@ -1,78 +1,83 @@
 import streamlit as st
+import time
 
-st.set_page_config(page_title="Espace Relaxation", page_icon="🧘")
+st.set_page_config(page_title="Relaxation", page_icon="🧘")
 
 # ==============================================================================
-# 0. SÉCURITÉ & NETTOYAGE (OBLIGATOIRE SUR CHAQUE PAGE)
+# 0. SÉCURITÉ
 # ==============================================================================
-
-# 1. Vérification de l'authentification
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
-    st.warning("🔒 Accès restreint. Veuillez entrer votre Code Patient sur l'accueil.")
+    st.warning("🔒 Accès restreint.")
     st.page_link("streamlit_app.py", label="Retourner à l'accueil", icon="🏠")
     st.stop()
 
-# 2. Récupération sécurisée de l'ID
-CURRENT_USER_ID = st.session_state.get("user_id", "")
-if not CURRENT_USER_ID:
-    CURRENT_USER_ID = st.session_state.get("patient_id", "")
+# ==============================================================================
+# CONTENU
+# ==============================================================================
+st.title("🧘 Espace Relaxation")
+st.caption("Prenez un moment pour faire redescendre la pression.")
 
-if not CURRENT_USER_ID:
-    st.error("Erreur d'identité. Veuillez vous reconnecter.")
-    st.stop()
+tab1, tab2 = st.tabs(["🌬️ Respiration Carrée", "💪 Jacobson (Musculaire)"])
 
-st.title("🧘 Espace de Relaxation")
-st.info("Prenez un moment pour vous recentrer. Choisissez un exercice ci-dessous.")
-
-# --- ONGLETS ---
-tab1, tab2 = st.tabs(["🫁 Cohérence Cardiaque", "💪 Relaxation Musculaire"])
-
-# --- COHÉRENCE CARDIAQUE ---
+# --- RESPIRATION CARRÉE ---
 with tab1:
-    st.header("Respiration guidée (5 min)")
-    st.write("""
-    **La cohérence cardiaque** permet de réduire le stress immédiatement en synchronisant votre respiration.
+    st.header("La Respiration Carrée")
+    st.info("Technique simple pour calmer une anxiété soudaine ou une attaque de panique.")
     
-    1. Inspirez par le nez pendant 5 secondes.
-    2. Expirez par la bouche pendant 5 secondes.
-    3. Répétez.
+    st.markdown("""
+    1. **Inspirez** par le nez pendant 4 secondes.
+    2. **Bloquez** votre souffle (poumons pleins) pendant 4 secondes.
+    3. **Expirez** par la bouche pendant 4 secondes.
+    4. **Bloquez** votre souffle (poumons vides) pendant 4 secondes.
     """)
     
-    st.divider()
-    
-    # Vidéo Youtube intégrée (C'est souvent plus simple et fiable que des fichiers MP3 lourds)
-    # Exemple : Une vidéo classique de cohérence cardiaque (boule qui monte et descend)
-    st.video("https://www.youtube.com/watch?v=bM3mWlq4M8E")
-    
-    st.success("Astuce : Pratiquez cet exercice 3 fois par jour pour un effet durable sur l'anxiété.")
+    if st.button("Lancer le guide visuel (1 min)", type="primary"):
+        barre = st.progress(0)
+        status = st.empty()
+        
+        cycles = 4 # 4 cycles de 16 secondes = 64 secondes
+        
+        for i in range(cycles):
+            # 1. INSPIRATION
+            status.markdown("### 😤 INSPIREZ... (4s)")
+            for x in range(100):
+                time.sleep(0.04)
+                barre.progress(x + 1)
+            
+            # 2. RETENTION
+            status.markdown("### 😶 BLOQUEZ (4s)")
+            time.sleep(4)
+            
+            # 3. EXPIRATION
+            status.markdown("### 😮 EXPIREZ... (4s)")
+            for x in range(100, 0, -1):
+                time.sleep(0.04)
+                barre.progress(x - 1)
+                
+            # 4. RETENTION
+            status.markdown("### 😶 BLOQUEZ (4s)")
+            time.sleep(4)
+            
+        status.success("Exercice terminé. Comment vous sentez-vous ?")
 
-# --- RELAXATION DE JACOBSON ---
+# --- JACOBSON ---
 with tab2:
-    st.header("Relaxation Progressive de Jacobson")
-    st.write("""
-    Cette technique consiste à contracter puis relâcher certains muscles pour sentir la différence entre tension et détente.
-    """)
+    st.header("Relaxation Musculaire Progressive")
+    st.write("Le principe : contracter fort un muscle, puis relâcher brusquement pour sentir la détente.")
     
-    with st.expander("📖 Lire les instructions avant de commencer"):
-        st.write("""
-        1. Installez-vous confortablement (assis ou allongé).
-        2. Fermez les yeux.
-        3. Nous allons parcourir le corps : mains, bras, épaules, visage...
-        4. Contractez le muscle fort pendant 5 secondes.
-        5. Relâchez brusquement et savourez la détente pendant 15 secondes.
+    with st.expander("Voir le protocole rapide"):
+        st.markdown("""
+        **Répétez pour chaque zone : Contractez 5s, Relâchez 10s.**
+        
+        1. **Mains :** Serrez les poings très fort.
+        2. **Bras :** Pliez les bras ("faire ses muscles").
+        3. **Épaules :** Haussez les épaules vers les oreilles.
+        4. **Visage :** Grimacez (froncez sourcils, serrez dents).
+        5. **Ventre :** Contractez les abdominaux.
+        6. **Jambes :** Tendez les jambes et pointez les pieds.
         """)
-
-    st.divider()
     
-    st.write("🎧 **Séance Audio Guidée (10 min)**")
-    # Exemple d'audio (ici un lien placeholder, vous pourrez mettre le vôtre)
-    # Si vous avez votre propre MP3, glissez-le dans le dossier 'assets' et utilisez :
-    # st.audio("assets/mon_audio_relaxation.mp3")
-    
-    # Ici j'utilise un exemple en ligne pour que ça marche tout de suite
-    st.audio("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", format="audio/mp3")
-    
-    st.info("Prenez le temps de 'revenir' doucement à la réalité après l'écoute.")
+    st.info("💡 Astuce : Pratiquez cet exercice le soir pour faciliter l'endormissement.")
 
 st.divider()
 st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
