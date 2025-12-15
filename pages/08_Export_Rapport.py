@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
-from utils_pdf import generer_pdf 
 from datetime import datetime
+from utils_pdf import generer_pdf
+import concurrent.futures # C'est le module magique pour la vitesse
 
 st.set_page_config(page_title="Export Rapport", page_icon="📩")
 
@@ -22,42 +23,67 @@ st.title("📩 Exporter mon Dossier")
 st.info("Générez un rapport PDF complet incluant toutes vos échelles et agendas.")
 
 # ==============================================================================
-# 1. CHARGEMENT CENTRALISÉ DES DONNÉES (CLOUD)
+# 1. CHARGEMENT ULTRA-RAPIDE (PARALLÉLISÉ)
 # ==============================================================================
-# Fonction utilitaire locale pour charger proprement
-def load_safe(key):
+
+# Fonction de chargement unitaire
+def fetch_data(key):
     try:
         from connect_db import load_data
         data = load_data(key)
         if data:
             df = pd.DataFrame(data)
             if "Patient" in df.columns:
+                # On retourne le dataframe filtré directement
                 return df[df["Patient"] == CURRENT_USER_ID]
     except: pass
-    return pd.DataFrame() # Retourne vide si échec
+    return pd.DataFrame()
 
-with st.spinner("Récupération de vos données..."):
-    # On charge tout dans un dictionnaire
-    data_export = {
-        "beck": load_safe("Beck"),
-        "bdi": load_safe("Echelles_BDI"), # Ou "BDI" selon votre nom exact
-        "phq9": load_safe("PHQ9"),
-        "gad7": load_safe("GAD7"),
-        "who5": load_safe("WHO5"),
-        "sommeil": load_safe("Sommeil"),
-        "activites": load_safe("Activites"),
-        "problemes": load_safe("Resolution_Probleme")
-    }
+# Dictionnaire des tables à charger
+TABLES_A_CHARGER = {
+    "beck": "Beck",
+    "bdi": "Echelles_BDI", # Vérifiez si c'est "BDI" ou "Echelles_BDI" dans votre GSheet
+    "phq9": "PHQ9",
+    "gad7": "GAD7",
+    "isi": "ISI",
+    "peg": "PEG",
+    "who5": "WHO5",
+    "wsas": "WSAS",
+    "sommeil": "Sommeil",
+    "activites": "Activites",
+    "problemes": "Resolution_Probleme"
+}
+
+data_export = {}
+
+# C'est ici que la magie opère : On lance tout en même temps !
+with st.spinner("🚀 Récupération accélérée de vos données..."):
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        # On prépare les futures (les tâches)
+        future_to_key = {executor.submit(fetch_data, db_key): dict_key for dict_key, db_key in TABLES_A_CHARGER.items()}
+        
+        # On récolte les résultats au fur et à mesure qu'ils arrivent
+        for future in concurrent.futures.as_completed(future_to_key):
+            key = future_to_key[future]
+            try:
+                data_export[key] = future.result()
+            except Exception:
+                data_export[key] = pd.DataFrame()
 
 # ==============================================================================
 # 2. APERÇU DES DONNÉES DISPONIBLES
 # ==============================================================================
 st.subheader("📊 Contenu du rapport")
+
+# Petit calcul rapide pour l'affichage
+nb_tests = len(data_export["phq9"]) + len(data_export["gad7"]) + len(data_export["who5"]) + len(data_export["isi"])
+nb_agendas = len(data_export["sommeil"]) + len(data_export["activites"])
+
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Exercices Beck", len(data_export["beck"]))
-c2.metric("Nuits (Sommeil)", len(data_export["sommeil"]))
-c3.metric("Activités", len(data_export["activites"]))
-c4.metric("Tests Psy", len(data_export["phq9"]) + len(data_export["gad7"]))
+c2.metric("Tests Psy", nb_tests)
+c3.metric("Agendas (Jours)", nb_agendas)
+c4.metric("Problèmes", len(data_export["problemes"]))
 
 st.divider()
 
@@ -88,7 +114,7 @@ if st.session_state.pdf_bytes:
     with col_gauche:
         st.markdown("#### 1. Télécharger")
         st.download_button(
-            label="📥 Télécharger le PDF sur mon appareil",
+            label="📥 Télécharger le PDF",
             data=st.session_state.pdf_bytes,
             file_name=f"Rapport_TCC_{CURRENT_USER_ID}_{datetime.now().strftime('%Y%m%d')}.pdf",
             mime="application/pdf",
