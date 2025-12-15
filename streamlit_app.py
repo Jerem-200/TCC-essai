@@ -198,6 +198,10 @@ else:
                     [
                         "--- Choisir ---",
                         "📊 Vue d'ensemble (Dashboard)",
+                        "📝 Registre Activités",
+                        "🌙 Agenda Sommeil",
+                        "🍷 Agenda Consos",
+                        "🛑 Agenda Compulsions",
                         "🧩 Colonnes de Beck", 
                         "📉 PHQ-9 (Dépression)",
                         "😰 GAD-7 (Anxiété)",
@@ -205,10 +209,6 @@ else:
                         "🤕 PEG (Douleur)",
                         "🧩 WSAS (Handicap)",
                         "🌿 WHO-5 (Bien-être)",
-                        "📝 Registre Activités",
-                        "🌙 Agenda Sommeil",
-                        "🍷 Agenda Consos",
-                        "🛑 Agenda Compulsions",
                         "💡 Résolution Problèmes",
                         "🧗 Exposition",
                         "⚖️ Balance Décisionnelle",
@@ -217,7 +217,6 @@ else:
                 )
 
                 # --- CHARGEMENT CONDITIONNEL ---
-                
                 if type_outil == "--- Choisir ---":
                     st.info("Sélectionnez un outil ci-dessus pour afficher les données.")
 
@@ -230,8 +229,6 @@ else:
                     if not df.empty:
                         st.dataframe(df.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
                     else: st.info("Aucune donnée.")
-
-                # (SUPPRIMÉ : BLOC BDI)
 
                 elif type_outil == "📉 PHQ-9 (Dépression)":
                     df = charger_donnees_specifiques("PHQ9", patient_sel)
@@ -303,7 +300,7 @@ else:
             st.warning("Aucun patient trouvé.")
 
     # -----------------------------------------------------
-    # B. ESPACE PATIENT (Classique)
+    # B. ESPACE PATIENT (ARCHITECURE REVUE & CORRIGÉE)
     # -----------------------------------------------------
     elif st.session_state.user_type == "patient":
         
@@ -318,8 +315,10 @@ else:
 
         st.divider()
 
-        # --- SECTION 1 : AGENDAS (Suivi quotidien) ---
-        st.markdown("### 📅 Mes Agendas (Suivi quotidien)")
+        # =========================================================
+        # SECTION 1 : AGENDAS (SUIVI QUOTIDIEN)
+        # =========================================================
+        st.markdown("### 📅 Mes Agendas (Quotidien)")
         st.caption("À remplir régulièrement pour suivre vos habitudes.")
         
         c1, c2, c3, c4 = st.columns(4)
@@ -338,65 +337,88 @@ else:
 
         st.write("") 
 
-        # --- SECTION 2 : OUTILS TCC (Exercices ponctuels) ---
-        st.markdown("### 🛠️ Outils Thérapeutiques (Exercices)")
-        st.caption("À utiliser face à une difficulté ou pour travailler sur soi.")
+        # =========================================================
+        # SECTION 2 : BOÎTE À OUTILS (EXERCICES)
+        # =========================================================
+        st.markdown("### 🛠️ Boîte à Outils (Exercices)")
+        st.caption("Exercices pour travailler sur vos pensées et comportements.")
         
         c5, c6, c7 = st.columns(3)
         with c5:
             st.info("**Restructuration (Beck)**")
-            st.write("Analyser une pensée")
             st.page_link("pages/01_Colonnes_Beck.py", label="Lancer", icon="🧩")
             st.write("")
             st.info("**Analyse SORC**")
-            st.write("Décortiquer une situation")
             st.page_link("pages/12_Analyse_SORC.py", label="Lancer", icon="🔍")
             
         with c6:
             st.info("**Résolution Problème**")
-            st.write("Trouver des solutions")
             st.page_link("pages/06_Resolution_Probleme.py", label="Lancer", icon="💡")
             st.write("")
             st.info("**Balance Décisionnelle**")
-            st.write("Faire un choix")
             st.page_link("pages/11_Balance_Decisionnelle.py", label="Lancer", icon="⚖️")
 
         with c7:
             st.info("**Exposition**")
-            st.write("Affronter une peur")
             st.page_link("pages/09_Exposition.py", label="Lancer", icon="🧗")
             st.write("")
             st.info("**Relaxation**")
-            st.write("Se détendre")
             st.page_link("pages/07_Relaxation.py", label="Lancer", icon="🧘")
 
         st.write("") 
 
-        # --- SECTION 3 : ANALYSE & RESSOURCES ---
-        st.markdown("### 📊 Mesures & Bilan")
+        # =========================================================
+        # SECTION 3 : MESURES & ÉCHELLES (NOUVEAU BLOC)
+        # =========================================================
+        st.markdown("### 📊 Mesures & Échelles (Hebdomadaire)")
+        st.caption("Questionnaires pour suivre vos progrès (à faire selon demande du thérapeute).")
         
-        c8, c9, c10 = st.columns(3)
-        with c8:
-            st.success("**Échelles (PHQ-9 / GAD-7)**") # Titre mis à jour
-            st.page_link("pages/15_Echelle_PHQ9.py", label="Mesurer Dépression", icon="📉")
-            st.page_link("pages/16_Echelle_GAD7.py", label="Mesurer Anxiété", icon="😰")
-        with c9:
-            st.success("**Historique Global**")
-            st.page_link("pages/04_Historique.py", label="Voir mes progrès", icon="📜")
-        with c10:
-            st.success("**Exporter Données**")
-            st.page_link("pages/08_Export_Rapport.py", label="Créer un PDF", icon="📤")
+        # Ligne 1 : Humeur & Anxiété
+        m1, m2, m3 = st.columns(3)
+        with m1:
+            st.success("**PHQ-9 (Dépression)**")
+            st.page_link("pages/15_Echelle_PHQ9.py", label="Lancer", icon="📉")
+        with m2:
+            st.success("**GAD-7 (Anxiété)**")
+            st.page_link("pages/16_Echelle_GAD7.py", label="Lancer", icon="😰")
+        with m3:
+            st.success("**WHO-5 (Bien-être)**")
+            st.page_link("pages/20_Echelle_WHO5.py", label="Lancer", icon="🌿")
 
+        # Ligne 2 : Physique & Fonctionnel
+        m4, m5, m6 = st.columns(3)
+        with m4:
+            st.success("**ISI (Insomnie)**")
+            st.page_link("pages/17_Echelle_ISI.py", label="Lancer", icon="😴")
+        with m5:
+            st.success("**PEG (Douleur)**")
+            st.page_link("pages/18_Echelle_PEG.py", label="Lancer", icon="🤕")
+        with m6:
+            st.success("**WSAS (Impact)**")
+            st.page_link("pages/19_Echelle_WSAS.py", label="Lancer", icon="🧩")
+
+        st.write("")
+
+        # =========================================================
+        # SECTION 4 : BILAN & EXPORT
+        # =========================================================
+        st.markdown("### 📜 Bilan Global")
+        
+        b1, b2, b3 = st.columns([1, 1, 2])
+        with b1:
+            st.page_link("pages/04_Historique.py", label="📜 Voir mon Historique", icon="📜")
+        with b2:
+            st.page_link("pages/08_Export_Rapport.py", label="📤 Exporter en PDF", icon="📤")
+        
         st.divider()
         st.page_link("pages/03_Ressources.py", label="📚 Consulter les Fiches & Ressources", icon="🔖")
 
 
     # =========================================================
-    # 4. SIDEBAR (MENU LATÉRAL) - CORRIGÉ
+    # 4. SIDEBAR (MENU LATÉRAL) - RESTRUCTURÉ
     # =========================================================
     with st.sidebar:
         
-        # A. LOGIQUE PATIENT (ID + MENU COMPLET)
         if st.session_state.user_type == "patient":
             display_id = st.session_state.user_id 
             try:
@@ -404,7 +426,6 @@ else:
                 infos = load_data("Codes_Patients")
                 if infos:
                     df_infos = pd.DataFrame(infos)
-                    # On utilise l'Identifiant (PAT-XXX) pour chercher
                     code_actuel = str(st.session_state.user_id).strip().upper()
                     match = df_infos[df_infos["Identifiant"].astype(str).str.strip().str.upper() == code_actuel]
                     if not match.empty:
@@ -415,31 +436,35 @@ else:
             st.write(f"👤 ID: **{display_id}**")
             st.divider()
             
-            st.title("Navigation Rapide")
+            st.title("Navigation")
             st.page_link("streamlit_app.py", label="🏠 Accueil")
-            st.caption("Agendas")
+            
+            st.caption("📅 Agendas")
             st.page_link("pages/10_Agenda_Sommeil.py", label="🌙 Sommeil")
             st.page_link("pages/05_Registre_Activites.py", label="📝 Activités")
-            st.page_link("pages/13_Agenda_Consos.py", label="🍷 Consommations")
+            st.page_link("pages/13_Agenda_Consos.py", label="🍷 Consos")
             st.page_link("pages/14_Agenda_Compulsions.py", label="🛑 Compulsions")
-            st.caption("Outils")
+            
+            st.caption("🛠️ Outils")
             st.page_link("pages/01_Colonnes_Beck.py", label="🧩 Beck")
             st.page_link("pages/12_Analyse_SORC.py", label="🔍 SORC")
             st.page_link("pages/06_Resolution_Probleme.py", label="💡 Problèmes")
             st.page_link("pages/11_Balance_Decisionnelle.py", label="⚖️ Balance")
             st.page_link("pages/09_Exposition.py", label="🧗 Exposition")
             st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
-            st.caption("Suivi")
-            # BDI RETIRÉ
-            st.page_link("pages/15_Echelle_PHQ9.py", label="📊 PHQ-9") 
-            st.page_link("pages/16_Echelle_GAD7.py", label="📊 GAD-7")
-            st.page_link("pages/17_Echelle_ISI.py", label="📊 ISI")
-            st.page_link("pages/18_Echelle_PEG.py", label="📊 PEG")
-            st.page_link("pages/20_Echelle_WHO5.py", label="📊 WHO-5")
-            st.page_link("pages/19_Echelle_WSAS.py", label="📊 WSAS")
-            st.page_link("pages/04_Historique.py", label="📜 Historique")
+            
+            st.caption("📊 Échelles")
+            st.page_link("pages/15_Echelle_PHQ9.py", label="📉 PHQ-9")
+            st.page_link("pages/16_Echelle_GAD7.py", label="😰 GAD-7")
+            st.page_link("pages/20_Echelle_WHO5.py", label="🌿 WHO-5")
+            st.page_link("pages/17_Echelle_ISI.py", label="😴 ISI")
+            st.page_link("pages/18_Echelle_PEG.py", label="🤕 PEG")
+            st.page_link("pages/19_Echelle_WSAS.py", label="🧩 WSAS")
+            
+            st.caption("📜 Bilan")
+            st.page_link("pages/04_Historique.py", label="Historique")
+            st.page_link("pages/08_Export_Rapport.py", label="Export")
 
-        # B. LOGIQUE THÉRAPEUTE (JUSTE RETOUR ACCUEIL)
         else:
             st.title("Navigation")
             st.page_link("streamlit_app.py", label="🏠 Accueil")
