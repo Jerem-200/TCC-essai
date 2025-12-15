@@ -4,7 +4,11 @@ import altair as alt
 import time
 import secrets
 from datetime import datetime
-from visualisations import afficher_activites, afficher_sommeil, afficher_conso, afficher_compulsions
+# Import de toutes les visualisations
+from visualisations import (
+    afficher_activites, afficher_sommeil, afficher_conso, afficher_compulsions,
+    afficher_phq9, afficher_gad7, afficher_isi, afficher_peg, afficher_who5, afficher_wsas
+)
 
 st.set_page_config(page_title="Compagnon TCC", page_icon="🧠", layout="wide")
 
@@ -175,7 +179,7 @@ else:
                         recuperer_mes_patients.clear()
                     except Exception as e: st.error(e)
 
-        # 2. VISUALISATION COMPLÈTE
+        # 2. VISUALISATION COMPLÈTE (AVEC MENU DÉROULANT RAPIDE)
         st.subheader("📂 Dossiers Patients")
         
         df_mes_patients = recuperer_mes_patients(st.session_state.user_id)
@@ -186,143 +190,135 @@ else:
 
             if patient_sel:
                 st.markdown(f"### 👤 {patient_sel}")
+                st.divider()
+
+                # --- MENU DE SÉLECTION (RAPIDE) ---
+                # Remplace les onglets pour ne charger QUE ce qu'on demande
+                type_outil = st.selectbox(
+                    "🔍 Consulter un outil :",
+                    [
+                        "--- Choisir ---",
+                        "📊 Vue d'ensemble (Dashboard)",
+                        "🧩 Colonnes de Beck", 
+                        "📉 BDI (Dépression)", 
+                        "📉 PHQ-9 (Dépression)",
+                        "😰 GAD-7 (Anxiété)",
+                        "😴 ISI (Insomnie)",
+                        "🤕 PEG (Douleur)",
+                        "🧩 WSAS (Handicap)",
+                        "🌿 WHO-5 (Bien-être)",
+                        "📝 Registre Activités",
+                        "🌙 Agenda Sommeil",
+                        "🍷 Agenda Consos",
+                        "🛑 Agenda Compulsions",
+                        "💡 Résolution Problèmes",
+                        "🧗 Exposition",
+                        "⚖️ Balance Décisionnelle",
+                        "🔍 Analyse SORC"
+                    ]
+                )
+
+                # --- CHARGEMENT CONDITIONNEL ---
                 
-                # --- LES 10 ONGLETS ---
-                # On utilise des noms courts pour que ça rentre sur l'écran
-                t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16 = st.tabs([
-                    "🧩 Beck", "📊 BDI", "📊 PHQ-9", "📊 GAD-7", "📊 ISI", "📊 PEG", "📊 WHO-5", "📊 WSAS",
-                    "📝 Activités", "💡 Problèmes", "🧗 Expo", "🌙 Sommeil", 
-                    "⚖️ Balance", "🔍 SORC", "🍷 Conso", "🛑 Compulsions"
-                ])
-                
-                # 1. BECK
-                with t1:
+                if type_outil == "--- Choisir ---":
+                    st.info("Sélectionnez un outil ci-dessus pour afficher les données.")
+
+                elif type_outil == "📊 Vue d'ensemble (Dashboard)":
+                    st.markdown("### Résumé rapide")
+                    # On pourrait charger juste les derniers scores ici
+                    # Pour l'instant, simple info
+                    st.write("Sélectionnez une échelle spécifique pour voir l'historique complet.")
+
+                elif type_outil == "🧩 Colonnes de Beck":
                     df = charger_donnees_specifiques("Beck", patient_sel)
                     if not df.empty:
                         st.dataframe(df.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
-                    else: st.info("Aucune colonne de Beck.")
+                    else: st.info("Aucune donnée.")
 
-                # 2. BDI (Avec Graphique)
-                with t2:
+                elif type_outil == "📉 BDI (Dépression)":
                     df = charger_donnees_specifiques("BDI", patient_sel)
                     if not df.empty:
-                        # On suppose une colonne 'Score' ou 'Total' et 'Date'
                         cols = df.columns
                         col_score = next((c for c in cols if "score" in c.lower() or "total" in c.lower()), None)
-                        
                         if col_score and "Date" in df.columns:
                             df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
                             df[col_score] = pd.to_numeric(df[col_score], errors='coerce')
                             df = df.dropna(subset=["Date", col_score]).sort_values("Date")
-                            
                             c_bdi = alt.Chart(df).mark_line(point=True, color="red").encode(
                                 x=alt.X('Date:T', axis=alt.Axis(format='%d/%m')),
-                                y=alt.Y(f'{col_score}:Q', title='Score Depression'),
+                                y=alt.Y(f'{col_score}:Q', title='Score'),
                                 tooltip=['Date', col_score]
                             ).interactive()
                             st.altair_chart(c_bdi, use_container_width=True)
                             st.dataframe(df, use_container_width=True)
-                        else:
-                            st.dataframe(df, use_container_width=True)
-                    else: st.info("Aucun test BDI.")
+                        else: st.dataframe(df, use_container_width=True)
+                    else: st.info("Aucun BDI.")
 
-                # ONGLET PHQ-9
-                with t3:
-                    from visualisations import afficher_phq9
-                    # On charge les données du patient sélectionné
+                elif type_outil == "📉 PHQ-9 (Dépression)":
                     df = charger_donnees_specifiques("PHQ9", patient_sel)
-                    # On affiche avec la fonction partagée
                     afficher_phq9(df, patient_sel)
-                
-                # ONGLET GAD-7
-                with t4:
-                    from visualisations import afficher_gad7
+
+                elif type_outil == "😰 GAD-7 (Anxiété)":
                     df = charger_donnees_specifiques("GAD7", patient_sel)
                     afficher_gad7(df, patient_sel)
 
-                # ONGLET ISI
-                with t5:
-                    from visualisations import afficher_isi
+                elif type_outil == "😴 ISI (Insomnie)":
                     df = charger_donnees_specifiques("ISI", patient_sel)
                     afficher_isi(df, patient_sel)
 
-                # ONGLET PEG
-                with t6:
-                    from visualisations import afficher_peg
+                elif type_outil == "🤕 PEG (Douleur)":
                     df = charger_donnees_specifiques("PEG", patient_sel)
-                    afficher_peg(df, patient_sel) 
-                
-                 # ONGLET WHO-5
-                with t7:
-                    from visualisations import afficher_who5
-                    df = charger_donnees_specifiques("WHO5", patient_sel)
-                    afficher_who5(df, patient_sel)
+                    afficher_peg(df, patient_sel)
 
-                # ONGLET WSAS
-                with t8:
-                    from visualisations import afficher_wsas
+                elif type_outil == "🧩 WSAS (Handicap)":
                     df = charger_donnees_specifiques("WSAS", patient_sel)
                     afficher_wsas(df, patient_sel)
 
+                elif type_outil == "🌿 WHO-5 (Bien-être)":
+                    df = charger_donnees_specifiques("WHO5", patient_sel)
+                    afficher_who5(df, patient_sel)
 
-                # 3. ACTIVITÉS (Avec Graphiques)
-                with t9:
+                elif type_outil == "📝 Registre Activités":
                     df_act = charger_donnees_specifiques("Activites", patient_sel)
-                    # On charge aussi l'humeur pour l'afficher dans le même onglet comme pour le patient
                     df_hum = charger_donnees_specifiques("Humeur", patient_sel)
-                    
                     if not df_act.empty or not df_hum.empty:
                         afficher_activites(df_act, df_hum, patient_sel)
                     else: st.info("Aucune activité.")
 
-                # 4. PROBLÈMES
-                with t10:
-                    df = charger_donnees_specifiques("Résolution_Problème", patient_sel)
-                    if not df.empty:
-                        st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True, hide_index=True)
-                    else: st.info("Aucun problème traité.")
-
-                # 5. EXPOSITION
-                with t11:
-                    df = charger_donnees_specifiques("Exposition", patient_sel)
-                    if not df.empty:
-                        st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True, hide_index=True)
-                    else: st.info("Aucune exposition.")
-
-                # 6. SOMMEIL (Complet)
-                with t12:
+                elif type_outil == "🌙 Agenda Sommeil":
                     df = charger_donnees_specifiques("Sommeil", patient_sel)
-                    if not df.empty:
-                        afficher_sommeil(df, patient_sel)
-                    else: st.info("Aucune donnée sommeil.")
+                    if not df.empty: afficher_sommeil(df, patient_sel)
+                    else: st.info("Pas de données sommeil.")
 
-                # 7. BALANCE
-                with t13:
-                    df = charger_donnees_specifiques("Balance_Decisionnelle", patient_sel)
-                    if not df.empty:
-                        st.dataframe(df, use_container_width=True, hide_index=True)
-                    else: st.info("Aucune balance.")
-
-                # 8. SORC
-                with t14:
-                    df = charger_donnees_specifiques("SORC", patient_sel)
-                    if not df.empty:
-                        st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True, hide_index=True)
-                    else: st.info("Aucune analyse SORC.")
-
-                # 9. CONSO (Graphique)
-                with t15:
+                elif type_outil == "🍷 Agenda Consos":
                     df = charger_donnees_specifiques("Addictions", patient_sel)
-                    if not df.empty:
-                        afficher_conso(df, patient_sel)
-                    else: st.info("Aucune consommation.")
+                    if not df.empty: afficher_conso(df, patient_sel)
+                    else: st.info("Pas de conso.")
 
-                # 10. COMPULSIONS (Graphique)
-                with t16:
+                elif type_outil == "🛑 Agenda Compulsions":
                     df = charger_donnees_specifiques("Compulsions", patient_sel)
-                    if not df.empty:
-                        afficher_compulsions(df, patient_sel)
-                    else: st.info("Aucune compulsion.")
+                    if not df.empty: afficher_compulsions(df, patient_sel)
+                    else: st.info("Pas de compulsions.")
+
+                elif type_outil == "💡 Résolution Problèmes":
+                    df = charger_donnees_specifiques("Résolution_Problème", patient_sel)
+                    if not df.empty: st.dataframe(df, use_container_width=True)
+                    else: st.info("Aucune donnée.")
+
+                elif type_outil == "🧗 Exposition":
+                    df = charger_donnees_specifiques("Exposition", patient_sel)
+                    if not df.empty: st.dataframe(df, use_container_width=True)
+                    else: st.info("Aucune donnée.")
+
+                elif type_outil == "⚖️ Balance Décisionnelle":
+                    df = charger_donnees_specifiques("Balance_Decisionnelle", patient_sel)
+                    if not df.empty: st.dataframe(df, use_container_width=True)
+                    else: st.info("Aucune donnée.")
+
+                elif type_outil == "🔍 Analyse SORC":
+                    df = charger_donnees_specifiques("SORC", patient_sel)
+                    if not df.empty: st.dataframe(df, use_container_width=True)
+                    else: st.info("Aucune donnée.")
 
         else:
             st.warning("Aucun patient trouvé.")
