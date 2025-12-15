@@ -11,6 +11,12 @@ from visualisations import (
 )
 
 st.set_page_config(page_title="Compagnon TCC", page_icon="🧠", layout="wide")
+# MASQUER LA NAVIGATION PAR DÉFAUT DE STREAMLIT
+st.markdown("""
+    <style>
+        [data-testid="stSidebarNav"] {display: none;}
+    </style>
+""", unsafe_allow_html=True)
 
 # =========================================================
 # 0. SÉCURITÉ & UTILITAIRES

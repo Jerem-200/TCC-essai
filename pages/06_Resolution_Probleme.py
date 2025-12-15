@@ -24,6 +24,29 @@ if "pb_owner" not in st.session_state or st.session_state.pb_owner != CURRENT_US
     if "data_problemes" in st.session_state: del st.session_state.data_problemes
     st.session_state.pb_owner = CURRENT_USER_ID
 
+# D. LE VIGILE (PERMISSIONS) - NOUVEAU
+CLE_PAGE = "problemes" # <--- Changez ceci selon la page (ex: "activites", "conso"...)
+
+if st.session_state.get("user_type") == "patient":
+    try:
+        from connect_db import load_data
+        perms = load_data("Permissions")
+        if perms:
+            df_perm = pd.DataFrame(perms)
+            # On cherche si le patient a des blocages
+            row = df_perm[df_perm["Patient"] == CURRENT_USER_ID]
+            if not row.empty:
+                bloques = str(row.iloc[0]["Bloques"]).split(",")
+                # Si la clé de la page est dans la liste des blocages
+                if CLE_PAGE in [b.strip() for b in bloques]:
+                    st.error("🔒 Cette fonctionnalité n'est pas activée dans votre programme.")
+                    st.info("Voyez avec votre thérapeute si vous pensez qu'il s'agit d'une erreur.")
+                    if st.button("Retour à l'accueil"):
+                        st.switch_page("streamlit_app.py")
+                    st.stop() # Arrêt immédiat
+    except Exception as e:
+        pass # En cas d'erreur technique (ex: pas de connexion), on laisse passer par défaut
+
 st.title("💡 Technique de Résolution de Problèmes")
 st.info("Une méthode structurée pour transformer un problème en plan d'action.")
 

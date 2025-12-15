@@ -11,6 +11,8 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.page_link("streamlit_app.py", label="Retourner à l'accueil", icon="🏠")
     st.stop()
 
+
+
 # ==============================================================================
 # CONTENU
 # ==============================================================================
