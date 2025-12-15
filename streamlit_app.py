@@ -256,147 +256,152 @@ else:
             if patient_sel:
                 st.markdown(f"### 👤 {patient_sel}")
                 
+                # 1. CHARGEMENT DES BLOCAGES (Pour savoir quoi marquer d'un cadenas)
+                blocages_actuels = charger_blocages(patient_sel)
+
                 # --- ZONE DE GESTION DES ACCÈS ---
-                with st.expander("🔒 Gérer les accès du patient (Bloquer/Débloquer)"):
-                    blocages_actuels = charger_blocages(patient_sel)
+                with st.expander("🔒 Gérer les permissions (Bloquer des outils)"):
                     INV_MAP = {v: k for k, v in MAP_OUTILS.items()}
                     default_options = [INV_MAP[k] for k in blocages_actuels if k in INV_MAP]
                     
                     choix_bloques = st.multiselect(
-                        "Sélectionnez les outils à MASQUER pour ce patient :",
+                        "Outils masqués pour ce patient :",
                         options=list(MAP_OUTILS.keys()),
                         default=default_options
                     )
                     
-                    if st.button("💾 Appliquer les restrictions"):
+                    if st.button("💾 Mettre à jour les accès"):
                         nouvelle_liste_cles = [MAP_OUTILS[nom] for nom in choix_bloques]
                         if sauvegarder_blocages(patient_sel, nouvelle_liste_cles):
                             st.success("Accès mis à jour !")
-                            # On recharge la variable locale pour que l'affichage du menu se mette à jour tout de suite
-                            blocages_actuels = charger_blocages(patient_sel) 
+                            blocages_actuels = charger_blocages(patient_sel) # Recharge immédiate
                             time.sleep(1)
                             st.rerun()
+
                 st.divider()
 
-                # --- PRÉPARATION DU MENU INTELLIGENT ---
-                # Liste brute (identique à vos if/elif plus bas pour ne rien casser)
-                liste_outils = [
-                    "--- Choisir ---",
-                    "📊 Vue d'ensemble (Dashboard)",
-                    "📝 Registre Activités",
-                    "🌙 Agenda Sommeil",
-                    "🍷 Agenda Consos",
-                    "🛑 Agenda Compulsions",
-                    "🧩 Colonnes de Beck", 
-                    "📊 PHQ-9 (Dépression)",
-                    "📊 GAD-7 (Anxiété)",
-                    "📊 ISI (Insomnie)",
-                    "📊 PEG (Douleur)",
-                    "📊 WSAS (Handicap)",
-                    "📊 WHO-5 (Bien-être)",
-                    "💡 Résolution Problèmes",
-                    "🧗 Exposition",
-                    "⚖️ Balance Décisionnelle",
-                    "🔍 Analyse SORC"
-                ]
+                # --- FONCTION POUR AJOUTER LE CADENAS DANS LE TITRE DE L'ONGLET ---
+                def T(titre, cle_technique):
+                    if cle_technique in blocages_actuels:
+                        return f"{titre} 🔒"
+                    return titre
 
-                # Fonction de formatage visuel (Ajoute le cadenas si bloqué)
-                def format_menu_therapeute(option):
-                    # 1. On regarde si cette option correspond à une clé technique
-                    cle_technique = MAP_OUTILS.get(option) # ex: 'sommeil' pour '🌙 Agenda Sommeil'
-                    
-                    # 2. Si la clé est dans la liste des blocages, on ajoute le texte (Masqué)
-                    if cle_technique and cle_technique in blocages_actuels:
-                        return f"{option} (🔒 Masqué au patient)"
-                    
-                    return option
+                # --- CRÉATION DES ONGLETS (VUE PANORAMIQUE) ---
+                # On définit les titres dynamiquement
+                tabs = st.tabs([
+                    "📊 Dash",
+                    T("📝 Activités", "activites"), 
+                    T("🌙 Sommeil", "sommeil"), 
+                    T("🍷 Conso", "conso"), 
+                    T("🛑 Compuls.", "compulsions"),
+                    T("🧩 Beck", "beck"), 
+                    T("📉 PHQ-9", "phq9"), 
+                    T("😰 GAD-7", "gad7"), 
+                    T("😴 ISI", "isi"), 
+                    T("🤕 PEG", "peg"), 
+                    T("🌿 WHO-5", "who5"), 
+                    T("🧩 WSAS", "wsas"),
+                    T("💡 Problèmes", "problemes"), 
+                    T("🧗 Expo", "expo"), 
+                    T("⚖️ Balance", "balance"), 
+                    T("🔍 SORC", "sorc")
+                ])
+                
+                # On éclate la liste des onglets dans des variables
+                (t_dash, t_act, t_som, t_conso, t_comp, t_beck, t_phq9, t_gad7, 
+                 t_isi, t_peg, t_who5, t_wsas, t_prob, t_expo, t_bal, t_sorc) = tabs
 
-                # --- MENU DE SÉLECTION ---
-                type_outil = st.selectbox(
-                    "🔍 Consulter un outil :",
-                    options=liste_outils,
-                    format_func=format_menu_therapeute # <--- C'est ici que la magie opère
-                )
-                # --- CHARGEMENT CONDITIONNEL ---
-                if type_outil == "--- Choisir ---":
-                    st.info("Sélectionnez un outil ci-dessus pour afficher les données.")
+                # 0. DASHBOARD (Toujours visible)
+                with t_dash:
+                    st.info("Sélectionnez un onglet ci-dessus pour voir le détail.")
+                    # Ici vous pouvez mettre un résumé rapide si vous voulez
 
-                elif type_outil == "📊 Vue d'ensemble (Dashboard)":
-                    st.markdown("### Résumé rapide")
-                    st.write("Sélectionnez une échelle spécifique pour voir l'historique complet.")
-
-                elif type_outil == "🧩 Colonnes de Beck":
-                    df = charger_donnees_specifiques("Beck", patient_sel)
-                    if not df.empty:
-                        st.dataframe(df.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
-                    else: st.info("Aucune donnée.")
-
-                elif type_outil == "📊 PHQ-9 (Dépression)":
-                    df = charger_donnees_specifiques("PHQ9", patient_sel)
-                    afficher_phq9(df, patient_sel)
-
-                elif type_outil == "📊 GAD-7 (Anxiété)":
-                    df = charger_donnees_specifiques("GAD7", patient_sel)
-                    afficher_gad7(df, patient_sel)
-
-                elif type_outil == "📊 ISI (Insomnie)":
-                    df = charger_donnees_specifiques("ISI", patient_sel)
-                    afficher_isi(df, patient_sel)
-
-                elif type_outil == "📊 PEG (Douleur)":
-                    df = charger_donnees_specifiques("PEG", patient_sel)
-                    afficher_peg(df, patient_sel)
-
-                elif type_outil == "📊 WSAS (Handicap)":
-                    df = charger_donnees_specifiques("WSAS", patient_sel)
-                    afficher_wsas(df, patient_sel)
-
-                elif type_outil == "📊 WHO-5 (Bien-être)":
-                    df = charger_donnees_specifiques("WHO5", patient_sel)
-                    afficher_who5(df, patient_sel)
-
-                elif type_outil == "📝 Registre Activités":
+                # 1. ACTIVITÉS
+                with t_act:
                     df_act = charger_donnees_specifiques("Activites", patient_sel)
                     df_hum = charger_donnees_specifiques("Humeur", patient_sel)
                     if not df_act.empty or not df_hum.empty:
                         afficher_activites(df_act, df_hum, patient_sel)
                     else: st.info("Aucune activité.")
 
-                elif type_outil == "🌙 Agenda Sommeil":
+                # 2. SOMMEIL
+                with t_som:
                     df = charger_donnees_specifiques("Sommeil", patient_sel)
                     if not df.empty: afficher_sommeil(df, patient_sel)
                     else: st.info("Pas de données sommeil.")
 
-                elif type_outil == "🍷 Agenda Consos":
+                # 3. CONSO
+                with t_conso:
                     df = charger_donnees_specifiques("Addictions", patient_sel)
                     if not df.empty: afficher_conso(df, patient_sel)
                     else: st.info("Pas de conso.")
 
-                elif type_outil == "🛑 Agenda Compulsions":
+                # 4. COMPULSIONS
+                with t_comp:
                     df = charger_donnees_specifiques("Compulsions", patient_sel)
                     if not df.empty: afficher_compulsions(df, patient_sel)
                     else: st.info("Pas de compulsions.")
 
-                elif type_outil == "💡 Résolution Problèmes":
-                    df = charger_donnees_specifiques("Résolution_Problème", patient_sel)
+                # 5. BECK
+                with t_beck:
+                    df = charger_donnees_specifiques("Beck", patient_sel)
+                    if not df.empty:
+                        st.dataframe(df.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
+                    else: st.info("Aucune donnée.")
+
+                # 6. PHQ-9
+                with t_phq9:
+                    df = charger_donnees_specifiques("PHQ9", patient_sel)
+                    afficher_phq9(df, patient_sel)
+
+                # 7. GAD-7
+                with t_gad7:
+                    df = charger_donnees_specifiques("GAD7", patient_sel)
+                    afficher_gad7(df, patient_sel)
+
+                # 8. ISI
+                with t_isi:
+                    df = charger_donnees_specifiques("ISI", patient_sel)
+                    afficher_isi(df, patient_sel)
+
+                # 9. PEG
+                with t_peg:
+                    df = charger_donnees_specifiques("PEG", patient_sel)
+                    afficher_peg(df, patient_sel)
+
+                # 10. WHO-5
+                with t_who5:
+                    df = charger_donnees_specifiques("WHO5", patient_sel)
+                    afficher_who5(df, patient_sel)
+
+                # 11. WSAS
+                with t_wsas:
+                    df = charger_donnees_specifiques("WSAS", patient_sel)
+                    afficher_wsas(df, patient_sel)
+
+                # 12. PROBLÈMES
+                with t_prob:
+                    df = charger_donnees_specifiques("Resolution_Probleme", patient_sel)
                     if not df.empty: st.dataframe(df, use_container_width=True)
                     else: st.info("Aucune donnée.")
 
-                elif type_outil == "🧗 Exposition":
+                # 13. EXPOSITION
+                with t_expo:
                     df = charger_donnees_specifiques("Exposition", patient_sel)
                     if not df.empty: st.dataframe(df, use_container_width=True)
                     else: st.info("Aucune donnée.")
 
-                elif type_outil == "⚖️ Balance Décisionnelle":
+                # 14. BALANCE
+                with t_bal:
                     df = charger_donnees_specifiques("Balance_Decisionnelle", patient_sel)
                     if not df.empty: st.dataframe(df, use_container_width=True)
                     else: st.info("Aucune donnée.")
 
-                elif type_outil == "🔍 Analyse SORC":
+                # 15. SORC
+                with t_sorc:
                     df = charger_donnees_specifiques("SORC", patient_sel)
                     if not df.empty: st.dataframe(df, use_container_width=True)
                     else: st.info("Aucune donnée.")
-
         else:
             st.warning("Aucun patient trouvé.")
 
