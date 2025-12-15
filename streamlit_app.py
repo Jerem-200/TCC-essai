@@ -256,17 +256,12 @@ else:
             if patient_sel:
                 st.markdown(f"### 👤 {patient_sel}")
                 
-                # --- ZONE DE GESTION DES ACCÈS (NOUVEAU) ---
+                # --- ZONE DE GESTION DES ACCÈS ---
                 with st.expander("🔒 Gérer les accès du patient (Bloquer/Débloquer)"):
-                    # 1. Charger l'existant
                     blocages_actuels = charger_blocages(patient_sel)
-                    
-                    # 2. Convertir les clés (ex: 'sommeil') en Noms (ex: '🌙 Agenda Sommeil') pour l'affichage
-                    # On inverse le dictionnaire MAP_OUTILS
                     INV_MAP = {v: k for k, v in MAP_OUTILS.items()}
                     default_options = [INV_MAP[k] for k in blocages_actuels if k in INV_MAP]
                     
-                    # 3. Multiselect
                     choix_bloques = st.multiselect(
                         "Sélectionnez les outils à MASQUER pour ce patient :",
                         options=list(MAP_OUTILS.keys()),
@@ -274,38 +269,54 @@ else:
                     )
                     
                     if st.button("💾 Appliquer les restrictions"):
-                        # Convertir les noms en clés
                         nouvelle_liste_cles = [MAP_OUTILS[nom] for nom in choix_bloques]
                         if sauvegarder_blocages(patient_sel, nouvelle_liste_cles):
                             st.success("Accès mis à jour !")
+                            # On recharge la variable locale pour que l'affichage du menu se mette à jour tout de suite
+                            blocages_actuels = charger_blocages(patient_sel) 
                             time.sleep(1)
                             st.rerun()
                 st.divider()
 
-                # --- MENU DE SÉLECTION (RAPIDE - SANS BDI) ---
+                # --- PRÉPARATION DU MENU INTELLIGENT ---
+                # Liste brute (identique à vos if/elif plus bas pour ne rien casser)
+                liste_outils = [
+                    "--- Choisir ---",
+                    "📊 Vue d'ensemble (Dashboard)",
+                    "📝 Registre Activités",
+                    "🌙 Agenda Sommeil",
+                    "🍷 Agenda Consos",
+                    "🛑 Agenda Compulsions",
+                    "🧩 Colonnes de Beck", 
+                    "📊 PHQ-9 (Dépression)",
+                    "📊 GAD-7 (Anxiété)",
+                    "📊 ISI (Insomnie)",
+                    "📊 PEG (Douleur)",
+                    "📊 WSAS (Handicap)",
+                    "📊 WHO-5 (Bien-être)",
+                    "💡 Résolution Problèmes",
+                    "🧗 Exposition",
+                    "⚖️ Balance Décisionnelle",
+                    "🔍 Analyse SORC"
+                ]
+
+                # Fonction de formatage visuel (Ajoute le cadenas si bloqué)
+                def format_menu_therapeute(option):
+                    # 1. On regarde si cette option correspond à une clé technique
+                    cle_technique = MAP_OUTILS.get(option) # ex: 'sommeil' pour '🌙 Agenda Sommeil'
+                    
+                    # 2. Si la clé est dans la liste des blocages, on ajoute le texte (Masqué)
+                    if cle_technique and cle_technique in blocages_actuels:
+                        return f"{option} (🔒 Masqué au patient)"
+                    
+                    return option
+
+                # --- MENU DE SÉLECTION ---
                 type_outil = st.selectbox(
                     "🔍 Consulter un outil :",
-                    [
-                        "--- Choisir ---",
-                        "📊 Vue d'ensemble (Dashboard)",
-                        "📝 Registre Activités",
-                        "🌙 Agenda Sommeil",
-                        "🍷 Agenda Consos",
-                        "🛑 Agenda Compulsions",
-                        "🧩 Colonnes de Beck", 
-                        "📊 PHQ-9 (Dépression)",
-                        "📊 GAD-7 (Anxiété)",
-                        "📊 ISI (Insomnie)",
-                        "📊 PEG (Douleur)",
-                        "📊 WSAS (Handicap)",
-                        "📊 WHO-5 (Bien-être)",
-                        "💡 Résolution Problèmes",
-                        "🧗 Exposition",
-                        "⚖️ Balance Décisionnelle",
-                        "🔍 Analyse SORC"
-                    ]
+                    options=liste_outils,
+                    format_func=format_menu_therapeute # <--- C'est ici que la magie opère
                 )
-
                 # --- CHARGEMENT CONDITIONNEL ---
                 if type_outil == "--- Choisir ---":
                     st.info("Sélectionnez un outil ci-dessus pour afficher les données.")
