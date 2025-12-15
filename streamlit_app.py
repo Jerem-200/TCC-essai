@@ -377,25 +377,25 @@ else:
         m1, m2, m3 = st.columns(3)
         with m1:
             st.success("**PHQ-9 (Dépression)**")
-            st.page_link("pages/15_Echelle_PHQ9.py", label="Lancer", icon="📉")
+            st.page_link("pages/15_Echelle_PHQ9.py", label="Lancer", icon="📊")
         with m2:
             st.success("**GAD-7 (Anxiété)**")
-            st.page_link("pages/16_Echelle_GAD7.py", label="Lancer", icon="😰")
+            st.page_link("pages/16_Echelle_GAD7.py", label="Lancer", icon="📊")
         with m3:
             st.success("**WHO-5 (Bien-être)**")
-            st.page_link("pages/20_Echelle_WHO5.py", label="Lancer", icon="🌿")
+            st.page_link("pages/20_Echelle_WHO5.py", label="Lancer", icon="📊")
 
         # Ligne 2 : Physique & Fonctionnel
         m4, m5, m6 = st.columns(3)
         with m4:
             st.success("**ISI (Insomnie)**")
-            st.page_link("pages/17_Echelle_ISI.py", label="Lancer", icon="😴")
+            st.page_link("pages/17_Echelle_ISI.py", label="Lancer", icon="📊")
         with m5:
             st.success("**PEG (Douleur)**")
-            st.page_link("pages/18_Echelle_PEG.py", label="Lancer", icon="🤕")
+            st.page_link("pages/18_Echelle_PEG.py", label="Lancer", icon="📊")
         with m6:
             st.success("**WSAS (Impact)**")
-            st.page_link("pages/19_Echelle_WSAS.py", label="Lancer", icon="🧩")
+            st.page_link("pages/19_Echelle_WSAS.py", label="Lancer", icon="📊")
 
         st.write("")
 
@@ -406,12 +406,12 @@ else:
         
         b1, b2, b3 = st.columns([1, 1, 2])
         with b1:
-            st.page_link("pages/04_Historique.py", label="📜 Voir mon Historique", icon="📜")
+            st.page_link("pages/04_Historique.py", label="Voir mon Historique", icon="📜")
         with b2:
-            st.page_link("pages/08_Export_Rapport.py", label="📤 Exporter en PDF", icon="📤")
+            st.page_link("pages/08_Export_Rapport.py", label="Exporter en PDF", icon="📤")
         
         st.divider()
-        st.page_link("pages/03_Ressources.py", label="📚 Consulter les Fiches & Ressources", icon="🔖")
+        st.page_link("pages/03_Ressources.py", label="Consulter les Fiches & Ressources", icon="📚")
 
 
     # =========================================================
@@ -454,12 +454,12 @@ else:
             st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
             
             st.caption("📊 Échelles")
-            st.page_link("pages/15_Echelle_PHQ9.py", label="📉 PHQ-9")
-            st.page_link("pages/16_Echelle_GAD7.py", label="😰 GAD-7")
-            st.page_link("pages/20_Echelle_WHO5.py", label="🌿 WHO-5")
-            st.page_link("pages/17_Echelle_ISI.py", label="😴 ISI")
-            st.page_link("pages/18_Echelle_PEG.py", label="🤕 PEG")
-            st.page_link("pages/19_Echelle_WSAS.py", label="🧩 WSAS")
+            st.page_link("pages/15_Echelle_PHQ9.py", label="📊 PHQ-9")
+            st.page_link("pages/16_Echelle_GAD7.py", label="📊 GAD-7")
+            st.page_link("pages/20_Echelle_WHO5.py", label="📊 WHO-5")
+            st.page_link("pages/17_Echelle_ISI.py", label="📊 ISI")
+            st.page_link("pages/18_Echelle_PEG.py", label="📊 PEG")
+            st.page_link("pages/19_Echelle_WSAS.py", label="📊 WSAS")
             
             st.caption("📜 Bilan")
             st.page_link("pages/04_Historique.py", label="Historique")
