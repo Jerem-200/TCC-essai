@@ -192,15 +192,13 @@ else:
                 st.markdown(f"### 👤 {patient_sel}")
                 st.divider()
 
-                # --- MENU DE SÉLECTION (RAPIDE) ---
-                # Remplace les onglets pour ne charger QUE ce qu'on demande
+                # --- MENU DE SÉLECTION (RAPIDE - SANS BDI) ---
                 type_outil = st.selectbox(
                     "🔍 Consulter un outil :",
                     [
                         "--- Choisir ---",
                         "📊 Vue d'ensemble (Dashboard)",
                         "🧩 Colonnes de Beck", 
-                        "📉 BDI (Dépression)", 
                         "📉 PHQ-9 (Dépression)",
                         "😰 GAD-7 (Anxiété)",
                         "😴 ISI (Insomnie)",
@@ -225,8 +223,6 @@ else:
 
                 elif type_outil == "📊 Vue d'ensemble (Dashboard)":
                     st.markdown("### Résumé rapide")
-                    # On pourrait charger juste les derniers scores ici
-                    # Pour l'instant, simple info
                     st.write("Sélectionnez une échelle spécifique pour voir l'historique complet.")
 
                 elif type_outil == "🧩 Colonnes de Beck":
@@ -235,24 +231,7 @@ else:
                         st.dataframe(df.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
                     else: st.info("Aucune donnée.")
 
-                elif type_outil == "📉 BDI (Dépression)":
-                    df = charger_donnees_specifiques("BDI", patient_sel)
-                    if not df.empty:
-                        cols = df.columns
-                        col_score = next((c for c in cols if "score" in c.lower() or "total" in c.lower()), None)
-                        if col_score and "Date" in df.columns:
-                            df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
-                            df[col_score] = pd.to_numeric(df[col_score], errors='coerce')
-                            df = df.dropna(subset=["Date", col_score]).sort_values("Date")
-                            c_bdi = alt.Chart(df).mark_line(point=True, color="red").encode(
-                                x=alt.X('Date:T', axis=alt.Axis(format='%d/%m')),
-                                y=alt.Y(f'{col_score}:Q', title='Score'),
-                                tooltip=['Date', col_score]
-                            ).interactive()
-                            st.altair_chart(c_bdi, use_container_width=True)
-                            st.dataframe(df, use_container_width=True)
-                        else: st.dataframe(df, use_container_width=True)
-                    else: st.info("Aucun BDI.")
+                # (SUPPRIMÉ : BLOC BDI)
 
                 elif type_outil == "📉 PHQ-9 (Dépression)":
                     df = charger_donnees_specifiques("PHQ9", patient_sel)
@@ -398,8 +377,9 @@ else:
         
         c8, c9, c10 = st.columns(3)
         with c8:
-            st.success("**Échelles (BDI)**")
-            st.page_link("pages/02_Echelles_BDI.py", label="Mesurer l'humeur", icon="📉")
+            st.success("**Échelles (PHQ-9 / GAD-7)**") # Titre mis à jour
+            st.page_link("pages/15_Echelle_PHQ9.py", label="Mesurer Dépression", icon="📉")
+            st.page_link("pages/16_Echelle_GAD7.py", label="Mesurer Anxiété", icon="😰")
         with c9:
             st.success("**Historique Global**")
             st.page_link("pages/04_Historique.py", label="Voir mes progrès", icon="📜")
@@ -450,7 +430,7 @@ else:
             st.page_link("pages/09_Exposition.py", label="🧗 Exposition")
             st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
             st.caption("Suivi")
-            st.page_link("pages/02_Echelles_BDI.py", label="📊 BDI")
+            # BDI RETIRÉ
             st.page_link("pages/15_Echelle_PHQ9.py", label="📊 PHQ-9") 
             st.page_link("pages/16_Echelle_GAD7.py", label="📊 GAD-7")
             st.page_link("pages/17_Echelle_ISI.py", label="📊 ISI")
