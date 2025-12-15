@@ -526,3 +526,50 @@ def afficher_isi(df_isi, current_user_id):
             st.warning("Données de score manquantes.")
     else:
         st.info("Aucune donnée ISI.")
+
+# ==============================================================================
+# 9. VISUEL PEG (DOULEUR)
+# ==============================================================================
+def afficher_peg(df_peg, current_user_id):
+    if not df_peg.empty:
+        # A. TABLEAU
+        df_display = df_peg.copy()
+        if "Patient" in df_display.columns:
+            df_display["Patient"] = str(current_user_id)
+        
+        st.dataframe(
+            df_display.sort_values(by="Date", ascending=False),
+            use_container_width=True,
+            hide_index=True
+        )
+        st.divider()
+
+        # B. GRAPHIQUE
+        df_chart = df_peg.copy()
+        df_chart["Date_Obj"] = pd.to_datetime(df_chart["Date"], errors='coerce')
+        
+        if "Score Moyen" in df_chart.columns:
+            df_chart["Score Moyen"] = pd.to_numeric(df_chart["Score Moyen"], errors='coerce')
+            df_chart = df_chart.dropna(subset=["Date_Obj", "Score Moyen"])
+
+            st.subheader("📉 Impact de la Douleur (0-10)")
+            
+            # Graphique (Couleur Orange/Rouge)
+            c_peg = alt.Chart(df_chart).mark_line(point=True, color="#D35400").encode(
+                x=alt.X('Date_Obj:T', axis=alt.Axis(format='%d/%m'), title="Date"),
+                y=alt.Y('Score Moyen:Q', scale=alt.Scale(domain=[0, 10]), title="Score (Moyenne)"),
+                tooltip=['Date', alt.Tooltip('Score Moyen', format='.1f'), 'Interprétation']
+            ).interactive()
+            
+            st.altair_chart(c_peg, use_container_width=True)
+            
+            with st.expander("ℹ️ À propos du score PEG"):
+                st.markdown("""
+                * Le score est la **moyenne** des 3 questions (sur 10).
+                * Plus le score est élevé, plus l'impact de la douleur sur la vie est important.
+                * Une diminution de **30%** (ou environ 2-3 points) est souvent considérée comme une amélioration clinique significative.
+                """)
+        else:
+            st.warning("Données de score manquantes.")
+    else:
+        st.info("Aucune donnée PEG.")
