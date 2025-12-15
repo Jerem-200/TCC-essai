@@ -190,7 +190,7 @@ else:
                 # --- LES 10 ONGLETS ---
                 # On utilise des noms courts pour que ça rentre sur l'écran
                 t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16 = st.tabs([
-                    "🧩 Beck", "📉 BDI", "📉 PHQ-9", "😰 GAD-7", "😴 ISI", "🤕 PEG", "🌿 WHO-5", "🧩 WSAS",
+                    "🧩 Beck", "📊 BDI", "📊 PHQ-9", "📊 GAD-7", "📊 ISI", "📊 PEG", "📊 WHO-5", "📊 WSAS",
                     "📝 Activités", "💡 Problèmes", "🧗 Expo", "🌙 Sommeil", 
                     "⚖️ Balance", "🔍 SORC", "🍷 Conso", "🛑 Compulsions"
                 ])
