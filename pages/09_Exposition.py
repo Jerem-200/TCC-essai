@@ -5,47 +5,29 @@ from datetime import datetime
 st.set_page_config(page_title="Exposition", page_icon="🧗")
 
 # ==============================================================================
-# 0. SÉCURITÉ & NETTOYAGE (OBLIGATOIRE SUR CHAQUE PAGE)
+# 0. SÉCURITÉ, NETTOYAGE & PERMISSIONS
 # ==============================================================================
 
-# 1. Vérification de l'authentification
+# A. AUTHENTIFICATION
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.warning("🔒 Accès restreint. Veuillez entrer votre Code Patient sur l'accueil.")
     st.page_link("streamlit_app.py", label="Retourner à l'accueil", icon="🏠")
     st.stop()
 
-# 2. Récupération sécurisée de l'ID
+# B. RÉCUPÉRATION ID
 CURRENT_USER_ID = st.session_state.get("user_id", "")
 if not CURRENT_USER_ID:
-    CURRENT_USER_ID = st.session_state.get("patient_id", "")
-
-if not CURRENT_USER_ID:
-    st.error("Erreur d'identité. Veuillez vous reconnecter.")
+    st.error("Session expirée. Veuillez vous reconnecter.")
     st.stop()
 
-# --- TRADUCTION ID POUR SAUVEGARDE (TCC-XYZ -> PAT-001) ---
-PATIENT_SAVE_ID = CURRENT_USER_ID # Valeur par défaut (sécurité)
-try:
-    from connect_db import load_data
-    # On charge la table de correspondance
-    infos = load_data("Codes_Patients")
-    if infos:
-        df_i = pd.DataFrame(infos)
-        # On gère les deux noms de colonnes possibles
-        col_id = "Identifiant" if "Identifiant" in df_i.columns else "Commentaire"
-        
-        # On trouve la ligne correspondante au code connecté
-        match = df_i[df_i["Code"] == CURRENT_USER_ID]
-        if not match.empty: 
-            # On récupère le PAT-001 (ou le commentaire complet)
-            PATIENT_SAVE_ID = match.iloc[0][col_id]
-            # Si le format est "PAT-001 | J. Dupont", on peut nettoyer si besoin :
-            # PATIENT_SAVE_ID = PATIENT_SAVE_ID.split("|")[0].strip()
-except: 
-    pass
+# C. ANTI-FUITE (Spécifique à la page Exposition)
+if "expo_owner" not in st.session_state or st.session_state.expo_owner != CURRENT_USER_ID:
+    # On supprime les données en cache si on change de patient
+    if "data_exposition" in st.session_state: del st.session_state.data_exposition
+    st.session_state.expo_owner = CURRENT_USER_ID
 
-# D. LE VIGILE (PERMISSIONS) - NOUVEAU
-CLE_PAGE = "expo" # <--- Changez ceci selon la page (ex: "activites", "conso"...)
+# D. LE VIGILE (PERMISSIONS)
+CLE_PAGE = "expo"  # <--- Clé spécifique pour l'Exposition
 
 if st.session_state.get("user_type") == "patient":
     try:
@@ -53,20 +35,21 @@ if st.session_state.get("user_type") == "patient":
         perms = load_data("Permissions")
         if perms:
             df_perm = pd.DataFrame(perms)
-            # On cherche si le patient a des blocages
             row = df_perm[df_perm["Patient"] == CURRENT_USER_ID]
             if not row.empty:
                 bloques = str(row.iloc[0]["Bloques"]).split(",")
-                # Si la clé de la page est dans la liste des blocages
                 if CLE_PAGE in [b.strip() for b in bloques]:
                     st.error("🔒 Cette fonctionnalité n'est pas activée dans votre programme.")
                     st.info("Voyez avec votre thérapeute si vous pensez qu'il s'agit d'une erreur.")
                     if st.button("Retour à l'accueil"):
                         st.switch_page("streamlit_app.py")
-                    st.stop() # Arrêt immédiat
+                    st.stop()
     except Exception as e:
-        pass # En cas d'erreur technique (ex: pas de connexion), on laisse passer par défaut
+        pass 
 
+# ==============================================================================
+# CONTENU PRINCIPAL
+# ==============================================================================
 st.title("🧗 L'Exposition (Apprentissage Inhibiteur)")
 
 # --- 1. GESTION DES CRAINTES (MULTI-CRAINTES) ---
@@ -210,8 +193,8 @@ with tab2:
             
             # Cloud (Ajout colonne Crainte)
             from connect_db import save_data
-            patient = PATIENT_SAVE_ID
-            save_data("Evitements", [patient, datetime.now().strftime("%Y-%m-%d"), crainte_active['Nom'], sit, attente, cons, f"Anx:{anxiete}"])
+            # CORRECTION ICI : On utilise CURRENT_USER_ID
+            save_data("Evitements", [CURRENT_USER_ID, datetime.now().strftime("%Y-%m-%d"), crainte_active['Nom'], sit, attente, cons, f"Anx:{anxiete}"])
             st.success("Ajouté !")
 
     st.divider()
@@ -285,10 +268,10 @@ with tab3:
             st.session_state.data_planning_expo = pd.concat([st.session_state.data_planning_expo, pd.DataFrame([new_plan])], ignore_index=True)
             
             from connect_db import save_data
-            patient = PATIENT_SAVE_ID
+            # CORRECTION ICI : On utilise CURRENT_USER_ID
             # Ordre Cloud : Patient, Date, CRAINTE, Situation, Type, Details, Score1, Score2, Vide, Vide
             save_data("Expositions", [
-                patient, str(date_prevue), crainte_active['Nom'], choix_sit, 
+                CURRENT_USER_ID, str(date_prevue), crainte_active['Nom'], choix_sit, 
                 "PLANIFIÉ", resume, new_att, new_anx, "", ""
             ])
             st.success("Planifié !")
@@ -361,10 +344,10 @@ with tab4:
                 st.session_state.data_logs_expo = pd.concat([st.session_state.data_logs_expo, pd.DataFrame([new_log])], ignore_index=True)
                 
                 from connect_db import save_data
-                patient = PATIENT_SAVE_ID
+                # CORRECTION ICI : On utilise CURRENT_USER_ID
                 # Sauvegarde avec colonne Crainte
                 save_data("Expositions", [
-                    patient, datetime.now().strftime("%Y-%m-%d"), 
+                    CURRENT_USER_ID, datetime.now().strftime("%Y-%m-%d"), 
                     crainte_active['Nom'], # Crainte
                     donnees_planif['Situation'], 
                     "BILAN", f"{duree} min", pre_att, post_att, pre_anx, 
