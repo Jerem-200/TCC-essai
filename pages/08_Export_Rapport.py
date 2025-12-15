@@ -1,110 +1,125 @@
 import streamlit as st
 import pandas as pd
 from utils_pdf import generer_pdf 
+from datetime import datetime
 
 st.set_page_config(page_title="Export Rapport", page_icon="📩")
 
 # ==============================================================================
-# 0. SÉCURITÉ & NETTOYAGE (OBLIGATOIRE SUR CHAQUE PAGE)
+# 0. SÉCURITÉ
 # ==============================================================================
-
-# 1. Vérification de l'authentification
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
-    st.warning("🔒 Accès restreint. Veuillez entrer votre Code Patient sur l'accueil.")
-    st.page_link("streamlit_app.py", label="Retourner à l'accueil", icon="🏠")
+    st.warning("🔒 Accès restreint.")
+    st.page_link("streamlit_app.py", label="Accueil", icon="🏠")
     st.stop()
 
-# 2. Récupération sécurisée de l'ID
 CURRENT_USER_ID = st.session_state.get("user_id", "")
-if not CURRENT_USER_ID:
-    CURRENT_USER_ID = st.session_state.get("patient_id", "")
-
 if not CURRENT_USER_ID:
     st.error("Erreur d'identité. Veuillez vous reconnecter.")
     st.stop()
 
-st.title("📩 Envoyer mon rapport")
-st.info("Générez un PDF de vos progrès pour l'envoyer à votre thérapeute.")
+st.title("📩 Exporter mon Dossier")
+st.info("Générez un rapport PDF complet incluant toutes vos échelles et agendas.")
 
-# --- 1. RÉCUPÉRATION DES DONNÉES ---
-df_beck = st.session_state.get("data_beck", pd.DataFrame())
-df_bdi = st.session_state.get("data_echelles", pd.DataFrame())
-df_act = st.session_state.get("data_activites", pd.DataFrame())
-df_prob = st.session_state.get("data_problemes", pd.DataFrame())
-patient = st.session_state.get("patient_id", "Patient")
+# ==============================================================================
+# 1. CHARGEMENT CENTRALISÉ DES DONNÉES (CLOUD)
+# ==============================================================================
+# Fonction utilitaire locale pour charger proprement
+def load_safe(key):
+    try:
+        from connect_db import load_data
+        data = load_data(key)
+        if data:
+            df = pd.DataFrame(data)
+            if "Patient" in df.columns:
+                return df[df["Patient"] == CURRENT_USER_ID]
+    except: pass
+    return pd.DataFrame() # Retourne vide si échec
 
-# Stats
+with st.spinner("Récupération de vos données..."):
+    # On charge tout dans un dictionnaire
+    data_export = {
+        "beck": load_safe("Beck"),
+        "bdi": load_safe("Echelles_BDI"), # Ou "BDI" selon votre nom exact
+        "phq9": load_safe("PHQ9"),
+        "gad7": load_safe("GAD7"),
+        "who5": load_safe("WHO5"),
+        "sommeil": load_safe("Sommeil"),
+        "activites": load_safe("Activites"),
+        "problemes": load_safe("Resolution_Probleme")
+    }
+
+# ==============================================================================
+# 2. APERÇU DES DONNÉES DISPONIBLES
+# ==============================================================================
+st.subheader("📊 Contenu du rapport")
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("Beck", len(df_beck))
-c2.metric("BDI", len(df_bdi))
-c3.metric("Activités", len(df_act))
-c4.metric("Problèmes", len(df_prob))
+c1.metric("Exercices Beck", len(data_export["beck"]))
+c2.metric("Nuits (Sommeil)", len(data_export["sommeil"]))
+c3.metric("Activités", len(data_export["activites"]))
+c4.metric("Tests Psy", len(data_export["phq9"]) + len(data_export["gad7"]))
 
 st.divider()
 
-# --- GESTION DE LA MÉMOIRE DU PDF ---
+# ==============================================================================
+# 3. GÉNÉRATION DU PDF
+# ==============================================================================
 if "pdf_bytes" not in st.session_state:
     st.session_state.pdf_bytes = None
 
-# --- 2. BOUTON DE GÉNÉRATION ---
-if st.button("📄 Générer le Rapport PDF"):
+if st.button("📄 Générer le Rapport PDF Complet", type="primary"):
     try:
-        st.session_state.pdf_bytes = generer_pdf(df_beck, df_bdi, df_act, df_prob, patient)
+        # On passe le dictionnaire complet au générateur
+        st.session_state.pdf_bytes = generer_pdf(data_export, CURRENT_USER_ID)
         st.rerun()
     except Exception as e:
-        st.error(f"Erreur : {e}")
+        st.error(f"Erreur lors de la création du PDF : {e}")
 
-# --- 3. AFFICHAGE ET ENVOI ---
+# ==============================================================================
+# 4. TÉLÉCHARGEMENT & ENVOI
+# ==============================================================================
 if st.session_state.pdf_bytes:
     
-    st.success("Le PDF est prêt ! Suivez les étapes :")
+    st.success("✅ Le document est prêt !")
     
     col_gauche, col_droite = st.columns(2)
     
-    # ÉTAPE A : TÉLÉCHARGEMENT
+    # TÉLÉCHARGEMENT
     with col_gauche:
-        st.markdown("#### Étape 1 : Télécharger")
+        st.markdown("#### 1. Télécharger")
         st.download_button(
-            label="📥 Télécharger le PDF",
+            label="📥 Télécharger le PDF sur mon appareil",
             data=st.session_state.pdf_bytes,
-            file_name=f"Rapport_TCC_{patient}.pdf",
-            mime="application/pdf"
+            file_name=f"Rapport_TCC_{CURRENT_USER_ID}_{datetime.now().strftime('%Y%m%d')}.pdf",
+            mime="application/pdf",
+            use_container_width=True
         )
 
-    # ÉTAPE B : ENVOI MAIL (MODIFIÉ AVEC VALIDATION)
+    # ENVOI MAIL
     with col_droite:
-        st.markdown("#### Étape 2 : Envoyer")
+        st.markdown("#### 2. Envoyer par mail")
         
-        # --- NOUVEAU : FORMULAIRE DE VALIDATION ---
         with st.form("email_form"):
-            email_psy = st.text_input("Adresse email du thérapeute :", placeholder="psy@cabinet.com")
-            # Ce bouton sert uniquement à valider la saisie
-            submit_email = st.form_submit_button("Valider l'adresse")
+            email_psy = st.text_input("Email du destinataire :", placeholder="psy@cabinet.com")
+            valider = st.form_submit_button("Préparer l'email")
         
-        # Si le bouton du formulaire a été cliqué ET qu'il y a un email
-        if submit_email and email_psy:
-            sujet = f"Suivi TCC - {patient}"
-            corps = "Bonjour,\n\nVoici mon rapport d'exercices TCC de la période (voir pièce jointe).\n\nCordialement."
-            # On remplace les sauts de ligne pour le lien mailto
+        if valider and email_psy:
+            sujet = f"Suivi TCC - Dossier {CURRENT_USER_ID}"
+            corps = "Bonjour,\n\nVeuillez trouver ci-joint mon rapport d'avancement (exercices, sommeil et échelles).\n\nCordialement."
             mailto_link = f"mailto:{email_psy}?subject={sujet}&body={corps}".replace("\n", "%0D%0A")
             
-            st.success(f"Adresse validée : {email_psy}")
+            st.markdown(f"""
+            <a href="{mailto_link}" target="_blank" style="text-decoration:none;">
+                <button style="width:100%; padding:0.5rem; background-color:#FF4B4B; color:white; border:none; border-radius:5px; cursor:pointer;">
+                    📧 Ouvrir ma messagerie avec {email_psy}
+                </button>
+            </a>
+            """, unsafe_allow_html=True)
             
-            # Le bouton final qui ouvre la messagerie
-            st.link_button("📧 Ouvrir ma messagerie maintenant", mailto_link, type="primary")
-            
-            st.caption("⚠️ N'oubliez pas d'ajouter le fichier PDF en pièce jointe dans votre mail !")
-            
-            # Solution de secours
-            with st.expander("Le bouton ne marche pas ?"):
-                st.write("Copiez l'adresse :")
-                st.code(email_psy)
-        
-        elif submit_email and not email_psy:
-            st.warning("Veuillez entrer une adresse email avant de valider.")
-            
+            st.caption("⚠️ Important : Une fois votre messagerie ouverte, n'oubliez pas de **glisser le fichier PDF** que vous venez de télécharger en pièce jointe !")
+
     st.divider()
-    if st.button("🔄 Effacer et recommencer"):
+    if st.button("🔄 Réinitialiser"):
         st.session_state.pdf_bytes = None
         st.rerun()
 
