@@ -274,6 +274,7 @@ else:
                             st.success("Accès mis à jour !")
                             time.sleep(1)
                             st.rerun()
+                st.divider()
 
                 # --- MENU DE SÉLECTION (RAPIDE - SANS BDI) ---
                 type_outil = st.selectbox(
@@ -286,12 +287,12 @@ else:
                         "🍷 Agenda Consos",
                         "🛑 Agenda Compulsions",
                         "🧩 Colonnes de Beck", 
-                        "📉 PHQ-9 (Dépression)",
-                        "😰 GAD-7 (Anxiété)",
-                        "😴 ISI (Insomnie)",
-                        "🤕 PEG (Douleur)",
-                        "🧩 WSAS (Handicap)",
-                        "🌿 WHO-5 (Bien-être)",
+                        "📊 PHQ-9 (Dépression)",
+                        "📊 GAD-7 (Anxiété)",
+                        "📊 ISI (Insomnie)",
+                        "📊 PEG (Douleur)",
+                        "📊 WSAS (Handicap)",
+                        "📊 WHO-5 (Bien-être)",
                         "💡 Résolution Problèmes",
                         "🧗 Exposition",
                         "⚖️ Balance Décisionnelle",
@@ -313,27 +314,27 @@ else:
                         st.dataframe(df.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
                     else: st.info("Aucune donnée.")
 
-                elif type_outil == "📉 PHQ-9 (Dépression)":
+                elif type_outil == "📊 PHQ-9 (Dépression)":
                     df = charger_donnees_specifiques("PHQ9", patient_sel)
                     afficher_phq9(df, patient_sel)
 
-                elif type_outil == "😰 GAD-7 (Anxiété)":
+                elif type_outil == "📊 GAD-7 (Anxiété)":
                     df = charger_donnees_specifiques("GAD7", patient_sel)
                     afficher_gad7(df, patient_sel)
 
-                elif type_outil == "😴 ISI (Insomnie)":
+                elif type_outil == "📊 ISI (Insomnie)":
                     df = charger_donnees_specifiques("ISI", patient_sel)
                     afficher_isi(df, patient_sel)
 
-                elif type_outil == "🤕 PEG (Douleur)":
+                elif type_outil == "📊 PEG (Douleur)":
                     df = charger_donnees_specifiques("PEG", patient_sel)
                     afficher_peg(df, patient_sel)
 
-                elif type_outil == "🧩 WSAS (Handicap)":
+                elif type_outil == "📊 WSAS (Handicap)":
                     df = charger_donnees_specifiques("WSAS", patient_sel)
                     afficher_wsas(df, patient_sel)
 
-                elif type_outil == "🌿 WHO-5 (Bien-être)":
+                elif type_outil == "📊 WHO-5 (Bien-être)":
                     df = charger_donnees_specifiques("WHO5", patient_sel)
                     afficher_who5(df, patient_sel)
 
@@ -382,10 +383,14 @@ else:
         else:
             st.warning("Aucun patient trouvé.")
 
-    # -----------------------------------------------------
-    # B. ESPACE PATIENT (ARCHITECURE REVUE & CORRIGÉE)
+# -----------------------------------------------------
+    # B. ESPACE PATIENT (AVEC FILTRAGE)
     # -----------------------------------------------------
     elif st.session_state.user_type == "patient":
+        
+        # 1. CHARGEMENT DES BLOCAGES
+        # On récupère la liste des interdits (ex: ['conso', 'gad7'])
+        OUTILS_BLOQUES = charger_blocages(st.session_state.user_id)
         
         c_titre, c_logout = st.columns([4, 1])
         with c_titre:
@@ -399,86 +404,105 @@ else:
         st.divider()
 
         # =========================================================
-        # SECTION 1 : AGENDAS (SUIVI QUOTIDIEN)
+        # SECTION 1 : AGENDAS
         # =========================================================
         st.markdown("### 📅 Mes Agendas (Quotidien)")
-        st.caption("À remplir régulièrement pour suivre vos habitudes.")
         
         c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            st.warning("**Sommeil**")
-            st.page_link("pages/10_Agenda_Sommeil.py", label="Ouvrir", icon="🌙")
-        with c2:
-            st.warning("**Activités**")
-            st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="📝")
-        with c3:
-            st.warning("**Consommations**")
-            st.page_link("pages/13_Agenda_Consos.py", label="Ouvrir", icon="🍷")
-        with c4:
-            st.warning("**Compulsions**")
-            st.page_link("pages/14_Agenda_Compulsions.py", label="Ouvrir", icon="🛑")
+        
+        # On affiche la colonne et le bouton SEULEMENT si la clé n'est pas dans OUTILS_BLOQUES
+        if "sommeil" not in OUTILS_BLOQUES:
+            with c1:
+                st.warning("**Sommeil**")
+                st.page_link("pages/10_Agenda_Sommeil.py", label="Ouvrir", icon="🌙")
+        
+        if "activites" not in OUTILS_BLOQUES:
+            with c2:
+                st.warning("**Activités**")
+                st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="📝")
+        
+        if "conso" not in OUTILS_BLOQUES:
+            with c3:
+                st.warning("**Consommations**")
+                st.page_link("pages/13_Agenda_Consos.py", label="Ouvrir", icon="🍷")
+        
+        if "compulsions" not in OUTILS_BLOQUES:
+            with c4:
+                st.warning("**Compulsions**")
+                st.page_link("pages/14_Agenda_Compulsions.py", label="Ouvrir", icon="🛑")
 
         st.write("") 
 
         # =========================================================
-        # SECTION 2 : BOÎTE À OUTILS (EXERCICES)
+        # SECTION 2 : BOÎTE À OUTILS
         # =========================================================
         st.markdown("### 🛠️ Boîte à Outils (Exercices)")
-        st.caption("Exercices pour travailler sur vos pensées et comportements.")
         
         c5, c6, c7 = st.columns(3)
         with c5:
-            st.info("**Restructuration (Beck)**")
-            st.page_link("pages/01_Colonnes_Beck.py", label="Lancer", icon="🧩")
-            st.write("")
-            st.info("**Analyse SORC**")
-            st.page_link("pages/12_Analyse_SORC.py", label="Lancer", icon="🔍")
+            if "beck" not in OUTILS_BLOQUES:
+                st.info("**Restructuration (Beck)**")
+                st.page_link("pages/01_Colonnes_Beck.py", label="Lancer", icon="🧩")
+                st.write("")
+            
+            if "sorc" not in OUTILS_BLOQUES:
+                st.info("**Analyse SORC**")
+                st.page_link("pages/12_Analyse_SORC.py", label="Lancer", icon="🔍")
             
         with c6:
-            st.info("**Résolution Problème**")
-            st.page_link("pages/06_Resolution_Probleme.py", label="Lancer", icon="💡")
-            st.write("")
-            st.info("**Balance Décisionnelle**")
-            st.page_link("pages/11_Balance_Decisionnelle.py", label="Lancer", icon="⚖️")
+            if "problemes" not in OUTILS_BLOQUES:
+                st.info("**Résolution Problème**")
+                st.page_link("pages/06_Resolution_Probleme.py", label="Lancer", icon="💡")
+                st.write("")
+            
+            if "balance" not in OUTILS_BLOQUES:
+                st.info("**Balance Décisionnelle**")
+                st.page_link("pages/11_Balance_Decisionnelle.py", label="Lancer", icon="⚖️")
 
         with c7:
-            st.info("**Exposition**")
-            st.page_link("pages/09_Exposition.py", label="Lancer", icon="🧗")
-            st.write("")
-            st.info("**Relaxation**")
-            st.page_link("pages/07_Relaxation.py", label="Lancer", icon="🧘")
+            if "expo" not in OUTILS_BLOQUES:
+                st.info("**Exposition**")
+                st.page_link("pages/09_Exposition.py", label="Lancer", icon="🧗")
+                st.write("")
+            
+            if "relax" not in OUTILS_BLOQUES:
+                st.info("**Relaxation**")
+                st.page_link("pages/07_Relaxation.py", label="Lancer", icon="🧘")
 
         st.write("") 
 
         # =========================================================
-        # SECTION 3 : MESURES & ÉCHELLES (NOUVEAU BLOC)
+        # SECTION 3 : MESURES
         # =========================================================
-        st.markdown("### 📊 Mesures & Échelles (Hebdomadaire)")
-        st.caption("Questionnaires pour suivre vos progrès (à faire selon demande du thérapeute).")
+        st.markdown("### 📊 Mesures & Échelles")
         
-        # Ligne 1 : Humeur & Anxiété
         m1, m2, m3 = st.columns(3)
         with m1:
-            st.success("**PHQ-9 (Dépression)**")
-            st.page_link("pages/15_Echelle_PHQ9.py", label="Lancer", icon="📊")
+            if "phq9" not in OUTILS_BLOQUES:
+                st.success("**PHQ-9 (Dépression)**")
+                st.page_link("pages/15_Echelle_PHQ9.py", label="Lancer", icon="📊")
         with m2:
-            st.success("**GAD-7 (Anxiété)**")
-            st.page_link("pages/16_Echelle_GAD7.py", label="Lancer", icon="📊")
+            if "gad7" not in OUTILS_BLOQUES:
+                st.success("**GAD-7 (Anxiété)**")
+                st.page_link("pages/16_Echelle_GAD7.py", label="Lancer", icon="📊")
         with m3:
-            st.success("**WHO-5 (Bien-être)**")
-            st.page_link("pages/20_Echelle_WHO5.py", label="Lancer", icon="📊")
+            if "who5" not in OUTILS_BLOQUES:
+                st.success("**WHO-5 (Bien-être)**")
+                st.page_link("pages/20_Echelle_WHO5.py", label="Lancer", icon="📊")
 
-        # Ligne 2 : Physique & Fonctionnel
         m4, m5, m6 = st.columns(3)
         with m4:
-            st.success("**ISI (Insomnie)**")
-            st.page_link("pages/17_Echelle_ISI.py", label="Lancer", icon="📊")
+            if "isi" not in OUTILS_BLOQUES:
+                st.success("**ISI (Insomnie)**")
+                st.page_link("pages/17_Echelle_ISI.py", label="Lancer", icon="📊")
         with m5:
-            st.success("**PEG (Douleur)**")
-            st.page_link("pages/18_Echelle_PEG.py", label="Lancer", icon="📊")
+            if "peg" not in OUTILS_BLOQUES:
+                st.success("**PEG (Douleur)**")
+                st.page_link("pages/18_Echelle_PEG.py", label="Lancer", icon="📊")
         with m6:
-            st.success("**WSAS (Impact)**")
-            st.page_link("pages/19_Echelle_WSAS.py", label="Lancer", icon="📊")
+            if "wsas" not in OUTILS_BLOQUES:
+                st.success("**WSAS (Impact)**")
+                st.page_link("pages/19_Echelle_WSAS.py", label="Lancer", icon="📊")
 
         st.write("")
 
@@ -498,11 +522,14 @@ else:
 
 
     # =========================================================
-    # 4. SIDEBAR (MENU LATÉRAL) - RESTRUCTURÉ
+    # 4. SIDEBAR (MENU LATÉRAL) - FILTRÉE ET SÉCURISÉE
     # =========================================================
     with st.sidebar:
         
+        # A. LOGIQUE PATIENT
         if st.session_state.user_type == "patient":
+            
+            # 1. Récupération ID Affichage
             display_id = st.session_state.user_id 
             try:
                 from connect_db import load_data
@@ -516,38 +543,64 @@ else:
                         display_id = match.iloc[0][col_id]
             except: pass
             
+            # 2. Chargement des permissions (au cas où)
+            # On s'assure d'avoir la liste à jour
+            OUTILS_BLOQUES = charger_blocages(st.session_state.user_id)
+
+            # 3. Affichage Menu
             st.write(f"👤 ID: **{display_id}**")
             st.divider()
             
             st.title("Navigation")
             st.page_link("streamlit_app.py", label="🏠 Accueil")
             
+            # --- AGENDAS ---
             st.caption("📅 Agendas")
-            st.page_link("pages/10_Agenda_Sommeil.py", label="🌙 Sommeil")
-            st.page_link("pages/05_Registre_Activites.py", label="📝 Activités")
-            st.page_link("pages/13_Agenda_Consos.py", label="🍷 Consos")
-            st.page_link("pages/14_Agenda_Compulsions.py", label="🛑 Compulsions")
+            if "sommeil" not in OUTILS_BLOQUES:
+                st.page_link("pages/10_Agenda_Sommeil.py", label="🌙 Sommeil")
+            if "activites" not in OUTILS_BLOQUES:
+                st.page_link("pages/05_Registre_Activites.py", label="📝 Activités")
+            if "conso" not in OUTILS_BLOQUES:
+                st.page_link("pages/13_Agenda_Consos.py", label="🍷 Consos")
+            if "compulsions" not in OUTILS_BLOQUES:
+                st.page_link("pages/14_Agenda_Compulsions.py", label="🛑 Compulsions")
             
+            # --- OUTILS ---
             st.caption("🛠️ Outils")
-            st.page_link("pages/01_Colonnes_Beck.py", label="🧩 Beck")
-            st.page_link("pages/12_Analyse_SORC.py", label="🔍 SORC")
-            st.page_link("pages/06_Resolution_Probleme.py", label="💡 Problèmes")
-            st.page_link("pages/11_Balance_Decisionnelle.py", label="⚖️ Balance")
-            st.page_link("pages/09_Exposition.py", label="🧗 Exposition")
-            st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
+            if "beck" not in OUTILS_BLOQUES:
+                st.page_link("pages/01_Colonnes_Beck.py", label="🧩 Beck")
+            if "sorc" not in OUTILS_BLOQUES:
+                st.page_link("pages/12_Analyse_SORC.py", label="🔍 SORC")
+            if "problemes" not in OUTILS_BLOQUES:
+                st.page_link("pages/06_Resolution_Probleme.py", label="💡 Problèmes")
+            if "balance" not in OUTILS_BLOQUES:
+                st.page_link("pages/11_Balance_Decisionnelle.py", label="⚖️ Balance")
+            if "expo" not in OUTILS_BLOQUES:
+                st.page_link("pages/09_Exposition.py", label="🧗 Exposition")
+            if "relax" not in OUTILS_BLOQUES:
+                st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
             
+            # --- ÉCHELLES ---
             st.caption("📊 Échelles")
-            st.page_link("pages/15_Echelle_PHQ9.py", label="📊 PHQ-9")
-            st.page_link("pages/16_Echelle_GAD7.py", label="📊 GAD-7")
-            st.page_link("pages/20_Echelle_WHO5.py", label="📊 WHO-5")
-            st.page_link("pages/17_Echelle_ISI.py", label="📊 ISI")
-            st.page_link("pages/18_Echelle_PEG.py", label="📊 PEG")
-            st.page_link("pages/19_Echelle_WSAS.py", label="📊 WSAS")
+            if "phq9" not in OUTILS_BLOQUES:
+                st.page_link("pages/15_Echelle_PHQ9.py", label="📊 PHQ-9")
+            if "gad7" not in OUTILS_BLOQUES:
+                st.page_link("pages/16_Echelle_GAD7.py", label="📊 GAD-7")
+            if "who5" not in OUTILS_BLOQUES:
+                st.page_link("pages/20_Echelle_WHO5.py", label="📊 WHO-5")
+            if "isi" not in OUTILS_BLOQUES:
+                st.page_link("pages/17_Echelle_ISI.py", label="📊 ISI")
+            if "peg" not in OUTILS_BLOQUES:
+                st.page_link("pages/18_Echelle_PEG.py", label="📊 PEG")
+            if "wsas" not in OUTILS_BLOQUES:
+                st.page_link("pages/19_Echelle_WSAS.py", label="📊 WSAS")
             
+            # --- BILAN (Toujours visible) ---
             st.caption("📜 Bilan")
             st.page_link("pages/04_Historique.py", label="Historique")
-            st.page_link("pages/08_Export_Rapport.py", label="Export")
+            st.page_link("pages/08_Export_Rapport.py", label="Export PDF")
 
-        else:
+        # B. LOGIQUE THÉRAPEUTE
+        elif st.session_state.user_type == "therapeute":
             st.title("Navigation")
             st.page_link("streamlit_app.py", label="🏠 Accueil")
