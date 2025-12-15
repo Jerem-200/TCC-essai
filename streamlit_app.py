@@ -189,8 +189,8 @@ else:
                 
                 # --- LES 10 ONGLETS ---
                 # On utilise des noms courts pour que ça rentre sur l'écran
-                t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12 = st.tabs([
-                    "🧩 Beck", "📉 BDI", "📉 PHQ-9", "📉 GAD-7", "📝 Activités", "💡 Problèmes", "🧗 Expo", 
+                t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13 = st.tabs([
+                    "🧩 Beck", "📉 BDI", "📉 PHQ-9", "📉 GAD-7", "📉 ISI", "📝 Activités", "💡 Problèmes", "🧗 Expo", 
                     "🌙 Sommeil", "⚖️ Balance", "🔍 SORC", "🍷 Conso", "🛑 Compulsions"
                 ])
                 
@@ -239,8 +239,13 @@ else:
                     df = charger_donnees_specifiques("GAD7", patient_sel)
                     afficher_gad7(df, patient_sel)
 
-                # 3. ACTIVITÉS (Avec Graphiques)
                 with t5:
+                    from visualisations import afficher_isi
+                    df = charger_donnees_specifiques("ISI", patient_sel)
+                    afficher_isi(df, patient_sel)
+
+                # 3. ACTIVITÉS (Avec Graphiques)
+                with t6:
                     df_act = charger_donnees_specifiques("Activites", patient_sel)
                     # On charge aussi l'humeur pour l'afficher dans le même onglet comme pour le patient
                     df_hum = charger_donnees_specifiques("Humeur", patient_sel)
@@ -250,49 +255,49 @@ else:
                     else: st.info("Aucune activité.")
 
                 # 4. PROBLÈMES
-                with t6:
+                with t7:
                     df = charger_donnees_specifiques("Résolution_Problème", patient_sel)
                     if not df.empty:
                         st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True, hide_index=True)
                     else: st.info("Aucun problème traité.")
 
                 # 5. EXPOSITION
-                with t7:
+                with t8:
                     df = charger_donnees_specifiques("Exposition", patient_sel)
                     if not df.empty:
                         st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True, hide_index=True)
                     else: st.info("Aucune exposition.")
 
                 # 6. SOMMEIL (Complet)
-                with t8:
+                with t9:
                     df = charger_donnees_specifiques("Sommeil", patient_sel)
                     if not df.empty:
                         afficher_sommeil(df, patient_sel)
                     else: st.info("Aucune donnée sommeil.")
 
                 # 7. BALANCE
-                with t9:
+                with t10:
                     df = charger_donnees_specifiques("Balance_Decisionnelle", patient_sel)
                     if not df.empty:
                         st.dataframe(df, use_container_width=True, hide_index=True)
                     else: st.info("Aucune balance.")
 
                 # 8. SORC
-                with t10:
+                with t11:
                     df = charger_donnees_specifiques("SORC", patient_sel)
                     if not df.empty:
                         st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True, hide_index=True)
                     else: st.info("Aucune analyse SORC.")
 
                 # 9. CONSO (Graphique)
-                with t11:
+                with t12:
                     df = charger_donnees_specifiques("Addictions", patient_sel)
                     if not df.empty:
                         afficher_conso(df, patient_sel)
                     else: st.info("Aucune consommation.")
 
                 # 10. COMPULSIONS (Graphique)
-                with t12:
+                with t13:
                     df = charger_donnees_specifiques("Compulsions", patient_sel)
                     if not df.empty:
                         afficher_compulsions(df, patient_sel)
@@ -429,8 +434,9 @@ else:
             st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
             st.caption("Suivi")
             st.page_link("pages/02_Echelles_BDI.py", label="📊 BDI")
-            st.page_link("pages/15_Echelle_PHQ9.py", label="📉 PHQ-9") 
-            st.page_link("pages/16_Echelle_GAD7.py", label="😰 GAD-7")
+            st.page_link("pages/15_Echelle_PHQ9.py", label="📊 PHQ-9") 
+            st.page_link("pages/16_Echelle_GAD7.py", label="📊 GAD-7")
+            st.page_link("pages/17_Echelle_ISI.py", label="📊 ISI")
             st.page_link("pages/04_Historique.py", label="📜 Historique")
 
         # B. LOGIQUE THÉRAPEUTE (JUSTE RETOUR ACCUEIL)

@@ -478,3 +478,51 @@ def afficher_gad7(df_gad, current_user_id):
             st.warning("Données de score manquantes.")
     else:
         st.info("Aucune donnée GAD-7.")
+
+# ==============================================================================
+# 8. VISUEL ISI (INSOMNIE)
+# ==============================================================================
+def afficher_isi(df_isi, current_user_id):
+    if not df_isi.empty:
+        # A. TABLEAU
+        df_display = df_isi.copy()
+        if "Patient" in df_display.columns:
+            df_display["Patient"] = str(current_user_id)
+        
+        st.dataframe(
+            df_display.sort_values(by="Date", ascending=False),
+            use_container_width=True,
+            hide_index=True
+        )
+        st.divider()
+
+        # B. GRAPHIQUE
+        df_chart = df_isi.copy()
+        df_chart["Date_Obj"] = pd.to_datetime(df_chart["Date"], errors='coerce')
+        
+        if "Score Total" in df_chart.columns:
+            df_chart["Score Total"] = pd.to_numeric(df_chart["Score Total"], errors='coerce')
+            df_chart = df_chart.dropna(subset=["Date_Obj", "Score Total"])
+
+            st.subheader("📉 Sévérité de l'Insomnie (0-28)")
+            
+            # Graphique (Couleur Indigo)
+            c_isi = alt.Chart(df_chart).mark_line(point=True, color="#4B0082").encode(
+                x=alt.X('Date_Obj:T', axis=alt.Axis(format='%d/%m'), title="Date"),
+                y=alt.Y('Score Total:Q', scale=alt.Scale(domain=[0, 28])),
+                tooltip=['Date', 'Score Total', 'Sévérité']
+            ).interactive()
+            
+            st.altair_chart(c_isi, use_container_width=True)
+            
+            with st.expander("ℹ️ Interprétation des scores ISI"):
+                st.markdown("""
+                * **0-7 :** Absence d'insomnie
+                * **8-14 :** Insomnie sub-clinique (légère)
+                * **15-21 :** Insomnie clinique (modérée)
+                * **22-28 :** Insomnie clinique (sévère)
+                """)
+        else:
+            st.warning("Données de score manquantes.")
+    else:
+        st.info("Aucune donnée ISI.")
