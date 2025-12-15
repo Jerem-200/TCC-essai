@@ -84,6 +84,65 @@ def verifier_code_patient(code):
     return False
 
 # =========================================================
+# GESTION DES PERMISSIONS (NOUVEAU)
+# =========================================================
+
+# Dictionnaire des fonctionnalités contrôlables
+MAP_OUTILS = {
+    "🌙 Agenda Sommeil": "sommeil",
+    "📝 Registre Activités": "activites",
+    "🍷 Agenda Consos": "conso",
+    "🛑 Agenda Compulsions": "compulsions",
+    "🧩 Colonnes de Beck": "beck",
+    "🔍 Analyse SORC": "sorc",
+    "💡 Résolution Problème": "problemes",
+    "⚖️ Balance Décisionnelle": "balance",
+    "🧗 Exposition": "expo",
+    "🧘 Relaxation": "relax",
+    "📊 PHQ-9 (Dépression)": "phq9",
+    "📊 GAD-7 (Anxiété)": "gad7",
+    "📊 ISI (Insomnie)": "isi",
+    "📊 PEG (Douleur)": "peg",
+    "📊 WHO-5 (Bien-être)": "who5",
+    "📊 WSAS (Handicap)": "wsas"
+}
+
+@st.cache_data(ttl=60)
+def charger_blocages(patient_id):
+    """Récupère la liste des clés bloquées pour un patient"""
+    try:
+        from connect_db import load_data
+        data = load_data("Permissions")
+        if data:
+            df = pd.DataFrame(data)
+            # On cherche la ligne du patient
+            row = df[df["Patient"] == patient_id]
+            if not row.empty:
+                # On récupère la chaine "conso,beck" et on en fait une liste
+                bloques_str = str(row.iloc[0]["Bloques"])
+                return [x.strip() for x in bloques_str.split(",") if x.strip()]
+    except: pass
+    return [] # Rien n'est bloqué par défaut
+
+def sauvegarder_blocages(patient_id, liste_cles):
+    """Enregistre la nouvelle liste de blocages"""
+    try:
+        from connect_db import save_data, delete_data_flexible
+        # 1. On supprime l'ancienne permission pour éviter les doublons
+        delete_data_flexible("Permissions", {"Patient": patient_id})
+        
+        # 2. On recrée la ligne
+        chaine_blocage = ",".join(liste_cles)
+        save_data("Permissions", [patient_id, chaine_blocage])
+        
+        # 3. On vide le cache pour que l'effet soit immédiat
+        charger_blocages.clear()
+        return True
+    except Exception as e:
+        st.error(f"Erreur sauvegarde : {e}")
+        return False
+
+# =========================================================
 # 2. ÉCRAN DE CONNEXION
 # =========================================================
 
@@ -190,7 +249,31 @@ else:
 
             if patient_sel:
                 st.markdown(f"### 👤 {patient_sel}")
-                st.divider()
+                
+                # --- ZONE DE GESTION DES ACCÈS (NOUVEAU) ---
+                with st.expander("🔒 Gérer les accès du patient (Bloquer/Débloquer)"):
+                    # 1. Charger l'existant
+                    blocages_actuels = charger_blocages(patient_sel)
+                    
+                    # 2. Convertir les clés (ex: 'sommeil') en Noms (ex: '🌙 Agenda Sommeil') pour l'affichage
+                    # On inverse le dictionnaire MAP_OUTILS
+                    INV_MAP = {v: k for k, v in MAP_OUTILS.items()}
+                    default_options = [INV_MAP[k] for k in blocages_actuels if k in INV_MAP]
+                    
+                    # 3. Multiselect
+                    choix_bloques = st.multiselect(
+                        "Sélectionnez les outils à MASQUER pour ce patient :",
+                        options=list(MAP_OUTILS.keys()),
+                        default=default_options
+                    )
+                    
+                    if st.button("💾 Appliquer les restrictions"):
+                        # Convertir les noms en clés
+                        nouvelle_liste_cles = [MAP_OUTILS[nom] for nom in choix_bloques]
+                        if sauvegarder_blocages(patient_sel, nouvelle_liste_cles):
+                            st.success("Accès mis à jour !")
+                            time.sleep(1)
+                            st.rerun()
 
                 # --- MENU DE SÉLECTION (RAPIDE - SANS BDI) ---
                 type_outil = st.selectbox(
