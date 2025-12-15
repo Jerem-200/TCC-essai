@@ -189,7 +189,7 @@ else:
                 
                 # --- LES 10 ONGLETS ---
                 # On utilise des noms courts pour que ça rentre sur l'écran
-                t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14 = st.tabs([
+                t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15 = st.tabs([
                     "🧩 Beck", "📉 BDI", "📉 PHQ-9", "📉 GAD-7", "📉 ISI", "📝 Activités", "💡 Problèmes", "🧗 Expo", 
                     "🌙 Sommeil", "⚖️ Balance", "🔍 SORC", "🍷 Conso", "🛑 Compulsions"
                 ])
@@ -250,6 +250,12 @@ else:
                     from visualisations import afficher_peg
                     df = charger_donnees_specifiques("PEG", patient_sel)
                     afficher_peg(df, patient_sel) 
+
+                # ONGLET WSAS
+                with t7:
+                    from visualisations import afficher_wsas
+                    df = charger_donnees_specifiques("WSAS", patient_sel)
+                    afficher_wsas(df, patient_sel)
 
                 # 3. ACTIVITÉS (Avec Graphiques)
                 with t7:
@@ -445,6 +451,7 @@ else:
             st.page_link("pages/16_Echelle_GAD7.py", label="📊 GAD-7")
             st.page_link("pages/17_Echelle_ISI.py", label="📊 ISI")
             st.page_link("pages/18_Echelle_PEG.py", label="📊 PEG")
+            st.page_link("pages/19_Echelle_WSAS.py", label="📊 WSAS")
             st.page_link("pages/04_Historique.py", label="📜 Historique")
 
         # B. LOGIQUE THÉRAPEUTE (JUSTE RETOUR ACCUEIL)

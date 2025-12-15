@@ -573,3 +573,50 @@ def afficher_peg(df_peg, current_user_id):
             st.warning("Données de score manquantes.")
     else:
         st.info("Aucune donnée PEG.")
+
+# ==============================================================================
+# 10. VISUEL WSAS (IMPACT FONCTIONNEL)
+# ==============================================================================
+def afficher_wsas(df_wsas, current_user_id):
+    if not df_wsas.empty:
+        # A. TABLEAU
+        df_display = df_wsas.copy()
+        if "Patient" in df_display.columns:
+            df_display["Patient"] = str(current_user_id)
+        
+        st.dataframe(
+            df_display.sort_values(by="Date", ascending=False),
+            use_container_width=True,
+            hide_index=True
+        )
+        st.divider()
+
+        # B. GRAPHIQUE
+        df_chart = df_wsas.copy()
+        df_chart["Date_Obj"] = pd.to_datetime(df_chart["Date"], errors='coerce')
+        
+        if "Score Total" in df_chart.columns:
+            df_chart["Score Total"] = pd.to_numeric(df_chart["Score Total"], errors='coerce')
+            df_chart = df_chart.dropna(subset=["Date_Obj", "Score Total"])
+
+            st.subheader("📉 Impact sur la vie quotidienne (0-40)")
+            
+            # Graphique (Couleur Violet)
+            c_wsas = alt.Chart(df_chart).mark_line(point=True, color="#8E44AD").encode(
+                x=alt.X('Date_Obj:T', axis=alt.Axis(format='%d/%m'), title="Date"),
+                y=alt.Y('Score Total:Q', scale=alt.Scale(domain=[0, 40])),
+                tooltip=['Date', 'Score Total', 'Sévérité']
+            ).interactive()
+            
+            st.altair_chart(c_wsas, use_container_width=True)
+            
+            with st.expander("ℹ️ Interprétation WSAS"):
+                st.markdown("""
+                * **0-9 :** Impact faible (Sub-clinique)
+                * **10-20 :** Impact fonctionnel significatif
+                * **21-40 :** Impact fonctionnel sévère
+                """)
+        else:
+            st.warning("Données de score manquantes.")
+    else:
+        st.info("Aucune donnée WSAS.")
