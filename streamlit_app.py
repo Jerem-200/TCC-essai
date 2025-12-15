@@ -189,7 +189,7 @@ else:
                 
                 # --- LES 10 ONGLETS ---
                 # On utilise des noms courts pour que ça rentre sur l'écran
-                t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15 = st.tabs([
+                t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16 = st.tabs([
                     "🧩 Beck", "📉 BDI", "📉 PHQ-9", "📉 GAD-7", "📉 ISI", "📝 Activités", "💡 Problèmes", "🧗 Expo", 
                     "🌙 Sommeil", "⚖️ Balance", "🔍 SORC", "🍷 Conso", "🛑 Compulsions"
                 ])
@@ -250,15 +250,22 @@ else:
                     from visualisations import afficher_peg
                     df = charger_donnees_specifiques("PEG", patient_sel)
                     afficher_peg(df, patient_sel) 
+                
+                 # ONGLET WHO-5
+                with t7:
+                    from visualisations import afficher_who5
+                    df = charger_donnees_specifiques("WHO5", patient_sel)
+                    afficher_who5(df, patient_sel)
 
                 # ONGLET WSAS
-                with t7:
+                with t8:
                     from visualisations import afficher_wsas
                     df = charger_donnees_specifiques("WSAS", patient_sel)
                     afficher_wsas(df, patient_sel)
 
+
                 # 3. ACTIVITÉS (Avec Graphiques)
-                with t7:
+                with t9:
                     df_act = charger_donnees_specifiques("Activites", patient_sel)
                     # On charge aussi l'humeur pour l'afficher dans le même onglet comme pour le patient
                     df_hum = charger_donnees_specifiques("Humeur", patient_sel)
@@ -268,49 +275,49 @@ else:
                     else: st.info("Aucune activité.")
 
                 # 4. PROBLÈMES
-                with t8:
+                with t10:
                     df = charger_donnees_specifiques("Résolution_Problème", patient_sel)
                     if not df.empty:
                         st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True, hide_index=True)
                     else: st.info("Aucun problème traité.")
 
                 # 5. EXPOSITION
-                with t9:
+                with t11:
                     df = charger_donnees_specifiques("Exposition", patient_sel)
                     if not df.empty:
                         st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True, hide_index=True)
                     else: st.info("Aucune exposition.")
 
                 # 6. SOMMEIL (Complet)
-                with t10:
+                with t12:
                     df = charger_donnees_specifiques("Sommeil", patient_sel)
                     if not df.empty:
                         afficher_sommeil(df, patient_sel)
                     else: st.info("Aucune donnée sommeil.")
 
                 # 7. BALANCE
-                with t11:
+                with t13:
                     df = charger_donnees_specifiques("Balance_Decisionnelle", patient_sel)
                     if not df.empty:
                         st.dataframe(df, use_container_width=True, hide_index=True)
                     else: st.info("Aucune balance.")
 
                 # 8. SORC
-                with t12:
+                with t14:
                     df = charger_donnees_specifiques("SORC", patient_sel)
                     if not df.empty:
                         st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True, hide_index=True)
                     else: st.info("Aucune analyse SORC.")
 
                 # 9. CONSO (Graphique)
-                with t13:
+                with t15:
                     df = charger_donnees_specifiques("Addictions", patient_sel)
                     if not df.empty:
                         afficher_conso(df, patient_sel)
                     else: st.info("Aucune consommation.")
 
                 # 10. COMPULSIONS (Graphique)
-                with t14:
+                with t16:
                     df = charger_donnees_specifiques("Compulsions", patient_sel)
                     if not df.empty:
                         afficher_compulsions(df, patient_sel)
@@ -451,6 +458,7 @@ else:
             st.page_link("pages/16_Echelle_GAD7.py", label="📊 GAD-7")
             st.page_link("pages/17_Echelle_ISI.py", label="📊 ISI")
             st.page_link("pages/18_Echelle_PEG.py", label="📊 PEG")
+            st.page_link("pages/20_Echelle_WHO5.py", label="📊 WHO-5")
             st.page_link("pages/19_Echelle_WSAS.py", label="📊 WSAS")
             st.page_link("pages/04_Historique.py", label="📜 Historique")
 

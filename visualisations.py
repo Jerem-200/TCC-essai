@@ -620,3 +620,55 @@ def afficher_wsas(df_wsas, current_user_id):
             st.warning("Données de score manquantes.")
     else:
         st.info("Aucune donnée WSAS.")
+
+# ==============================================================================
+# 11. VISUEL WHO-5 (BIEN-ÊTRE)
+# ==============================================================================
+def afficher_who5(df_who, current_user_id):
+    if not df_who.empty:
+        # A. TABLEAU
+        df_display = df_who.copy()
+        if "Patient" in df_display.columns:
+            df_display["Patient"] = str(current_user_id)
+        
+        st.dataframe(
+            df_display.sort_values(by="Date", ascending=False),
+            use_container_width=True,
+            hide_index=True
+        )
+        st.divider()
+
+        # B. GRAPHIQUE
+        df_chart = df_who.copy()
+        df_chart["Date_Obj"] = pd.to_datetime(df_chart["Date"], errors='coerce')
+        
+        if "Score Pourcent" in df_chart.columns:
+            df_chart["Score Pourcent"] = pd.to_numeric(df_chart["Score Pourcent"], errors='coerce')
+            df_chart = df_chart.dropna(subset=["Date_Obj", "Score Pourcent"])
+
+            st.subheader("🌿 Indice de Bien-être (0-100)")
+            
+            # Ligne principale (Bien-être)
+            base = alt.Chart(df_chart).encode(x=alt.X('Date_Obj:T', axis=alt.Axis(format='%d/%m'), title="Date"))
+            
+            line = base.mark_line(point=True, color="#27AE60", strokeWidth=3).encode(
+                y=alt.Y('Score Pourcent:Q', scale=alt.Scale(domain=[0, 100]), title="Bien-être (%)"),
+                tooltip=['Date', 'Score Pourcent']
+            )
+            
+            # Ligne de seuil (50) - Dépistage dépression
+            threshold = alt.Chart(pd.DataFrame({'y': [50]})).mark_rule(color='red', strokeDash=[5, 5]).encode(y='y')
+            
+            st.altair_chart((line + threshold).interactive(), use_container_width=True)
+            
+            with st.expander("ℹ️ Interprétation WHO-5"):
+                st.markdown("""
+                * **100 :** Bien-être maximal possible.
+                * **< 50 :** Score faible, suggère un risque de dépression.
+                * **≤ 28 :** Score très faible, probabilité élevée de dépression.
+                * *Une augmentation de 10 points est considérée comme une amélioration significative.*
+                """)
+        else:
+            st.warning("Données de score manquantes.")
+    else:
+        st.info("Aucune donnée WHO-5.")
