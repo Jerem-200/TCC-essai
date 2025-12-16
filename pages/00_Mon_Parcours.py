@@ -44,13 +44,22 @@ for key, module in PROTOCOLE_BARLOW.items():
                     with c1: st.write("📄")
                     with c2: 
                         st.write(f"**{etape['nom']}**")
-                        # Bouton de téléchargement (Simulé)
-                        st.download_button(
-                            f"Télécharger la fiche", 
-                            data="Simulation Contenu PDF", 
-                            file_name=etape.get('fichier', 'doc.pdf'),
-                            key=f"btn_{etape['nom']}"
-                        )
+                        
+                        # --- VRAI CHARGEMENT DU FICHIER ---
+                        chemin_fichier = etape.get('fichier')
+                        
+                        # On vérifie si le fichier existe vraiment pour éviter un crash
+                        if chemin_fichier and os.path.exists(chemin_fichier):
+                            with open(chemin_fichier, "rb") as pdf_file:
+                                btn = st.download_button(
+                                    label="📥 Télécharger la fiche",
+                                    data=pdf_file,
+                                    file_name=os.path.basename(chemin_fichier),
+                                    mime="application/pdf",
+                                    key=f"btn_{etape['nom']}"
+                                )
+                        else:
+                            st.error(f"⚠️ Fichier introuvable : {chemin_fichier}")
 
                 # B. Si c'est un OUTIL (Lien vers vos pages)
                 elif etape['type'] == 'outil':
