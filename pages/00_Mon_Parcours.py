@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 from protocole_config import PROTOCOLE_BARLOW
+from streamlit_app import charger_progression # <--- AJOUT
 
 st.set_page_config(page_title="Mon Parcours", page_icon="🗺️")
 
@@ -14,7 +15,18 @@ st.caption("Protocole Unifié (Barlow) - Suivez les étapes pas à pas.")
 
 # Simulation de progression (À connecter plus tard à votre base de données)
 # Pour l'instant, on dit que tout est ouvert pour tester
-PROGRESSION_PATIENT = ["intro", "module1", "module2", "module4"] 
+# --- CHARGEMENT RÉEL DE LA PROGRESSION ---
+# On récupère l'ID du patient connecté
+current_user = st.session_state.get("user_id", "")
+
+# On charge depuis la base de données
+if current_user:
+    # Note : Si vous avez copié la fonction dans streamlit_app, importez-la.
+    # Sinon, copiez-collez la fonction charger_progression ici même pour éviter les bugs.
+    from streamlit_app import charger_progression 
+    PROGRESSION_PATIENT = charger_progression(current_user)
+else:
+    PROGRESSION_PATIENT = ["intro"] # Sécurité par défaut
 
 # --- CALCUL SÉCURISÉ DE LA PROGRESSION ---
 nb_total_modules = len(PROTOCOLE_BARLOW)

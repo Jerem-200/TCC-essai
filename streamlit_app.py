@@ -147,6 +147,40 @@ def sauvegarder_blocages(patient_id, liste_cles):
     except Exception as e:
         st.error(f"Erreur sauvegarde : {e}")
         return False
+    
+# =========================================================
+# GESTION DE LA PROGRESSION PROTOCOLE (NOUVEAU)
+# =========================================================
+
+def charger_progression(patient_id):
+    """Récupère la liste des modules débloqués pour un patient"""
+    try:
+        from connect_db import load_data
+        data = load_data("Progression")
+        if data:
+            df = pd.DataFrame(data)
+            row = df[df["Patient"] == patient_id]
+            if not row.empty:
+                modules_str = str(row.iloc[0]["Modules_Actifs"])
+                # Retourne une liste propre : ['intro', 'module1']
+                return [x.strip() for x in modules_str.split(",") if x.strip()]
+    except: pass
+    return ["intro"] # Par défaut, seulement l'intro est débloquée
+
+def sauvegarder_progression(patient_id, liste_modules):
+    """Enregistre les modules débloqués"""
+    try:
+        from connect_db import save_data, delete_data_flexible
+        # 1. On nettoie l'ancienne progression
+        delete_data_flexible("Progression", {"Patient": patient_id})
+        
+        # 2. On enregistre la nouvelle
+        chaine_modules = ",".join(liste_modules)
+        save_data("Progression", [patient_id, chaine_modules])
+        return True
+    except Exception as e:
+        st.error(f"Erreur sauvegarde progression : {e}")
+        return False
 
 # =========================================================
 # 2. ÉCRAN DE CONNEXION
@@ -280,6 +314,36 @@ else:
 
                 st.divider()
 
+                # --- ZONE DE GESTION DU PROTOCOLE (NOUVEAU) ---
+                from protocole_config import PROTOCOLE_BARLOW # On importe la structure
+                
+                with st.expander("🗺️ Gérer le Parcours (Protocole Barlow)"):
+                    st.caption("Cochez les modules accessibles au patient.")
+                    
+                    # 1. Charger l'existant
+                    progression_actuelle = charger_progression(patient_sel)
+                    
+                    # 2. Créer la liste des options (Clé -> Titre lisible)
+                    # Ex: 'module1' -> 'Module 1 : Motivation'
+                    options_modules = list(PROTOCOLE_BARLOW.keys())
+                    format_titres = {k: v['titre'] for k, v in PROTOCOLE_BARLOW.items()}
+                    
+                    # 3. Multiselect
+                    choix_modules = st.multiselect(
+                        "Modules débloqués :",
+                        options=options_modules,
+                        default=[m for m in progression_actuelle if m in options_modules],
+                        format_func=lambda x: format_titres.get(x, x) # Affiche le joli titre
+                    )
+                    
+                    if st.button("💾 Valider la progression"):
+                        if sauvegarder_progression(patient_sel, choix_modules):
+                            st.success(f"Parcours mis à jour pour {patient_sel} !")
+                            time.sleep(1)
+                            st.rerun()
+                
+                st.write(" ") # Petit espace
+
                 # --- FONCTION POUR AJOUTER LE CADENAS DANS LE TITRE DE L'ONGLET ---
                 def T(titre, cle_technique):
                     if cle_technique in blocages_actuels:
@@ -404,6 +468,8 @@ else:
                     else: st.info("Aucune donnée.")
         else:
             st.warning("Aucun patient trouvé.")
+
+            
 
 # -----------------------------------------------------
     # B. ESPACE PATIENT (AVEC FILTRAGE)
