@@ -16,10 +16,20 @@ st.caption("Protocole Unifié (Barlow) - Suivez les étapes pas à pas.")
 # Pour l'instant, on dit que tout est ouvert pour tester
 PROGRESSION_PATIENT = ["intro", "module1", "module2", "module4"] 
 
-# Barre de progression globale
-progression = len(PROGRESSION_PATIENT) / len(PROTOCOLE_BARLOW)
+# --- CALCUL SÉCURISÉ DE LA PROGRESSION ---
+nb_total_modules = len(PROTOCOLE_BARLOW)
+nb_faits = len(PROGRESSION_PATIENT)
+
+if nb_total_modules > 0:
+    progression = nb_faits / nb_total_modules
+else:
+    progression = 0.0
+
+# Sécurité : On s'assure que le chiffre ne dépasse jamais 1.0 (100%)
+if progression > 1.0:
+    progression = 1.0
+
 st.progress(progression, text=f"Progression globale : {int(progression*100)}%")
-st.divider()
 
 # --- BOUCLE D'AFFICHAGE DES MODULES ---
 for key, module in PROTOCOLE_BARLOW.items():
