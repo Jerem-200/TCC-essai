@@ -314,11 +314,12 @@ else:
 
                 st.divider()
 
-                # --- ZONE DE GESTION DU PROTOCOLE (INTERFACE RICHE) ---
+# --- ZONE DE GESTION DU PROTOCOLE (ACCÈS TOTAL DOCUMENTS) ---
                 from protocole_config import PROTOCOLE_BARLOW
-                
+                import os # Nécessaire pour vérifier les fichiers
+
                 with st.expander("🗺️ Pilotage du Protocole (Barlow)", expanded=True):
-                    # 1. Barre de progression globale du patient
+                    # 1. Barre de progression
                     progression_actuelle = charger_progression(patient_sel)
                     nb_total = len(PROTOCOLE_BARLOW)
                     nb_fait = len(progression_actuelle)
@@ -328,50 +329,62 @@ else:
 
                     # 2. Affichage Module par Module
                     for code_module, data in PROTOCOLE_BARLOW.items():
-                        # Est-ce que ce module est débloqué pour le patient ?
                         is_unlocked = code_module in progression_actuelle
-                        
-                        # Titre du module avec indicateur visuel
                         icon = "✅" if is_unlocked else "🔒"
+                        
                         st.markdown(f"#### {icon} {data['titre']}")
                         
-                        c1, c2 = st.columns([1, 1])
+                        # On utilise des onglets pour organiser l'affichage (plus propre)
+                        tab_actions, tab_docs = st.tabs(["⚡ Actions & Gestion", "📂 Tous les Documents"])
                         
-                        # COLONNE GAUCHE : ACTIONS THÉRAPEUTE
-                        with c1:
-                            st.caption("📋 A FAIRE EN SÉANCE")
-                            for tache in data.get("taches_therapeute", []):
-                                st.checkbox(tache, key=f"tache_{patient_sel}_{code_module}_{tache}")
+                        # --- ONGLET 1 : CHECKLIST & DÉBLOCAGE ---
+                        with tab_actions:
+                            c1, c2 = st.columns([1, 1])
+                            with c1:
+                                st.caption("📋 CHECKLIST SÉANCE")
+                                for tache in data.get("taches_therapeute", []):
+                                    st.checkbox(tache, key=f"tache_{patient_sel}_{code_module}_{tache}")
                             
-                            # Documents du thérapeute (si existent)
-                            if data.get("fichiers_therapeute"):
-                                st.caption("📂 Vos documents :")
-                                for doc in data["fichiers_therapeute"]:
-                                    nom_doc = doc.split('/')[-1]
-                                    # Pour l'instant on affiche juste le nom, à relier au téléchargement si besoin
-                                    st.write(f"- 📄 {nom_doc}")
+                            with c2:
+                                st.caption("🔐 ACCÈS PATIENT")
+                                if is_unlocked:
+                                    if st.button(f"Verrouiller", key=f"lock_{code_module}"):
+                                        nouvelle_liste = [m for m in progression_actuelle if m != code_module]
+                                        sauvegarder_progression(patient_sel, nouvelle_liste)
+                                        st.rerun()
+                                else:
+                                    if st.button(f"Débloquer le module", type="primary", key=f"unlock_{code_module}"):
+                                        progression_actuelle.append(code_module)
+                                        sauvegarder_progression(patient_sel, progression_actuelle)
+                                        st.rerun()
 
-                        # COLONNE DROITE : GESTION PATIENT
-                        with c2:
-                            st.caption("👤 ACCÈS PATIENT")
+                        # --- ONGLET 2 : DOCUMENTS (TÉLÉCHARGEMENT) ---
+                        with tab_docs:
+                            # A. DOCUMENTS THÉRAPEUTE
+                            if data.get("fichiers_therapeute"):
+                                st.markdown("**🕵️ Vos Fiches (Thérapeute)**")
+                                for chemin in data["fichiers_therapeute"]:
+                                    nom_fichier = os.path.basename(chemin)
+                                    if os.path.exists(chemin):
+                                        with open(chemin, "rb") as f:
+                                            st.download_button(f"📥 {nom_fichier}", f, file_name=nom_fichier, key=f"dl_th_{code_module}_{nom_fichier}")
+                                    else:
+                                        st.error(f"Fichier manquant : {nom_fichier}")
                             
-                            # Bouton pour Débloquer/Bloquer
-                            if is_unlocked:
-                                if st.button(f"🔒 Reverrouiller {code_module}", key=f"lock_{code_module}"):
-                                    nouvelle_liste = [m for m in progression_actuelle if m != code_module]
-                                    sauvegarder_progression(patient_sel, nouvelle_liste)
-                                    st.rerun()
-                            else:
-                                if st.button(f"🔓 Débloquer {code_module}", type="primary", key=f"unlock_{code_module}"):
-                                    progression_actuelle.append(code_module)
-                                    sauvegarder_progression(patient_sel, progression_actuelle)
-                                    st.rerun()
-                                    
-                            # Rappel des devoirs
-                            if data.get("devoirs_patient"):
-                                with st.expander("👀 Voir les devoirs assignés"):
-                                    for devoir in data["devoirs_patient"]:
-                                        st.write(f"- {devoir}")
+                            st.write("") # Espace
+                            
+                            # B. DOCUMENTS PATIENT (Pour vérification)
+                            if data.get("fichiers_patient"):
+                                st.markdown("**👤 Fiches du Patient (Pour vérification)**")
+                                for doc in data["fichiers_patient"]:
+                                    nom_fichier = os.path.basename(doc['fichier'])
+                                    if os.path.exists(doc['fichier']):
+                                        with open(doc['fichier'], "rb") as f:
+                                            # On met une icône différente pour distinguer (Audio vs PDF)
+                                            icone = "🎵" if doc.get('type') == 'audio' else "📄"
+                                            st.download_button(f"{icone} {doc['nom']}", f, file_name=nom_fichier, key=f"dl_pat_{code_module}_{nom_fichier}")
+                                    else:
+                                        st.warning(f"Fichier introuvable : {nom_fichier}")
 
                         st.divider()
 
