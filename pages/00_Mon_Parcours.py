@@ -1,100 +1,85 @@
 import streamlit as st
 import os
 from protocole_config import PROTOCOLE_BARLOW
-from streamlit_app import charger_progression # <--- AJOUT
+
+# Import sécurisé de la fonction de chargement
+try:
+    from streamlit_app import charger_progression
+except ImportError:
+    # Fonction de secours si l'import échoue
+    def charger_progression(uid): return ["module0"]
 
 st.set_page_config(page_title="Mon Parcours", page_icon="🗺️")
 
-# --- SÉCURITÉ (Standard) ---
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.warning("🔒 Veuillez vous connecter.")
+    st.page_link("streamlit_app.py", label="Retour Accueil", icon="🏠")
     st.stop()
 
-st.title("🗺️ Mon Parcours de Soin")
-st.caption("Protocole Unifié (Barlow) - Suivez les étapes pas à pas.")
-
-# Simulation de progression (À connecter plus tard à votre base de données)
-# Pour l'instant, on dit que tout est ouvert pour tester
-# --- CHARGEMENT RÉEL DE LA PROGRESSION ---
-# On récupère l'ID du patient connecté
+# --- RÉCUPÉRATION DONNÉES ---
 current_user = st.session_state.get("user_id", "")
+modules_debloques = charger_progression(current_user)
 
-# On charge depuis la base de données
-if current_user:
-    # Note : Si vous avez copié la fonction dans streamlit_app, importez-la.
-    # Sinon, copiez-collez la fonction charger_progression ici même pour éviter les bugs.
-    from streamlit_app import charger_progression 
-    PROGRESSION_PATIENT = charger_progression(current_user)
-else:
-    PROGRESSION_PATIENT = ["intro"] # Sécurité par défaut
+st.title("🗺️ Mon Parcours de Soin")
 
-# --- CALCUL SÉCURISÉ DE LA PROGRESSION ---
-nb_total_modules = len(PROTOCOLE_BARLOW)
-nb_faits = len(PROGRESSION_PATIENT)
-
-if nb_total_modules > 0:
-    progression = nb_faits / nb_total_modules
-else:
-    progression = 0.0
-
-# Sécurité : On s'assure que le chiffre ne dépasse jamais 1.0 (100%)
-if progression > 1.0:
-    progression = 1.0
-
-st.progress(progression, text=f"Progression globale : {int(progression*100)}%")
-
-# --- BOUCLE D'AFFICHAGE DES MODULES ---
-for key, module in PROTOCOLE_BARLOW.items():
+# --- BOUCLE D'AFFICHAGE ---
+for code_module, data in PROTOCOLE_BARLOW.items():
     
-    # 1. Est-ce que ce module est débloqué ?
-    is_unlocked = key in PROGRESSION_PATIENT
+    is_accessible = code_module in modules_debloques
     
-    # Visuel de l'entête (Vert si fait/en cours, Gris si bloqué)
-    icon_state = "✅" if is_unlocked else "🔒"
-    
-    with st.expander(f"{icon_state} {module['titre']}", expanded=is_unlocked):
-        if is_unlocked:
-            st.write(f"*{module['description']}*")
-            st.write("") # Espace
+    if is_accessible:
+        with st.expander(f"✅ {data['titre']}", expanded=False):
+            st.info(data['description'])
             
-            # On liste les étapes du module
-            for etape in module['etapes']:
-                c1, c2 = st.columns([1, 4])
+            # 1. LES DOCUMENTS & AUDIOS
+            st.markdown("#### 📥 Mes Ressources")
+            for doc in data.get('fichiers_patient', []):
+                col_icon, col_btn = st.columns([1, 5])
                 
-                # A. Si c'est un PDF
-                if etape['type'] == 'pdf':
-                    with c1: st.write("📄")
-                    with c2: 
-                        st.write(f"**{etape['nom']}**")
-                        
-                        # --- VRAI CHARGEMENT DU FICHIER ---
-                        chemin_fichier = etape.get('fichier')
-                        
-                        # On vérifie si le fichier existe vraiment pour éviter un crash
-                        if chemin_fichier and os.path.exists(chemin_fichier):
-                            with open(chemin_fichier, "rb") as pdf_file:
-                                btn = st.download_button(
-                                    label="📥 Télécharger la fiche",
-                                    data=pdf_file,
-                                    file_name=os.path.basename(chemin_fichier),
-                                    mime="application/pdf",
-                                    key=f"btn_{etape['nom']}"
-                                )
+                # Gestion AUDIO (MP3)
+                if doc.get('type') == 'audio':
+                    with col_icon: st.write("🎧")
+                    with col_btn:
+                        st.write(f"**{doc['nom']}**")
+                        chemin = doc.get('fichier')
+                        if chemin and os.path.exists(chemin):
+                            st.audio(chemin, format='audio/mp3')
                         else:
-                            st.error(f"⚠️ Fichier introuvable : {chemin_fichier}")
+                            st.error(f"Fichier audio manquant : {chemin}")
+                
+                # Gestion PDF
+                else:
+                    with col_icon: st.write("📄")
+                    with col_btn:
+                        st.write(f"**{doc['nom']}**")
+                        chemin = doc.get('fichier')
+                        if chemin and os.path.exists(chemin):
+                            with open(chemin, "rb") as f:
+                                st.download_button("Télécharger", f, file_name=os.path.basename(chemin), key=f"dl_{doc['nom']}")
+                        else:
+                            st.error(f"Fichier manquant : {chemin}")
 
-                # B. Si c'est un OUTIL (Lien vers vos pages)
-                elif etape['type'] == 'outil':
-                    with c1: st.write(etape['icon'])
-                    with c2:
-                        st.page_link(etape['lien'], label=f"Ouvrir l'outil : {etape['nom']}")
+            st.divider()
+            
+            # 2. LES DEVOIRS & UPLOAD PHOTO (NOUVEAU !)
+            if data.get('devoirs_patient'):
+                st.markdown("#### 🏠 Mes Devoirs")
+                for dev in data['devoirs_patient']:
+                    st.write(f"- {dev}")
                 
-                # C. Si c'est du TEXTE (Psychoéducation directe)
-                elif etape['type'] == 'text':
-                    with c1: st.write("📖")
-                    with c2:
-                        st.info(etape['contenu'])
+                # ZONE DE RENDU D'EXERCICE
+                st.write("")
+                st.caption("📷 Vous avez rempli une fiche papier ? Prenez-la en photo pour l'envoyer à votre thérapeute.")
                 
-                st.divider()
-        else:
-            st.warning("Ce module est verrouillé pour le moment. Concentrez-vous sur les étapes précédentes.")
+                with st.popover("📸 Envoyer mon exercice"):
+                    photo = st.camera_input(f"Photo exercice - {data['titre']}")
+                    if photo:
+                        # Simulation d'envoi (Pour le prototype)
+                        st.success("Photo envoyée au thérapeute ! (Simulation)")
+                        # Pour aller plus loin : il faudrait sauvegarder l'image dans un dossier 'uploads/{user_id}/'
+    
+    else:
+        # Module verrouillé
+        with st.container(border=True):
+            st.write(f"🔒 **{data['titre']}**")
+            st.caption("Ce module sera débloqué prochainement par votre thérapeute.")

@@ -314,35 +314,66 @@ else:
 
                 st.divider()
 
-                # --- ZONE DE GESTION DU PROTOCOLE (NOUVEAU) ---
-                from protocole_config import PROTOCOLE_BARLOW # On importe la structure
+                # --- ZONE DE GESTION DU PROTOCOLE (INTERFACE RICHE) ---
+                from protocole_config import PROTOCOLE_BARLOW
                 
-                with st.expander("🗺️ Gérer le Parcours (Protocole Barlow)"):
-                    st.caption("Cochez les modules accessibles au patient.")
-                    
-                    # 1. Charger l'existant
+                with st.expander("🗺️ Pilotage du Protocole (Barlow)", expanded=True):
+                    # 1. Barre de progression globale du patient
                     progression_actuelle = charger_progression(patient_sel)
+                    nb_total = len(PROTOCOLE_BARLOW)
+                    nb_fait = len(progression_actuelle)
+                    st.progress(min(nb_fait / nb_total, 1.0), text=f"Progression : {nb_fait}/{nb_total} modules débloqués")
                     
-                    # 2. Créer la liste des options (Clé -> Titre lisible)
-                    # Ex: 'module1' -> 'Module 1 : Motivation'
-                    options_modules = list(PROTOCOLE_BARLOW.keys())
-                    format_titres = {k: v['titre'] for k, v in PROTOCOLE_BARLOW.items()}
-                    
-                    # 3. Multiselect
-                    choix_modules = st.multiselect(
-                        "Modules débloqués :",
-                        options=options_modules,
-                        default=[m for m in progression_actuelle if m in options_modules],
-                        format_func=lambda x: format_titres.get(x, x) # Affiche le joli titre
-                    )
-                    
-                    if st.button("💾 Valider la progression"):
-                        if sauvegarder_progression(patient_sel, choix_modules):
-                            st.success(f"Parcours mis à jour pour {patient_sel} !")
-                            time.sleep(1)
-                            st.rerun()
-                
-                st.write(" ") # Petit espace
+                    st.divider()
+
+                    # 2. Affichage Module par Module
+                    for code_module, data in PROTOCOLE_BARLOW.items():
+                        # Est-ce que ce module est débloqué pour le patient ?
+                        is_unlocked = code_module in progression_actuelle
+                        
+                        # Titre du module avec indicateur visuel
+                        icon = "✅" if is_unlocked else "🔒"
+                        st.markdown(f"#### {icon} {data['titre']}")
+                        
+                        c1, c2 = st.columns([1, 1])
+                        
+                        # COLONNE GAUCHE : ACTIONS THÉRAPEUTE
+                        with c1:
+                            st.caption("📋 A FAIRE EN SÉANCE")
+                            for tache in data.get("taches_therapeute", []):
+                                st.checkbox(tache, key=f"tache_{patient_sel}_{code_module}_{tache}")
+                            
+                            # Documents du thérapeute (si existent)
+                            if data.get("fichiers_therapeute"):
+                                st.caption("📂 Vos documents :")
+                                for doc in data["fichiers_therapeute"]:
+                                    nom_doc = doc.split('/')[-1]
+                                    # Pour l'instant on affiche juste le nom, à relier au téléchargement si besoin
+                                    st.write(f"- 📄 {nom_doc}")
+
+                        # COLONNE DROITE : GESTION PATIENT
+                        with c2:
+                            st.caption("👤 ACCÈS PATIENT")
+                            
+                            # Bouton pour Débloquer/Bloquer
+                            if is_unlocked:
+                                if st.button(f"🔒 Reverrouiller {code_module}", key=f"lock_{code_module}"):
+                                    nouvelle_liste = [m for m in progression_actuelle if m != code_module]
+                                    sauvegarder_progression(patient_sel, nouvelle_liste)
+                                    st.rerun()
+                            else:
+                                if st.button(f"🔓 Débloquer {code_module}", type="primary", key=f"unlock_{code_module}"):
+                                    progression_actuelle.append(code_module)
+                                    sauvegarder_progression(patient_sel, progression_actuelle)
+                                    st.rerun()
+                                    
+                            # Rappel des devoirs
+                            if data.get("devoirs_patient"):
+                                with st.expander("👀 Voir les devoirs assignés"):
+                                    for devoir in data["devoirs_patient"]:
+                                        st.write(f"- {devoir}")
+
+                        st.divider()
 
                 # --- FONCTION POUR AJOUTER LE CADENAS DANS LE TITRE DE L'ONGLET ---
                 def T(titre, cle_technique):
