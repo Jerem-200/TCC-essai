@@ -575,6 +575,12 @@ else:
             
             st.title("Navigation")
             st.page_link("streamlit_app.py", label="🏠 Accueil")
+
+            # 👇 AJOUTER CE BLOC ICI 👇
+            st.info("🎯 **Protocole**")
+            st.page_link("pages/00_Mon_Parcours.py", label="Mon Parcours", icon="🗺️")
+            st.divider()
+            # 👆 FIN DE L'AJOUT 👆
             
             # --- AGENDAS ---
             st.caption("📅 Agendas")
