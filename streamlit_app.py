@@ -632,3 +632,4 @@ else:
         elif st.session_state.user_type == "therapeute":
             st.title("Navigation")
             st.page_link("streamlit_app.py", label="🏠 Accueil")
+            st.page_link("pages/00_Mon_Parcours.py", label="Voir le Parcours", icon="🗺️")
