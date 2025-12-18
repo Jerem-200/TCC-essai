@@ -4,6 +4,8 @@ import altair as alt
 import time
 import secrets
 from datetime import datetime
+from protocole_config import PROTOCOLE_BARLOW
+import os
 import json
 
 # Import de toutes les visualisations
@@ -345,19 +347,26 @@ else:
                 st.divider()
 
                 # --- ZONE DE GESTION DU PROTOCOLE (OPTIMISÉE) ---
-                from protocole_config import PROTOCOLE_BARLOW
-                import os
-                import json
-
                 with st.expander("🗺️ Pilotage du Protocole (Barlow)", expanded=True):
                     
-                    # 1. Chargement des données (Une seule fois au début)
-                    progression_patient = charger_progression(patient_sel)
-                    devoirs_exclus_memoire = charger_etat_devoirs(patient_sel) # Dict {module: [indices_exclus]}
+                    # 1. Chargement des données
+                    progression_patient = charger_progression(patient_sel) # Liste des modules débloqués
+                    devoirs_exclus_memoire = charger_etat_devoirs(patient_sel)
                     
                     if f"modules_termines_{patient_sel}" not in st.session_state:
                         st.session_state[f"modules_termines_{patient_sel}"] = []
                     termines_therapeute = st.session_state[f"modules_termines_{patient_sel}"]
+
+                    # 2. LOGIQUE D'OUVERTURE AUTOMATIQUE
+                    # On cherche le premier module qui n'est PAS terminé
+                    module_a_ouvrir = None
+                    for code in PROTOCOLE_BARLOW.keys():
+                        if code not in termines_therapeute:
+                            module_a_ouvrir = code
+                            break
+                    # Si tout est fini, on n'ouvre rien ou le dernier
+                    if not module_a_ouvrir and PROTOCOLE_BARLOW:
+                        module_a_ouvrir = list(PROTOCOLE_BARLOW.keys())[-1]
 
                     # Barre de progression
                     nb_total = len(PROTOCOLE_BARLOW)
@@ -365,133 +374,100 @@ else:
                     st.progress(min(nb_fait / nb_total, 1.0), text=f"Avancement thérapie : {nb_fait}/{nb_total} modules terminés")
                     st.divider()
 
-                    # 2. BOUCLE DES MODULES
+                    # 3. BOUCLE DES MODULES
                     for code_mod, data in PROTOCOLE_BARLOW.items():
                         
                         is_unlocked = code_mod in progression_patient
                         is_done = code_mod in termines_therapeute
-                        icon = "✅" if is_done else ("🔓" if is_unlocked else "🔒")
                         
-                        with st.expander(f"{icon} {data['titre']}", expanded=is_unlocked):
+                        # Icône et Titre
+                        if is_done: icon = "✅"
+                        elif is_unlocked: icon = "🔓"
+                        else: icon = "🔒"
+                        
+                        # Ouverture intelligente : Seulement si c'est le module courant "actif"
+                        doit_etre_ouvert = (code_mod == module_a_ouvrir)
+                        
+                        with st.expander(f"{icon} {data['titre']}", expanded=doit_etre_ouvert):
                             
                             # --- ONGLETS ---
-                            t_action, t_docs = st.tabs(["⚡ Pilotage Séance", "📂 Tous les PDF"])
+                            t_action, t_docs = st.tabs(["⚡ Pilotage", "📂 Documents"])
                             
                             with t_action:
-                                # A. GESTION DU STATUT (Hors formulaire pour action rapide)
-                                c_lock, c_stat = st.columns(2)
-                                with c_lock:
+                                # A. GESTION STATUT (BOUTONS COMPACTS)
+                                # On utilise des petites colonnes pour que les boutons ne prennent pas toute la place
+                                c1, c2, c3 = st.columns([0.25, 0.25, 0.5])
+                                
+                                with c1:
+                                    # Bouton Accès Patient
                                     if is_unlocked:
-                                        if st.button("🔒 Verrouiller accès patient", key=f"lock_{code_mod}"):
-                                            progression_patient.remove(code_mod)
-                                            sauvegarder_progression(patient_sel, progression_patient)
-                                            st.rerun()
+                                        if st.button("🔒 Verrouiller", key=f"lock_{code_mod}", help="Retirer l'accès au patient"):
+                                            if code_mod in progression_patient:
+                                                progression_patient.remove(code_mod)
+                                                # SAUVEGARDE IMMÉDIATE ET CRITIQUE
+                                                sauvegarder_progression(patient_sel, progression_patient)
+                                                st.rerun()
                                     else:
-                                        if st.button("🔓 Donner accès patient", type="primary", key=f"unlock_{code_mod}"):
-                                            progression_patient.append(code_mod)
-                                            sauvegarder_progression(patient_sel, progression_patient)
-                                            st.rerun()
-                                with c_stat:
+                                        if st.button("🔓 Débloquer", type="primary", key=f"unlock_{code_mod}", help="Donner accès au patient"):
+                                            if code_mod not in progression_patient:
+                                                progression_patient.append(code_mod)
+                                                # SAUVEGARDE IMMÉDIATE ET CRITIQUE
+                                                sauvegarder_progression(patient_sel, progression_patient)
+                                                st.rerun()
+                                
+                                with c2:
+                                    # Bouton Statut Thérapeute
                                     if is_done:
-                                        if st.button("Marquer non-terminé", key=f"undone_{code_mod}"):
+                                        if st.button("↺ Rouvrir", key=f"undone_{code_mod}"):
                                             st.session_state[f"modules_termines_{patient_sel}"].remove(code_mod)
                                             st.rerun()
                                     else:
-                                        if st.button("✅ Marquer Terminé", key=f"done_{code_mod}"):
+                                        if st.button("✅ Terminer", key=f"done_{code_mod}"):
                                             st.session_state[f"modules_termines_{patient_sel}"].append(code_mod)
                                             st.rerun()
 
-                                st.divider()
+                                st.write("---")
 
-                                # B. FORMULAIRE DE SÉANCE (Pour la vitesse !)
-                                # Tout ce qui est ici ne rechargera pas la page à chaque clic
+                                # B. FORMULAIRE SÉANCE
                                 with st.form(key=f"form_{patient_sel}_{code_mod}"):
+                                    # Structure simplifiée pour l'affichage (objectifs etc)
+                                    st.caption(f"Objectifs : {data['objectifs']}")
                                     
-                                    # 1. EXAMEN DES DEVOIRS PRÉCÉDENTS
-                                    if data['examen_devoirs']:
-                                        with st.expander("🔍 Examen des tâches réalisées", expanded=True):
-                                            for item in data['examen_devoirs']:
-                                                st.markdown(f"- 📄 {item['titre']}")
-                                                # Pas de case à cocher ici, c'est juste un rappel visuel
-                                    
-                                    # 2. DÉROULÉ SÉANCE
                                     with st.expander("📝 Étapes de la séance", expanded=True):
                                         for i, etape in enumerate(data['etapes_seance']):
                                             st.checkbox(f"{etape['titre']}", key=f"step_{code_mod}_{i}")
                                     
-                                    # 3. ASSIGNATION DEVOIRS (Mémoire persistante)
+                                    # Assignation devoirs
                                     indices_exclus_actuels = devoirs_exclus_memoire.get(code_mod, [])
-                                    
-                                    with st.expander("🏠 Assignation Tâches à domicile", expanded=True):
-                                        st.caption("Décochez pour retirer le devoir au patient.")
-                                        liste_choix_devoirs = [] # Pour stocker le statut
-                                        
-                                        for j, dev in enumerate(data['taches_domicile']):
-                                            # Par défaut coché, sauf si dans la liste des exclus
-                                            is_checked = j not in indices_exclus_actuels
-                                            val = st.checkbox(f"{dev['titre']}", value=is_checked, key=f"dev_{code_mod}_{j}")
-                                            liste_choix_devoirs.append(val)
+                                    if data['taches_domicile']:
+                                        with st.expander("🏠 Tâches à domicile", expanded=True):
+                                            liste_choix_devoirs = []
+                                            for j, dev in enumerate(data['taches_domicile']):
+                                                is_checked = j not in indices_exclus_actuels
+                                                val = st.checkbox(f"{dev['titre']}", value=is_checked, key=f"dev_{code_mod}_{j}")
+                                                liste_choix_devoirs.append(val)
 
-                                    # BOUTON DE VALIDATION DU FORMULAIRE
-                                    submitted = st.form_submit_button("💾 Enregistrer la séance & les devoirs")
-                                    
-                                    if submitted:
-                                        # Calcul des nouveaux exclus
-                                        nouveaux_exclus = []
-                                        for idx, checked in enumerate(liste_choix_devoirs):
-                                            if not checked: nouveaux_exclus.append(idx)
-                                        
-                                        # Mise à jour mémoire et sauvegarde DB
-                                        devoirs_exclus_memoire[code_mod] = nouveaux_exclus
-                                        sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
-                                        st.success("✅ Modifications enregistrées !")
-                                        time.sleep(1)
+                                    if st.form_submit_button("💾 Enregistrer"):
+                                        if data['taches_domicile']:
+                                            nouveaux_exclus = [idx for idx, chk in enumerate(liste_choix_devoirs) if not chk]
+                                            devoirs_exclus_memoire[code_mod] = nouveaux_exclus
+                                            sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
+                                        st.success("Enregistré")
                                         st.rerun()
 
                             with t_docs:
-                                # Fonction helper CORRIGÉE (Avec ajout de 'context' pour éviter l'erreur de clé unique)
-                                def show_dl_btn(path, label_prefix="", context="doc"):
-                                    if path:
+                                # Affiche UNIQUEMENT la liste brute définie dans le config
+                                st.caption("Tous les documents du module :")
+                                if 'pdfs_module' in data and data['pdfs_module']:
+                                    for path in data['pdfs_module']:
                                         name = os.path.basename(path)
                                         if os.path.exists(path):
                                             with open(path, "rb") as f:
-                                                # ICI : On ajoute _{context} dans la key pour la rendre unique
-                                                st.download_button(
-                                                    f"📥 {label_prefix}{name}", 
-                                                    f, 
-                                                    file_name=name, 
-                                                    key=f"dl_{code_mod}_{name}_{context}" 
-                                                )
+                                                st.download_button(f"📥 {name}", f, file_name=name, key=f"dl_th_{code_mod}_{name}")
                                         else:
                                             st.warning(f"Manquant: {name}")
-
-                                # 1. DOCUMENTS À EXAMINER
-                                if data['examen_devoirs']:
-                                    st.caption("Documents à examiner :")
-                                    for i, d in enumerate(data['examen_devoirs']): 
-                                        show_dl_btn(d.get('pdf'), context=f"exam_{i}")
-                                
-                                st.write("---")
-                                
-                                # 2. DOCUMENTS DE SÉANCE
-                                st.caption("Documents de séance :")
-                                for i, s in enumerate(data['etapes_seance']): 
-                                    show_dl_btn(s.get('pdf'), context=f"seance_{i}")
-                                    
-                                    # Gestion des PDF multiples (extras)
-                                    if s.get('pdf_2'): 
-                                        show_dl_btn(s['pdf_2'], context=f"seance_{i}_2")
-                                    
-                                    if s.get('extras'):
-                                        for j, ex in enumerate(s['extras']): 
-                                            show_dl_btn(ex, context=f"seance_{i}_extra_{j}")
-
-                                st.write("---")
-                                
-                                # 3. DOCUMENTS DEVOIRS
-                                st.caption("Documents devoirs :")
-                                for k, t in enumerate(data['taches_domicile']): 
-                                    show_dl_btn(t.get('pdf'), context=f"devoir_{k}")
+                                else:
+                                    st.info("Aucun document listé.")
 
                 # --- FONCTION POUR AJOUTER LE CADENAS DANS LE TITRE DE L'ONGLET ---
                 def T(titre, cle_technique):
