@@ -2,84 +2,117 @@ import streamlit as st
 import os
 from protocole_config import PROTOCOLE_BARLOW
 
-# Import sécurisé de la fonction de chargement
+# Import sécurisé
 try:
-    from streamlit_app import charger_progression
+    from streamlit_app import charger_progression, charger_etat_devoirs
 except ImportError:
-    # Fonction de secours si l'import échoue
     def charger_progression(uid): return ["module0"]
+    def charger_etat_devoirs(uid): return {}
 
 st.set_page_config(page_title="Mon Parcours", page_icon="🗺️")
 
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.warning("🔒 Veuillez vous connecter.")
-    st.page_link("streamlit_app.py", label="Retour Accueil", icon="🏠")
     st.stop()
 
-# --- RÉCUPÉRATION DONNÉES ---
 current_user = st.session_state.get("user_id", "")
 modules_debloques = charger_progression(current_user)
+devoirs_exclus = charger_etat_devoirs(current_user) # {module: [indices_exclus]}
 
 st.title("🗺️ Mon Parcours de Soin")
 
-# --- BOUCLE D'AFFICHAGE ---
-for code_module, data in PROTOCOLE_BARLOW.items():
+# --- FONCTION HELPER POUR TÉLÉCHARGEMENT ---
+def afficher_doc(titre, chemin, key_suffix):
+    if chemin and os.path.exists(chemin):
+        nom = os.path.basename(chemin)
+        col_i, col_b = st.columns([0.1, 0.9])
+        with col_i:
+            if chemin.endswith(".mp3"): st.write("🎧")
+            else: st.write("📄")
+        with col_b:
+            with open(chemin, "rb") as f:
+                st.download_button(f"{titre}", f, file_name=nom, key=f"dl_{key_suffix}")
+    elif chemin:
+        st.caption(f"❌ Document indisponible : {titre}")
+
+# --- BOUCLE MODULES ---
+for code_mod, data in PROTOCOLE_BARLOW.items():
     
-    is_accessible = code_module in modules_debloques
-    
-    if is_accessible:
-        # On utilise le Titre du module
+    if code_mod in modules_debloques:
         with st.expander(f"✅ {data['titre']}", expanded=False):
             
-            # 1. DESCRIPTION / OBJECTIFS
-            st.info(data['objectifs'])
+            # STRUCTURE MIROIR : 2 ONGLETS
+            tab_proc, tab_docs = st.tabs(["📖 Ma Séance", "📂 Tous mes Documents"])
             
-            # 2. RESSOURCES DE LA SÉANCE (Documents liés aux étapes)
-            docs_seance = [e for e in data['etapes_contenu'] if e.get('pdf')]
-            
-            if docs_seance:
-                st.markdown("#### 📥 Documents de la séance")
-                for doc in docs_seance:
-                    col_icon, col_btn = st.columns([0.5, 4])
-                    with col_icon: st.write("📄")
-                    with col_btn:
-                        nom_doc = os.path.basename(doc['pdf'])
-                        st.write(f"**{doc['titre']}**")
-                        if os.path.exists(doc['pdf']):
-                            with open(doc['pdf'], "rb") as f:
-                                st.download_button("Télécharger", f, file_name=nom_doc, key=f"dl_pat_step_{code_module}_{nom_doc}")
-                        else:
-                            st.caption(f"Fichier indisponible")
-                st.divider()
+            # ONGLET 1 : DÉROULÉ
+            with tab_proc:
+                st.info(f"**Objectifs :** {data['objectifs']}")
+                
+                # 1. EXAMEN (Rappel)
+                if data['examen_devoirs']:
+                    st.markdown("##### 🔍 Retour sur vos tâches")
+                    for item in data['examen_devoirs']:
+                        afficher_doc(item['titre'], item.get('pdf'), f"exam_{code_mod}_{item['titre']}")
 
-            # 3. MES DEVOIRS (Tâches à domicile)
-            if data.get('devoirs'):
-                st.markdown("#### 🏠 Mes Devoirs")
+                st.write("---")
+
+                # 2. CONTENU SÉANCE (Pour info)
+                st.markdown("##### 📝 Vu en séance")
+                for etape in data['etapes_seance']:
+                    st.write(f"• {etape['titre']}")
+                    # On affiche le doc associé directement ici si pertinent
+                    if etape.get('pdf'):
+                        afficher_doc("Télécharger le document", etape['pdf'], f"step_{code_mod}_{etape['titre']}")
+                    # Gestion des multiples
+                    if etape.get('pdf_2'): afficher_doc("Document complémentaire", etape['pdf_2'], f"step2_{code_mod}_{etape['titre']}")
+                    if etape.get('extras'):
+                        for ex in etape['extras']: afficher_doc(os.path.basename(ex), ex, f"extra_{code_mod}_{ex}")
+
+                st.write("---")
+
+                # 3. MES DEVOIRS (Filtrés !)
+                st.markdown("##### 🏠 À faire pour la prochaine fois")
                 
-                for i, devoir in enumerate(data['devoirs']):
-                    c_check, c_info = st.columns([0.5, 4])
-                    with c_check:
-                        st.checkbox("", key=f"pat_check_{code_module}_{i}")
-                    with c_info:
-                        st.write(f"**{devoir['tache']}**")
-                        # Si le devoir a un PDF associé
-                        if devoir.get('pdf'):
-                            pdf_path = devoir['pdf']
-                            nom_pdf = os.path.basename(pdf_path)
-                            if os.path.exists(pdf_path):
-                                with open(pdf_path, "rb") as f:
-                                    st.download_button(f"📥 {nom_pdf}", f, file_name=nom_pdf, key=f"dl_pat_dev_{code_module}_{i}")
+                exclus_ici = devoirs_exclus.get(code_mod, [])
+                a_faire = False
                 
-                # ZONE DE RENDU D'EXERCICE (PHOTO)
-                st.write("")
-                with st.expander("📸 Envoyer une photo de mon exercice"):
-                    st.caption("Vous avez rempli une fiche papier ? Prenez-la en photo pour votre thérapeute.")
-                    photo = st.camera_input(f"Photo exercice - {data['titre']}")
-                    if photo:
-                        st.success("Photo envoyée ! (Simulation)")
-    
+                for j, dev in enumerate(data['taches_domicile']):
+                    if j not in exclus_ici: # Si le thérapeute ne l'a pas décoché
+                        a_faire = True
+                        st.write(f"👉 **{dev['titre']}**")
+                        if dev.get('pdf'):
+                            afficher_doc("Télécharger l'exercice", dev['pdf'], f"dev_{code_mod}_{j}")
+                
+                if not a_faire:
+                    st.success("🎉 Aucun devoir spécifique pour ce module.")
+                else:
+                    st.write("")
+                    with st.expander("📸 Envoyer mon travail (Photo)"):
+                        st.camera_input("Prendre une photo", key=f"cam_{code_mod}")
+
+            # ONGLET 2 : TOUS LES DOCS (Bibliothèque)
+            with tab_docs:
+                st.write("Retrouvez ici tous les fichiers de ce module.")
+                # On rassemble tout
+                tous = []
+                # Examen
+                for x in data['examen_devoirs']: tous.append((x['titre'], x.get('pdf')))
+                # Séance
+                for s in data['etapes_seance']: 
+                    tous.append((s['titre'], s.get('pdf')))
+                    if s.get('pdf_2'): tous.append((s['titre'] + " (2)", s.get('pdf_2')))
+                    if s.get('extras'): 
+                        for ex in s['extras']: tous.append(("Annexe", ex))
+                # Devoirs (Même ceux décochés, car c'est la bibliothèque)
+                for d in data['taches_domicile']: tous.append((f"Devoir: {d['titre']}", d.get('pdf')))
+                
+                # Affichage unique
+                vus = set()
+                for titre, path in tous:
+                    if path and path not in vus:
+                        afficher_doc(titre, path, f"all_{code_mod}_{os.path.basename(path)}")
+                        vus.add(path)
+
     else:
-        # Module verrouillé
         with st.container(border=True):
-            st.write(f"🔒 **{data['titre']}**")
-            st.caption("Ce module sera débloqué prochainement.")
+            st.write(f"🔒 **{data['titre']}** (Verrouillé)")
