@@ -412,7 +412,6 @@ else:
                                         if d.get('pdf'):
                                             # Juste une indication visuelle
                                             st.caption(f"📄 Doc : {os.path.basename(d['pdf'])}")
-                                    st.write("---")
 
                                 # C. FORMULAIRE UNIQUE (Zéro chargement !)
                                 with st.form(key=f"form_{patient_sel}_{code_mod}"):
