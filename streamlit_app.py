@@ -383,7 +383,7 @@ else:
                         # --- LAYOUT EN COLONNES POUR ALIGNER TITRE ET BOUTONS ---
                         # Col 1 (Gros) : Le Menu Déroulant avec le Titre
                         # Col 2 & 3 (Petits) : Les Boutons
-                        c_titre, c_btn1, c_btn2 = st.columns([0.7, 0.15, 0.15])
+                        c_titre, c_btn1, c_btn2 = st.columns([0.7, 0.15, 0.3])
                         
                         # Icône dynamique
                         if is_done: icon = "✅"
@@ -418,7 +418,7 @@ else:
                                     st.session_state[f"modules_termines_{patient_sel}"].remove(code_mod)
                                     st.rerun()
                             else:
-                                if st.button("Finir", key=f"done_{code_mod}"):
+                                if st.button("Finir le module", key=f"done_{code_mod}"):
                                     st.session_state[f"modules_termines_{patient_sel}"].append(code_mod)
                                     st.rerun()
 
