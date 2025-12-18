@@ -414,11 +414,11 @@ else:
                         # COLONNE 3 : BOUTON STATUT THÉRAPEUTE
                         with c_btn2:
                             if is_done:
-                                if st.button("✅ Module terminé", key=f"undone_{code_mod}"):
+                                if st.button("✅ Module fini", key=f"undone_{code_mod}"):
                                     st.session_state[f"modules_termines_{patient_sel}"].remove(code_mod)
                                     st.rerun()
                             else:
-                                if st.button("Terminer le module", key=f"done_{code_mod}"):
+                                if st.button("Finir", key=f"done_{code_mod}"):
                                     st.session_state[f"modules_termines_{patient_sel}"].append(code_mod)
                                     st.rerun()
 
