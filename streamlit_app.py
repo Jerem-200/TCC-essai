@@ -380,8 +380,32 @@ else:
                         # On ouvre seulement le dernier utilisé
                         is_expanded = (code_mod == st.session_state.last_active_module)
 
-                        with st.expander(f"{icon} {data['titre']}", expanded=is_expanded):
+                        # --- MODIFICATION : Colonnes pour mettre le cadenas à droite ---
+                        c_titre, c_lock = st.columns([0.85, 0.15])
+                        
+                        with c_titre:
+                            # L'accordéon avec le titre du module
+                            mon_expander = st.expander(f"{icon} {data['titre']}", expanded=is_expanded)
+                        
+                        with c_lock:
+                            # Le bouton de gestion d'accès (Bloquer/Débloquer)
+                            is_accessible = code_mod in progression_patient
                             
+                            if is_accessible:
+                                # Si le patient a accès -> Bouton pour BLOQUER
+                                if st.button("🔒", key=f"lock_{code_mod}", help="Bloquer l'accès à ce module pour le patient"):
+                                    progression_patient.remove(code_mod)
+                                    sauvegarder_progression(patient_sel, progression_patient)
+                                    st.rerun()
+                            else:
+                                # Si bloqué -> Bouton pour DÉBLOQUER (en rouge/primaire pour être visible)
+                                if st.button("🔓", type="primary", key=f"unlock_{code_mod}", help="Débloquer ce module pour le patient"):
+                                    progression_patient.append(code_mod)
+                                    sauvegarder_progression(patient_sel, progression_patient)
+                                    st.rerun()
+
+                        # --- CONTENU DU MODULE (On reprend l'expander créé juste au-dessus) ---
+                        with mon_expander:
                             t_action, t_docs = st.tabs(["⚡ Pilotage Séance", "📂 Documents PDF"])
                             
                             with t_action:
