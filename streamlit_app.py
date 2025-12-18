@@ -404,18 +404,19 @@ else:
                                     st.info(data['objectifs'])
                                     st.caption(data['outils'])
 
-                                # B. EXAMEN DES TÂCHES (Hors formulaire pour permettre téléchargement éventuel ou juste texte)
-                                if data['examen_devoirs']:
-                                    st.markdown("**🔍 Examen des tâches précédentes**")
-                                    for idx, d in enumerate(data['examen_devoirs']):
-                                        st.write(f"• {d['titre']}")
-                                        if d.get('pdf'):
-                                            # Juste une indication visuelle
-                                            st.caption(f"📄 Doc : {os.path.basename(d['pdf'])}")
+
 
                                 # C. FORMULAIRE UNIQUE (Zéro chargement !)
                                 with st.form(key=f"form_{patient_sel}_{code_mod}"):
-                                    
+
+                                    if data['examen_devoirs']:
+                                        st.markdown("**🔍 Examen des tâches précédentes**")
+                                        for idx, d in enumerate(data['examen_devoirs']):
+                                            st.write(f"• {d['titre']}")
+                                            if d.get('pdf'):
+                                                # Juste une indication visuelle
+                                                st.caption(f"📄 Doc : {os.path.basename(d['pdf'])}")
+                                        
                                     # 1. SÉANCE
                                     st.markdown("**📝 Étapes de la séance**")
                                     for i, etape in enumerate(data['etapes_seance']):
