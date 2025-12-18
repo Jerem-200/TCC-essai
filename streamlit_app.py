@@ -152,6 +152,35 @@ def sauvegarder_blocages(patient_id, liste_cles):
         st.error(f"Erreur sauvegarde : {e}")
         return False
     
+# --- GESTION DES MODULES VALIDÉS (Carré Vert) ---
+def charger_modules_valides(patient_id):
+    """Charge la liste des modules terminés à 100% (Vert)"""
+    try:
+        from connect_db import load_data
+        # On utilise une table 'Suivi_Validation' (à créer ou simuler)
+        # Si vous n'avez pas cette table, on peut utiliser un fichier ou une autre logique
+        # Pour cet exemple, je suppose que ça marche comme 'Progression'
+        data = load_data("Suivi_Validation") 
+        if data:
+            df = pd.DataFrame(data)
+            row = df[df["Patient"] == patient_id]
+            if not row.empty:
+                valides_str = str(row.iloc[0]["Modules_Valides"])
+                return [x.strip() for x in valides_str.split(",") if x.strip()]
+    except: pass
+    return []
+
+def sauvegarder_modules_valides(patient_id, liste_modules):
+    try:
+        from connect_db import save_data, delete_data_flexible
+        delete_data_flexible("Suivi_Validation", {"Patient": patient_id})
+        chaine_valides = ",".join(liste_modules)
+        save_data("Suivi_Validation", [patient_id, chaine_valides])
+        return True
+    except Exception as e:
+        print(f"Erreur save validation: {e}")
+        return False
+    
 # =========================================================
 # GESTION DE LA PROGRESSION PROTOCOLE (NOUVEAU)
 # =========================================================
