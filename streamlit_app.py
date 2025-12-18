@@ -395,7 +395,7 @@ else:
 
                     # Barre de progression
                     nb_total = len(PROTOCOLE_BARLOW)
-                    nb_fait = len(termines_therapeute)
+                    nb_fait = len(modules_valides_db)
                     st.progress(min(nb_fait / nb_total, 1.0), text=f"Avancement : {nb_fait}/{nb_total} modules terminés")
                     st.write("---")
 
