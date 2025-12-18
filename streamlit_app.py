@@ -370,22 +370,19 @@ else:
                     st.progress(min(nb_fait / nb_total, 1.0), text=f"Avancement : {nb_fait}/{nb_total} modules terminés")
                     st.write("---")
 
-                    # 3. BOUCLE DES MODULES (Version compatible TOUTES VERSIONS)
-                    # On utilise enumerate pour garantir l'unicité des clés internes (boutons, forms)
+# 3. BOUCLE DES MODULES (LOGIQUE VALIDATION + VERT + OUVERTURE)
                     for i, (code_mod, data) in enumerate(PROTOCOLE_BARLOW.items()):
                         
-                        is_done = code_mod in termines_therapeute
+                        # On vérifie si le module est validé (Vert)
+                        is_done = code_mod in modules_valides_db
                         icon = "✅" if is_done else "🟦"
                         
-                        # LOGIQUE D'OUVERTURE :
-                        # Si ce module est celui qu'on vient de modifier, on force l'ouverture
+                        # Logique d'ouverture (reste ouvert après enregistrement)
                         should_be_expanded = (code_mod == st.session_state.last_active_module)
 
-                        # EN-TÊTE (Titre + Cadenas)
+                        # EN-TÊTE
                         c_titre, c_lock = st.columns([0.95, 0.05])
                         with c_titre:
-                            # --- MODIFICATION ICI : ON A ENLEVÉ 'key=...' ---
-                            # On se base uniquement sur 'expanded' pour l'ouverture
                             mon_expander = st.expander(f"{icon} {data['titre']}", expanded=should_be_expanded)
                         
                         with c_lock:
@@ -406,31 +403,36 @@ else:
                             t_action, t_docs = st.tabs(["⚡ Pilotage Séance", "📂 Documents PDF"])
                             
                             with t_action:
-                                # A. RAPPEL OBJECTIFS
                                 with st.expander("ℹ️ Objectifs & Outils", expanded=False):
                                     st.info(data['objectifs'])
                                     st.caption(data['outils'])
 
-                                # --- DÉBUT DU FORMULAIRE ---
-                                # On garde la KEY ici, c'est crucial pour éviter les conflits de données
+                                # --- FORMULAIRE ---
                                 with st.form(key=f"form_main_{patient_sel}_{code_mod}"):
                                     
-                                    # 1. EXAMEN DES TÂCHES PRÉCÉDENTES
+                                    # LISTE POUR VÉRIFIER SI TOUT EST COCHÉ
+                                    check_list = []
+
+                                    # 1. EXAMEN DES TÂCHES
                                     if data['examen_devoirs']:
                                         st.markdown("**🔍 Examen des tâches précédentes**")
-                                        st.caption("Cochez les tâches revues avec le patient.")
+                                        st.caption("Cochez les tâches revues.")
                                         for idx, d in enumerate(data['examen_devoirs']):
-                                            st.checkbox(f"{d['titre']}", key=f"exam_{patient_sel}_{code_mod}_{idx}")
+                                            # On capture la valeur (True/False)
+                                            val = st.checkbox(f"{d['titre']}", key=f"exam_{patient_sel}_{code_mod}_{idx}")
+                                            check_list.append(val)
                                             
                                             if d.get('pdf'):
                                                 nom = os.path.basename(d['pdf'])
                                                 st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
                                         st.write("---")
                                     
-                                    # 2. ÉTAPES DE LA SÉANCE
+                                    # 2. ÉTAPES SÉANCE
                                     st.markdown("**📝 Étapes de la séance**")
                                     for idx_etape, etape in enumerate(data['etapes_seance']):
-                                        st.checkbox(f"{etape['titre']}", key=f"step_{patient_sel}_{code_mod}_{idx_etape}")
+                                        # On capture la valeur
+                                        val = st.checkbox(f"{etape['titre']}", key=f"step_{patient_sel}_{code_mod}_{idx_etape}")
+                                        check_list.append(val)
                                         
                                         if etape.get('pdfs'):
                                             for pdf_path in etape['pdfs']:
@@ -440,7 +442,7 @@ else:
                                     st.write("")
                                     st.write("---")
 
-                                    # 3. ASSIGNATION DEVOIRS
+                                    # 3. DEVOIRS
                                     indices_exclus = devoirs_exclus_memoire.get(code_mod, [])
                                     choix_devoirs_temp = [] 
                                     
@@ -450,6 +452,8 @@ else:
                                         
                                         for j, dev in enumerate(data['taches_domicile']):
                                             is_chk = (j not in indices_exclus)
+                                            # Pour les devoirs, on considère que c'est "Fait" si le thérapeute a pris une décision (coché ou décoché)
+                                            # Donc on ajoute True à check_list par défaut car c'est une action d'assignation
                                             val = st.checkbox(dev['titre'], value=is_chk, key=f"dev_{patient_sel}_{code_mod}_{j}")
                                             choix_devoirs_temp.append(val)
                                             
@@ -459,31 +463,40 @@ else:
 
                                     st.write("")
                                     
-                                    # 4. BOUTON ENREGISTRER
-                                    # Quand on clique, on met à jour 'last_active_module'
+                                    # 4. ENREGISTRER
                                     if st.form_submit_button("💾 Enregistrer la séance", type="primary"):
                                         
-                                        # Sauvegarde Devoirs
+                                        # A. Sauvegarde Devoirs Exclus
                                         if data['taches_domicile']:
                                             nouveaux_exclus = [k for k, chk in enumerate(choix_devoirs_temp) if not chk]
                                             devoirs_exclus_memoire[code_mod] = nouveaux_exclus
                                             sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
                                         
-                                        # Déblocage auto
+                                        # B. Déblocage du module (Progression)
                                         if code_mod not in progression_patient:
                                             progression_patient.append(code_mod)
                                             sauvegarder_progression(patient_sel, progression_patient)
                                         
-                                        # CRUCIAL : On dit à Streamlit que cet onglet doit rester ouvert au prochain chargement
+                                        # C. LOGIQUE VERT (Validation)
+                                        # On vérifie si toutes les cases "Actions" (check_list) sont cochées
+                                        tout_est_fini = all(check_list) if check_list else True
+                                        
+                                        if tout_est_fini:
+                                            if code_mod not in modules_valides_db:
+                                                modules_valides_db.append(code_mod)
+                                                sauvegarder_modules_valides(patient_sel, modules_valides_db)
+                                                st.toast("✅ Module validé (Vert) !", icon="🎉")
+                                        
+                                        # D. Maintien ouverture
                                         st.session_state.last_active_module = code_mod
                                         
-                                        st.success("✅ Validé !")
+                                        st.success("✅ Sauvegardé !")
                                         time.sleep(0.5)
                                         st.rerun()
 
                             # ONGLET 2 : DOCUMENTS
                             with t_docs:
-                                st.info("📂 Cliquez ci-dessous pour télécharger les fichiers mentionnés.")
+                                st.info("📂 Documents")
                                 if 'pdfs_module' in data and data['pdfs_module']:
                                     for chemin in data['pdfs_module']:
                                         nom_fichier = os.path.basename(chemin)
@@ -498,7 +511,7 @@ else:
                                         else:
                                             st.warning(f"Fichier manquant : {nom_fichier}")
                                 else:
-                                    st.caption("Aucun document listé pour ce module.")
+                                    st.caption("Aucun document.")
 
                 # --- FONCTION POUR AJOUTER LE CADENAS DANS LE TITRE DE L'ONGLET ---
                 def T(titre, cle_technique):
