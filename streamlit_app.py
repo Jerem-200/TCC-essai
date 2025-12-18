@@ -394,47 +394,50 @@ else:
                                     sauvegarder_progression(patient_sel, progression_patient)
                                     st.rerun()
 
-                        # CONTENU
+# CONTENU
                         with mon_expander:
                             t_action, t_docs = st.tabs(["⚡ Pilotage Séance", "📂 Documents PDF"])
                             
                             with t_action:
-                                # A. RAPPEL OBJECTIFS (Hors formulaire)
+                                # A. RAPPEL OBJECTIFS (Hors formulaire, juste de l'info)
                                 with st.expander("ℹ️ Objectifs & Outils", expanded=False):
                                     st.info(data['objectifs'])
                                     st.caption(data['outils'])
 
-                                # B. EXAMEN DES TÂCHES (Hors formulaire pour permettre l'affichage propre)
-                                if data['examen_devoirs']:
-                                    st.markdown("**🔍 Examen des tâches précédentes**")
-                                    for idx, d in enumerate(data['examen_devoirs']):
-                                        st.write(f"- {d['titre']}")
-                                        if d.get('pdf'):
-                                            # Indication visuelle simple
-                                            st.caption(f"&nbsp;&nbsp;&nbsp;📄 _Doc : {os.path.basename(d['pdf'])}_")
-                                    st.write("---")
-
-                                # C. FORMULAIRE UNIQUE (C'est le secret de la rapidité !)
+                                # --- DÉBUT DU FORMULAIRE UNIQUE (TOUT EST DEDANS) ---
                                 with st.form(key=f"form_{patient_sel}_{code_mod}"):
                                     
-                                    # 1. ÉTAPES DE LA SÉANCE
+                                    # 1. EXAMEN DES TÂCHES PRÉCÉDENTES (Checklist)
+                                    if data['examen_devoirs']:
+                                        st.markdown("**🔍 Examen des tâches précédentes**")
+                                        st.caption("Cochez les tâches revues avec le patient.")
+                                        for idx, d in enumerate(data['examen_devoirs']):
+                                            # ICI : C'est maintenant une CASE À COCHER
+                                            st.checkbox(f"{d['titre']}", key=f"exam_{patient_sel}_{code_mod}_{idx}")
+                                            
+                                            # Indication TEXTE du PDF (Pas de bouton ici)
+                                            if d.get('pdf'):
+                                                nom = os.path.basename(d['pdf'])
+                                                st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
+                                        st.write("---")
+                                    
+                                    # 2. ÉTAPES DE LA SÉANCE
                                     st.markdown("**📝 Étapes de la séance**")
                                     for i, etape in enumerate(data['etapes_seance']):
-                                        # La case à cocher (ne recharge PAS la page)
                                         st.checkbox(f"{etape['titre']}", key=f"step_{patient_sel}_{code_mod}_{i}")
                                         
-                                        # Indication du PDF juste en dessous (Texte seulement)
+                                        # Indication TEXTE du PDF
                                         if etape.get('pdfs'):
                                             for pdf_path in etape['pdfs']:
                                                 nom = os.path.basename(pdf_path)
-                                                # On utilise Markdown pour un rendu propre et indenté
                                                 st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
                                     
                                     st.write("")
+                                    st.write("---")
 
-                                    # 2. ASSIGNATION DEVOIRS
+                                    # 3. ASSIGNATION DEVOIRS
                                     indices_exclus = devoirs_exclus_memoire.get(code_mod, [])
-                                    choix_devoirs_temp = []
+                                    choix_devoirs_temp = [] 
                                     
                                     if data['taches_domicile']:
                                         st.markdown("**🏠 Assignation Devoirs**")
@@ -445,22 +448,23 @@ else:
                                             val = st.checkbox(dev['titre'], value=is_chk, key=f"dev_{patient_sel}_{code_mod}_{j}")
                                             choix_devoirs_temp.append(val)
                                             
+                                            # Indication TEXTE du PDF
                                             if dev.get('pdf'):
                                                 nom_pdf = os.path.basename(dev['pdf'])
                                                 st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom_pdf}</small>", unsafe_allow_html=True)
 
-                                    st.write("---")
+                                    st.write("")
                                     
-                                    # 3. BOUTON ENREGISTRER (Seul élément qui déclenche le chargement)
+                                    # 4. BOUTON ENREGISTRER (Valide tout le formulaire d'un coup)
                                     if st.form_submit_button("💾 Enregistrer la séance", type="primary"):
                                         
-                                        # Sauvegarde Devoirs
+                                        # Sauvegarde Devoirs (état des cases cochées/décochées)
                                         if data['taches_domicile']:
                                             nouveaux_exclus = [k for k, chk in enumerate(choix_devoirs_temp) if not chk]
                                             devoirs_exclus_memoire[code_mod] = nouveaux_exclus
                                             sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
                                         
-                                        # Déblocage auto
+                                        # Déblocage auto du module pour le patient
                                         if code_mod not in progression_patient:
                                             progression_patient.append(code_mod)
                                             sauvegarder_progression(patient_sel, progression_patient)
