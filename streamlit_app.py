@@ -410,6 +410,9 @@ else:
                                     #0. EXAMEN DEVOIRS PRÉCÉDENTS
                                     if data['examen_devoirs']:
                                         st.markdown("**🔍 Examen des tâches précédentes**")
+                                        for i, etape in enumerate(data['examen_devoirs']):
+                                            st.checkbox(f"{etape['titre']}", key=f"step_{patient_sel}_{code_mod}_{i}")
+                                        
                                         for idx, d in enumerate(data['examen_devoirs']):
                                             st.write(f"• {d['titre']}")
                                             if d.get('pdf'):
