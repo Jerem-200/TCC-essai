@@ -346,14 +346,14 @@ else:
 
                 st.divider()
 
-# --- ZONE DE GESTION DU PROTOCOLE (BARLOW) - FINALISÉE ---
+# --- ZONE DE GESTION DU PROTOCOLE (BARLOW) - RAPIDE & TEXTE SEUL ---
                 from protocole_config import PROTOCOLE_BARLOW
                 import os
                 import json
 
                 with st.expander("🗺️ Pilotage du Protocole (Barlow)", expanded=True):
                     
-                    # 1. Chargement des données
+                    # 1. Chargement
                     progression_patient = charger_progression(patient_sel)
                     devoirs_exclus_memoire = charger_etat_devoirs(patient_sel)
                     
@@ -361,7 +361,6 @@ else:
                         st.session_state[f"modules_termines_{patient_sel}"] = []
                     termines_therapeute = st.session_state[f"modules_termines_{patient_sel}"]
 
-                    # 2. Gestion de l'ouverture du dernier onglet actif
                     if "last_active_module" not in st.session_state:
                         st.session_state.last_active_module = "module0"
 
@@ -376,20 +375,16 @@ else:
                         
                         is_done = code_mod in termines_therapeute
                         icon = "✅" if is_done else "🟦"
-                        
-                        # On ouvre seulement le dernier utilisé
                         is_expanded = (code_mod == st.session_state.last_active_module)
 
-                        # EN-TÊTE (Titre + Cadenas)
+                        # En-tête (Titre + Cadenas)
                         c_titre, c_lock = st.columns([0.95, 0.05])
-                        
                         with c_titre:
                             mon_expander = st.expander(f"{icon} {data['titre']}", expanded=is_expanded)
-                        
                         with c_lock:
                             is_accessible = code_mod in progression_patient
                             if is_accessible:
-                                if st.button("🔒", key=f"lock_{code_mod}", help="Bloquer l'accès"):
+                                if st.button("🔒", key=f"lock_{code_mod}", help="Bloquer"):
                                     progression_patient.remove(code_mod)
                                     sauvegarder_progression(patient_sel, progression_patient)
                                     st.rerun()
@@ -399,102 +394,84 @@ else:
                                     sauvegarder_progression(patient_sel, progression_patient)
                                     st.rerun()
 
-                        # CONTENU DU MODULE
+                        # CONTENU
                         with mon_expander:
-                            t_action, t_docs = st.tabs(["⚡ Pilotage Séance", "📂 Documents PDF"])
+                            t_action, t_docs = st.tabs(["⚡ Pilotage Séance", "📂 Tous les PDF"])
                             
                             with t_action:
-                                # A. OBJECTIFS
+                                # A. RAPPEL OBJECTIFS (Hors formulaire)
                                 with st.expander("ℹ️ Objectifs & Outils", expanded=False):
                                     st.info(data['objectifs'])
                                     st.caption(data['outils'])
 
-                                # B. EXAMEN DES TÂCHES PRÉCÉDENTES
-                                if data['examen_devoirs']:
-                                    st.markdown("**🔍 Examen des tâches précédentes**")
-                                    for idx, d in enumerate(data['examen_devoirs']):
-                                        st.write(f"• {d['titre']}")
-                                        # PDF juste en dessous, indenté
-                                        if d.get('pdf') and os.path.exists(d['pdf']):
-                                            c_vide, c_btn = st.columns([0.05, 0.95])
-                                            with c_btn:
-                                                with open(d['pdf'], "rb") as f:
-                                                    st.download_button("📥 Voir le document", f, file_name=os.path.basename(d['pdf']), key=f"dl_rev_{code_mod}_{idx}")
-                                    st.write("---")
-
-                                # C. DÉROULÉ SÉANCE
-                                st.markdown("**📝 Étapes de la séance**")
-                                
-                                for i, etape in enumerate(data['etapes_seance']):
-                                    # 1. Case à cocher (Stockée en session, pas de sauvegarde DB immédiate)
-                                    st.checkbox(f"{etape['titre']}", key=f"step_{patient_sel}_{code_mod}_{i}")
+                                # C. FORMULAIRE UNIQUE (Zéro chargement !)
+                                with st.form(key=f"form_{patient_sel}_{code_mod}"):
                                     
-                                    # 2. PDF associés (Juste en dessous, indentés)
-                                    if etape.get('pdfs'):
-                                        for k, pdf_path in enumerate(etape['pdfs']):
-                                            if os.path.exists(pdf_path):
+                                    #0. EXAMEN DEVOIRS PRÉCÉDENTS
+                                    if data['examen_devoirs']:
+                                        st.markdown("**🔍 Examen des tâches précédentes**")
+                                    for i, etape in enumerate(data['examen_devoirs']):
+                                        st.checkbox(f"{etape['titre']}", key=f"step_{patient_sel}_{code_mod}_{i}")
+                                        
+                                        # Indication TEXTE des PDF associés (Pas de bouton ici)
+                                        if etape.get('pdfs'):
+                                            for pdf_path in etape['pdfs']:
                                                 nom = os.path.basename(pdf_path)
-                                                c_indent, c_dl = st.columns([0.05, 0.95])
-                                                with c_dl:
-                                                    with open(pdf_path, "rb") as f:
-                                                        st.download_button(f"📥 {nom}", f, key=f"dl_step_{code_mod}_{i}_{k}")
+                                                st.caption(f"&nbsp;&nbsp;&nbsp;&nbsp;📄 _À télécharger dans l'onglet Documents : {nom}_")
+                                    st.write("")
+
+                                    # 1. SÉANCE
+                                    st.markdown("**📝 Étapes de la séance**")
+                                    for i, etape in enumerate(data['etapes_seance']):
+                                        st.checkbox(f"{etape['titre']}", key=f"step_{patient_sel}_{code_mod}_{i}")
+                                        
+                                        # Indication TEXTE des PDF associés (Pas de bouton ici)
+                                        if etape.get('pdfs'):
+                                            for pdf_path in etape['pdfs']:
+                                                nom = os.path.basename(pdf_path)
+                                                st.caption(f"&nbsp;&nbsp;&nbsp;&nbsp;📄 _À télécharger dans l'onglet Documents : {nom}_")
                                     
-                                    # Petit espace si pas de PDF pour aérer
-                                    if not etape.get('pdfs'): st.write("")
+                                    st.write("")
 
-                                st.divider()
-
-                                # D. ASSIGNATION DEVOIRS (AVEC CASES ET PDF)
-                                indices_exclus = devoirs_exclus_memoire.get(code_mod, [])
-                                etats_cases_devoirs = [] # Pour stocker l'état (Coché/Pas coché) pour la sauvegarde
-                                
-                                if data['taches_domicile']:
-                                    st.markdown("**🏠 Assignation Devoirs**")
-                                    st.caption("Laissez coché pour donner le devoir au patient.")
+                                    # 2. DEVOIRS
+                                    indices_exclus = devoirs_exclus_memoire.get(code_mod, [])
+                                    choix_devoirs_temp = []
                                     
-                                    for j, dev in enumerate(data['taches_domicile']):
-                                        # 1. La Case à cocher
-                                        is_checked = (j not in indices_exclus)
-                                        val = st.checkbox(dev['titre'], value=is_checked, key=f"dev_{patient_sel}_{code_mod}_{j}")
-                                        etats_cases_devoirs.append(val)
-                                        
-                                        # 2. Le PDF associé (Juste en dessous, indenté)
-                                        if dev.get('pdf') and os.path.exists(dev['pdf']):
-                                            c_indent, c_dl = st.columns([0.05, 0.95])
-                                            with c_dl:
-                                                with open(dev['pdf'], "rb") as f:
-                                                    st.download_button(f"📥 {os.path.basename(dev['pdf'])}", f, key=f"dl_hw_{code_mod}_{j}")
-                                        
-                                        st.write("") # Espace entre les devoirs
+                                    if data['taches_domicile']:
+                                        st.markdown("**🏠 Assignation Devoirs**")
+                                        st.caption("Décochez pour ne pas donner le devoir.")
+                                        for j, dev in enumerate(data['taches_domicile']):
+                                            is_chk = (j not in indices_exclus)
+                                            val = st.checkbox(dev['titre'], value=is_chk, key=f"dev_{patient_sel}_{code_mod}_{j}")
+                                            choix_devoirs_temp.append(val)
+                                            
+                                            if dev.get('pdf'):
+                                                st.caption(f"&nbsp;&nbsp;&nbsp;&nbsp;📄 _Doc associé : {os.path.basename(dev['pdf'])}_")
 
-                                st.write("---")
-
-                                # E. BOUTON SAUVEGARDE GLOBAL
-                                c_save, c_void = st.columns([0.4, 0.6])
-                                with c_save:
-                                    if st.button("💾 Enregistrer la séance", type="primary", key=f"save_btn_{code_mod}"):
+                                    st.write("---")
+                                    
+                                    # 3. BOUTON ENREGISTRER (Seul déclencheur de rechargement)
+                                    if st.form_submit_button("💾 Enregistrer la séance", type="primary"):
                                         
-                                        # 1. Sauvegarde des Devoirs (On regarde quelles cases sont décochées)
+                                        # Sauvegarde Devoirs
                                         if data['taches_domicile']:
-                                            nouveaux_exclus = [k for k, checked in enumerate(etats_cases_devoirs) if not checked]
+                                            nouveaux_exclus = [k for k, chk in enumerate(choix_devoirs_temp) if not chk]
                                             devoirs_exclus_memoire[code_mod] = nouveaux_exclus
                                             sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
                                         
-                                        # 2. Gestion automatique du déblocage module
+                                        # Déblocage auto
                                         if code_mod not in progression_patient:
                                             progression_patient.append(code_mod)
                                             sauvegarder_progression(patient_sel, progression_patient)
                                         
-                                        # 3. Mémoriser l'onglet actif
+                                        # Mémorisation onglet
                                         st.session_state.last_active_module = code_mod
                                         
-                                        st.success("✅ Enregistré !")
-                                        import time
-                                        time.sleep(0.5)
+                                        st.success("✅ Validé !")
                                         st.rerun()
 
                             with t_docs:
-                                st.caption("Bibliothèque complète du module :")
+                                st.caption("Cliquez pour télécharger les fichiers :")
                                 if 'pdfs_module' in data and data['pdfs_module']:
                                     for chemin in data['pdfs_module']:
                                         nom_fichier = os.path.basename(chemin)
