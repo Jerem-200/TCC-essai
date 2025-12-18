@@ -410,14 +410,14 @@ else:
                                     #0. EXAMEN DEVOIRS PRÉCÉDENTS
                                     if data['examen_devoirs']:
                                         st.markdown("**🔍 Examen des tâches précédentes**")
-                                        for i, etape in enumerate(data['examen_devoirs']):
-                                            st.checkbox(f"{etape['titre']}", key=f"step_{patient_sel}_{code_mod}_{i}")
+                                    for i, etape in enumerate(data['examen_devoirs']):
+                                        st.checkbox(f"{etape['titre']}", key=f"step_{patient_sel}_{code_mod}_{i}")
                                         
-                                        for idx, d in enumerate(data['examen_devoirs']):
-                                            st.write(f"• {d['titre']}")
-                                            if d.get('pdf'):
-                                                # Juste une indication visuelle
-                                                st.caption(f"📄 Doc : {os.path.basename(d['pdf'])}")
+                                        # Indication TEXTE des PDF associés (Pas de bouton ici)
+                                        if etape.get('pdfs'):
+                                            for pdf_path in etape['pdfs']:
+                                                nom = os.path.basename(pdf_path)
+                                                st.caption(f"&nbsp;&nbsp;&nbsp;&nbsp;📄 _À télécharger dans l'onglet Documents : {nom}_")
                                     st.write("")
 
                                     # 1. SÉANCE
