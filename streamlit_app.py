@@ -449,33 +449,49 @@ else:
                                         st.rerun()
 
                             with t_docs:
-                                # Fonction helper pour afficher un bouton de téléchargement
-                                def show_dl_btn(path, label_prefix=""):
+                                # Fonction helper CORRIGÉE (Avec ajout de 'context' pour éviter l'erreur de clé unique)
+                                def show_dl_btn(path, label_prefix="", context="doc"):
                                     if path:
                                         name = os.path.basename(path)
                                         if os.path.exists(path):
                                             with open(path, "rb") as f:
-                                                st.download_button(f"📥 {label_prefix}{name}", f, file_name=name, key=f"dl_{code_mod}_{name}")
+                                                # ICI : On ajoute _{context} dans la key pour la rendre unique
+                                                st.download_button(
+                                                    f"📥 {label_prefix}{name}", 
+                                                    f, 
+                                                    file_name=name, 
+                                                    key=f"dl_{code_mod}_{name}_{context}" 
+                                                )
                                         else:
                                             st.warning(f"Manquant: {name}")
 
-                                # On liste tout intelligemment
+                                # 1. DOCUMENTS À EXAMINER
                                 if data['examen_devoirs']:
                                     st.caption("Documents à examiner :")
-                                    for d in data['examen_devoirs']: show_dl_btn(d.get('pdf'))
+                                    for i, d in enumerate(data['examen_devoirs']): 
+                                        show_dl_btn(d.get('pdf'), context=f"exam_{i}")
                                 
                                 st.write("---")
+                                
+                                # 2. DOCUMENTS DE SÉANCE
                                 st.caption("Documents de séance :")
-                                for s in data['etapes_seance']: 
-                                    show_dl_btn(s.get('pdf'))
+                                for i, s in enumerate(data['etapes_seance']): 
+                                    show_dl_btn(s.get('pdf'), context=f"seance_{i}")
+                                    
                                     # Gestion des PDF multiples (extras)
-                                    if s.get('pdf_2'): show_dl_btn(s['pdf_2'])
+                                    if s.get('pdf_2'): 
+                                        show_dl_btn(s['pdf_2'], context=f"seance_{i}_2")
+                                    
                                     if s.get('extras'):
-                                        for ex in s['extras']: show_dl_btn(ex)
+                                        for j, ex in enumerate(s['extras']): 
+                                            show_dl_btn(ex, context=f"seance_{i}_extra_{j}")
 
                                 st.write("---")
+                                
+                                # 3. DOCUMENTS DEVOIRS
                                 st.caption("Documents devoirs :")
-                                for t in data['taches_domicile']: show_dl_btn(t.get('pdf'))
+                                for k, t in enumerate(data['taches_domicile']): 
+                                    show_dl_btn(t.get('pdf'), context=f"devoir_{k}")
 
                 # --- FONCTION POUR AJOUTER LE CADENAS DANS LE TITRE DE L'ONGLET ---
                 def T(titre, cle_technique):
