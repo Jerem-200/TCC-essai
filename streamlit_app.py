@@ -380,9 +380,7 @@ else:
                         # EN-TÊTE (Titre + Cadenas)
                         c_titre, c_lock = st.columns([0.95, 0.05])
                         with c_titre:
-                            # CORRECTION : Ajout de key=... pour que le bloc reste ouvert même si l'icône change
-                            unique_key = f"exp_module_{patient_sel}_{code_mod}"
-                            mon_expander = st.expander(f"{icon} {data['titre']}", expanded=is_expanded, key=unique_key)
+                            mon_expander = st.expander(f"{icon} {data['titre']}", expanded=is_expanded)
                         with c_lock:
                             is_accessible = code_mod in progression_patient
                             if is_accessible:
