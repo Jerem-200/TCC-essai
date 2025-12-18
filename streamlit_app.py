@@ -404,22 +404,17 @@ else:
                                     st.info(data['objectifs'])
                                     st.caption(data['outils'])
 
+                                #0. EXAMEN DEVOIRS PRÉCÉDENTS
+                                if data['examen_devoirs']:
+                                    st.markdown("**🔍 Examen des tâches précédentes**")
+                                for i, etape in enumerate(data['examen_devoirs']):
+                                    st.checkbox(f"{etape['titre']}", key=f"step_{patient_sel}_{code_mod}_{i}")
+                                    
+                                st.write("")
+
                                 # C. FORMULAIRE UNIQUE (Zéro chargement !)
                                 with st.form(key=f"form_{patient_sel}_{code_mod}"):
                                     
-                                    #0. EXAMEN DEVOIRS PRÉCÉDENTS
-                                    if data['examen_devoirs']:
-                                        st.markdown("**🔍 Examen des tâches précédentes**")
-                                    for i, etape in enumerate(data['examen_devoirs']):
-                                        st.checkbox(f"{etape['titre']}", key=f"step_{patient_sel}_{code_mod}_{i}")
-                                        
-                                        # Indication TEXTE des PDF associés (Pas de bouton ici)
-                                        if etape.get('pdfs'):
-                                            for pdf_path in etape['pdfs']:
-                                                nom = os.path.basename(pdf_path)
-                                                st.caption(f"&nbsp;&nbsp;&nbsp;&nbsp;📄 _À télécharger dans l'onglet Documents : {nom}_")
-                                    st.write("")
-
                                     # 1. SÉANCE
                                     st.markdown("**📝 Étapes de la séance**")
                                     for i, etape in enumerate(data['etapes_seance']):
