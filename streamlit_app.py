@@ -456,18 +456,26 @@ else:
                                                 st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
                                         st.write("---")
                                     
-                                    # 2. ÉTAPES SÉANCE
+                                    # 2. ÉTAPES DE LA SÉANCE
                                     st.markdown("**📝 Étapes de la séance**")
                                     for idx_etape, etape in enumerate(data['etapes_seance']):
-                                        # On capture la valeur
-                                        val = st.checkbox(f"{etape['titre']}", key=f"step_{patient_sel}_{code_mod}_{idx_etape}")
+                                        
+                                        # --- AJOUT INFO-BULLE ---
+                                        # On cherche si une description existe dans le fichier de config, sinon rien
+                                        info_bulle = etape.get('details', None) 
+                                        
+                                        # On capture la valeur avec le paramètre 'help' ajouté
+                                        val = st.checkbox(
+                                            f"{etape['titre']}", 
+                                            key=f"step_{patient_sel}_{code_mod}_{idx_etape}",
+                                            help=info_bulle  # <--- C'EST ICI QUE L'INFO-BULLE S'AFFICHE
+                                        )
                                         check_list.append(val)
                                         
                                         if etape.get('pdfs'):
                                             for pdf_path in etape['pdfs']:
                                                 nom = os.path.basename(pdf_path)
                                                 st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
-                                    
                                     st.write("")
                                     st.write("---")
 
