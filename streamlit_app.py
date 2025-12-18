@@ -346,14 +346,14 @@ else:
 
                 st.divider()
 
-# --- ZONE DE GESTION DU PROTOCOLE (BARLOW) - RAPIDE & TEXTE SEUL ---
+# --- ZONE DE GESTION DU PROTOCOLE (BARLOW) - FLUIDITÉ TOTALE ---
                 from protocole_config import PROTOCOLE_BARLOW
                 import os
                 import json
 
                 with st.expander("🗺️ Pilotage du Protocole (Barlow)", expanded=True):
                     
-                    # 1. Chargement
+                    # 1. Chargement des données
                     progression_patient = charger_progression(patient_sel)
                     devoirs_exclus_memoire = charger_etat_devoirs(patient_sel)
                     
@@ -377,14 +377,14 @@ else:
                         icon = "✅" if is_done else "🟦"
                         is_expanded = (code_mod == st.session_state.last_active_module)
 
-                        # En-tête (Titre + Cadenas)
+                        # EN-TÊTE (Titre + Cadenas)
                         c_titre, c_lock = st.columns([0.95, 0.05])
                         with c_titre:
                             mon_expander = st.expander(f"{icon} {data['titre']}", expanded=is_expanded)
                         with c_lock:
                             is_accessible = code_mod in progression_patient
                             if is_accessible:
-                                if st.button("🔒", key=f"lock_{code_mod}", help="Bloquer"):
+                                if st.button("🔒", key=f"lock_{code_mod}", help="Bloquer l'accès"):
                                     progression_patient.remove(code_mod)
                                     sauvegarder_progression(patient_sel, progression_patient)
                                     st.rerun()
@@ -396,7 +396,7 @@ else:
 
                         # CONTENU
                         with mon_expander:
-                            t_action, t_docs = st.tabs(["⚡ Pilotage Séance", "📂 Tous les PDF"])
+                            t_action, t_docs = st.tabs(["⚡ Pilotage Séance", "📂 Documents PDF"])
                             
                             with t_action:
                                 # A. RAPPEL OBJECTIFS (Hors formulaire)
@@ -404,50 +404,54 @@ else:
                                     st.info(data['objectifs'])
                                     st.caption(data['outils'])
 
+                                # B. EXAMEN DES TÂCHES (Hors formulaire pour permettre l'affichage propre)
+                                if data['examen_devoirs']:
+                                    st.markdown("**🔍 Examen des tâches précédentes**")
+                                    for idx, d in enumerate(data['examen_devoirs']):
+                                        st.write(f"- {d['titre']}")
+                                        if d.get('pdf'):
+                                            # Indication visuelle simple
+                                            st.caption(f"&nbsp;&nbsp;&nbsp;📄 _Doc : {os.path.basename(d['pdf'])}_")
+                                    st.write("---")
 
-
-                                # C. FORMULAIRE UNIQUE (Zéro chargement !)
+                                # C. FORMULAIRE UNIQUE (C'est le secret de la rapidité !)
                                 with st.form(key=f"form_{patient_sel}_{code_mod}"):
-
-                                    if data['examen_devoirs']:
-                                        st.markdown("**🔍 Examen des tâches précédentes**")
-                                        for idx, d in enumerate(data['examen_devoirs']):
-                                            st.write(f"• {d['titre']}")
-                                            if d.get('pdf'):
-                                                # Juste une indication visuelle
-                                                st.caption(f"📄 Doc : {os.path.basename(d['pdf'])}")
-                                        
-                                    # 1. SÉANCE
+                                    
+                                    # 1. ÉTAPES DE LA SÉANCE
                                     st.markdown("**📝 Étapes de la séance**")
                                     for i, etape in enumerate(data['etapes_seance']):
+                                        # La case à cocher (ne recharge PAS la page)
                                         st.checkbox(f"{etape['titre']}", key=f"step_{patient_sel}_{code_mod}_{i}")
                                         
-                                        # Indication TEXTE des PDF associés (Pas de bouton ici)
+                                        # Indication du PDF juste en dessous (Texte seulement)
                                         if etape.get('pdfs'):
                                             for pdf_path in etape['pdfs']:
                                                 nom = os.path.basename(pdf_path)
-                                                st.caption(f"&nbsp;&nbsp;&nbsp;&nbsp;📄 _À télécharger dans l'onglet Documents : {nom}_")
+                                                # On utilise Markdown pour un rendu propre et indenté
+                                                st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
                                     
                                     st.write("")
 
-                                    # 2. DEVOIRS
+                                    # 2. ASSIGNATION DEVOIRS
                                     indices_exclus = devoirs_exclus_memoire.get(code_mod, [])
                                     choix_devoirs_temp = []
                                     
                                     if data['taches_domicile']:
                                         st.markdown("**🏠 Assignation Devoirs**")
                                         st.caption("Décochez pour ne pas donner le devoir.")
+                                        
                                         for j, dev in enumerate(data['taches_domicile']):
                                             is_chk = (j not in indices_exclus)
                                             val = st.checkbox(dev['titre'], value=is_chk, key=f"dev_{patient_sel}_{code_mod}_{j}")
                                             choix_devoirs_temp.append(val)
                                             
                                             if dev.get('pdf'):
-                                                st.caption(f"&nbsp;&nbsp;&nbsp;&nbsp;📄 _Doc associé : {os.path.basename(dev['pdf'])}_")
+                                                nom_pdf = os.path.basename(dev['pdf'])
+                                                st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom_pdf}</small>", unsafe_allow_html=True)
 
                                     st.write("---")
                                     
-                                    # 3. BOUTON ENREGISTRER (Seul déclencheur de rechargement)
+                                    # 3. BOUTON ENREGISTRER (Seul élément qui déclenche le chargement)
                                     if st.form_submit_button("💾 Enregistrer la séance", type="primary"):
                                         
                                         # Sauvegarde Devoirs
@@ -467,8 +471,9 @@ else:
                                         st.success("✅ Validé !")
                                         st.rerun()
 
+                            # ONGLET 2 : TÉLÉCHARGEMENT RÉEL
                             with t_docs:
-                                st.caption("Cliquez pour télécharger les fichiers :")
+                                st.info("📂 Cliquez ci-dessous pour télécharger les fichiers mentionnés dans le formulaire.")
                                 if 'pdfs_module' in data and data['pdfs_module']:
                                     for chemin in data['pdfs_module']:
                                         nom_fichier = os.path.basename(chemin)
@@ -478,7 +483,7 @@ else:
                                         else:
                                             st.warning(f"Fichier manquant : {nom_fichier}")
                                 else:
-                                    st.info("Aucun document listé.")
+                                    st.caption("Aucun document listé pour ce module.")
 
                 # --- FONCTION POUR AJOUTER LE CADENAS DANS LE TITRE DE L'ONGLET ---
                 def T(titre, cle_technique):
