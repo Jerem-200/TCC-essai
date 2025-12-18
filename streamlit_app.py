@@ -396,7 +396,7 @@ else:
 
 # CONTENU
                         with mon_expander:
-                            t_action, t_docs = st.tabs(["⚡ Pilotage Séance", "📂 Tous les PDF"])
+                            t_action, t_docs = st.tabs(["⚡ Pilotage Séance", "📂 Documents PDF"])
                             
                             with t_action:
                                 # A. RAPPEL OBJECTIFS (Hors formulaire)
@@ -409,11 +409,14 @@ else:
                                     st.markdown("**🔍 Examen des tâches précédentes**")
                                     for idx, d in enumerate(data['examen_devoirs']):
                                         st.write(f"- {d['titre']}")
-                                        if d.get('pdf'):
-                                            st.caption(f"&nbsp;&nbsp;&nbsp;📄 _Doc : {os.path.basename(d['pdf'])}_")
+                                        # Petit bouton de téléchargement discret autorisé ici (car hors formulaire)
+                                        if d.get('pdf') and os.path.exists(d['pdf']):
+                                            with open(d['pdf'], "rb") as f:
+                                                st.download_button("📥", f, file_name=os.path.basename(d['pdf']), key=f"dl_rev_{code_mod}_{idx}")
                                     st.write("---")
 
                                 # C. FORMULAIRE UNIQUE (SÉANCE + DEVOIRS)
+                                # Tout ce qui est ici ne rechargera pas la page au clic !
                                 with st.form(key=f"form_{patient_sel}_{code_mod}"):
                                     
                                     # 1. ÉTAPES DE LA SÉANCE
@@ -421,18 +424,18 @@ else:
                                     for i, etape in enumerate(data['etapes_seance']):
                                         st.checkbox(f"{etape['titre']}", key=f"step_{patient_sel}_{code_mod}_{i}")
                                         
-                                        # Indication TEXTE des PDF (Pas de bouton ici)
+                                        # Indication TEXTE (Pas de bouton ici, car interdit dans un form)
                                         if etape.get('pdfs'):
                                             for pdf_path in etape['pdfs']:
                                                 nom = os.path.basename(pdf_path)
-                                                st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
+                                                st.caption(f"&nbsp;&nbsp;&nbsp;📄 _(À télécharger dans l'onglet 2) : {nom}_")
                                     
                                     st.write("")
                                     st.write("---")
 
-                                    # 2. ASSIGNATION DEVOIRS (INTÉGRÉ DANS LE FORMULAIRE)
+                                    # 2. ASSIGNATION DEVOIRS (INTÉGRÉE DANS LE FORMULAIRE)
                                     indices_exclus = devoirs_exclus_memoire.get(code_mod, [])
-                                    choix_devoirs_temp = []
+                                    choix_devoirs_temp = [] # Liste pour mémoriser ce qu'on coche
                                     
                                     if data['taches_domicile']:
                                         st.markdown("**🏠 Assignation Devoirs**")
@@ -440,21 +443,21 @@ else:
                                         
                                         for j, dev in enumerate(data['taches_domicile']):
                                             is_chk = (j not in indices_exclus)
-                                            # La case est maintenant dans le form -> Pas de chargement au clic
+                                            # La case est maintenant DANS le form -> Rapide !
                                             val = st.checkbox(dev['titre'], value=is_chk, key=f"dev_{patient_sel}_{code_mod}_{j}")
                                             choix_devoirs_temp.append(val)
                                             
                                             # Indication TEXTE du PDF
                                             if dev.get('pdf'):
                                                 nom_pdf = os.path.basename(dev['pdf'])
-                                                st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom_pdf}</small>", unsafe_allow_html=True)
+                                                st.caption(f"&nbsp;&nbsp;&nbsp;📄 _(À télécharger dans l'onglet 2) : {nom_pdf}_")
 
                                     st.write("")
                                     
                                     # 3. BOUTON ENREGISTRER (Valide TOUT d'un coup)
                                     if st.form_submit_button("💾 Enregistrer la séance", type="primary"):
                                         
-                                        # Sauvegarde Devoirs
+                                        # Sauvegarde Devoirs (On regarde ce qui a été décoché)
                                         if data['taches_domicile']:
                                             nouveaux_exclus = [k for k, chk in enumerate(choix_devoirs_temp) if not chk]
                                             devoirs_exclus_memoire[code_mod] = nouveaux_exclus
@@ -471,8 +474,9 @@ else:
                                         st.success("✅ Validé !")
                                         st.rerun()
 
+                            # ONGLET 2 : TÉLÉCHARGEMENT RÉEL
                             with t_docs:
-                                st.info("📂 Cliquez ci-dessous pour télécharger les fichiers.")
+                                st.info("📂 Cliquez ci-dessous pour télécharger les fichiers mentionnés dans le formulaire.")
                                 if 'pdfs_module' in data and data['pdfs_module']:
                                     for chemin in data['pdfs_module']:
                                         nom_fichier = os.path.basename(chemin)
@@ -482,7 +486,7 @@ else:
                                         else:
                                             st.warning(f"Fichier manquant : {nom_fichier}")
                                 else:
-                                    st.caption("Aucun document listé.")
+                                    st.caption("Aucun document listé pour ce module.")
 
                 # --- FONCTION POUR AJOUTER LE CADENAS DANS LE TITRE DE L'ONGLET ---
                 def T(titre, cle_technique):
