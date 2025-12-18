@@ -548,122 +548,115 @@ else:
                         return f"{titre} 🔒"
                     return titre
 
-                # --- CRÉATION DES ONGLETS (VUE PANORAMIQUE) ---
-                # On définit les titres dynamiquement
-                tabs = st.tabs([
-                    "📊 Dash",
-                    T("📝 Activités", "activites"), 
-                    T("🌙 Sommeil", "sommeil"), 
-                    T("🍷 Conso", "conso"), 
-                    T("🛑 Compuls.", "compulsions"),
-                    T("🧩 Beck", "beck"), 
-                    T("📉 PHQ-9", "phq9"), 
-                    T("😰 GAD-7", "gad7"), 
-                    T("😴 ISI", "isi"), 
-                    T("🤕 PEG", "peg"), 
-                    T("🌿 WHO-5", "who5"), 
-                    T("🧩 WSAS", "wsas"),
-                    T("💡 Problèmes", "problemes"), 
-                    T("🧗 Expo", "expo"), 
-                    T("⚖️ Balance", "balance"), 
-                    T("🔍 SORC", "sorc")
-                ])
+                # =========================================================
+                # OPTIMISATION PERFORMANCES : REMPLACEMENT DES TABS PAR SELECTBOX
+                # =========================================================
                 
-                # On éclate la liste des onglets dans des variables
-                (t_dash, t_act, t_som, t_conso, t_comp, t_beck, t_phq9, t_gad7, 
-                 t_isi, t_peg, t_who5, t_wsas, t_prob, t_expo, t_bal, t_sorc) = tabs
+                st.write("---")
+                st.subheader("📊 Visualisation des Données")
 
-                # 0. DASHBOARD (Toujours visible)
-                with t_dash:
-                    st.info("Sélectionnez un onglet ci-dessus pour voir le détail.")
-                    # Ici vous pouvez mettre un résumé rapide si vous voulez
+                # 1. On construit la liste des choix avec les Cadenas (Fonction T)
+                liste_choix = [
+                    "📊 Dashboard Général",
+                    T("📝 Activités & Humeur", "activites"), 
+                    T("🌙 Sommeil", "sommeil"), 
+                    T("🍷 Consommations", "conso"), 
+                    T("🛑 Compulsions", "compulsions"),
+                    T("🧩 Colonnes de Beck", "beck"), 
+                    T("📉 PHQ-9 (Dépression)", "phq9"), 
+                    T("😰 GAD-7 (Anxiété)", "gad7"), 
+                    T("😴 ISI (Insomnie)", "isi"), 
+                    T("🤕 PEG (Douleur)", "peg"), 
+                    T("🌿 WHO-5 (Bien-être)", "who5"), 
+                    T("🧩 WSAS (Handicap)", "wsas"),
+                    T("💡 Résolution Problèmes", "problemes"), 
+                    T("🧗 Exposition", "expo"), 
+                    T("⚖️ Balance Décisionnelle", "balance"), 
+                    T("🔍 Analyse SORC", "sorc")
+                ]
 
-                # 1. ACTIVITÉS
-                with t_act:
+                # 2. Le menu déroulant (Ne charge RIEN pour l'instant)
+                choix_vue = st.selectbox("Sélectionnez l'outil à analyser :", liste_choix)
+
+                # 3. CHARGEMENT CONDITIONNEL (Lazy Loading)
+                # On ne charge QUE ce que l'utilisateur demande
+                
+                if "Dashboard" in choix_vue:
+                    st.info("Sélectionnez un outil spécifique dans la liste ci-dessus pour voir le détail.")
+                    # Vous pouvez ajouter ici des indicateurs globaux légers si nécessaire
+
+                elif "Activités" in choix_vue:
                     df_act = charger_donnees_specifiques("Activites", patient_sel)
                     df_hum = charger_donnees_specifiques("Humeur", patient_sel)
                     if not df_act.empty or not df_hum.empty:
                         afficher_activites(df_act, df_hum, patient_sel)
-                    else: st.info("Aucune activité.")
+                    else: st.info("Aucune activité enregistrée.")
 
-                # 2. SOMMEIL
-                with t_som:
+                elif "Sommeil" in choix_vue:
                     df = charger_donnees_specifiques("Sommeil", patient_sel)
                     if not df.empty: afficher_sommeil(df, patient_sel)
                     else: st.info("Pas de données sommeil.")
 
-                # 3. CONSO
-                with t_conso:
+                elif "Conso" in choix_vue:
                     df = charger_donnees_specifiques("Addictions", patient_sel)
                     if not df.empty: afficher_conso(df, patient_sel)
-                    else: st.info("Pas de conso.")
+                    else: st.info("Pas de consommation enregistrée.")
 
-                # 4. COMPULSIONS
-                with t_comp:
+                elif "Compulsions" in choix_vue:
                     df = charger_donnees_specifiques("Compulsions", patient_sel)
                     if not df.empty: afficher_compulsions(df, patient_sel)
-                    else: st.info("Pas de compulsions.")
+                    else: st.info("Pas de compulsions enregistrées.")
 
-                # 5. BECK
-                with t_beck:
+                elif "Beck" in choix_vue:
                     df = charger_donnees_specifiques("Beck", patient_sel)
                     if not df.empty:
                         st.dataframe(df.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
                     else: st.info("Aucune donnée.")
 
-                # 6. PHQ-9
-                with t_phq9:
+                elif "PHQ-9" in choix_vue:
                     df = charger_donnees_specifiques("PHQ9", patient_sel)
                     afficher_phq9(df, patient_sel)
 
-                # 7. GAD-7
-                with t_gad7:
+                elif "GAD-7" in choix_vue:
                     df = charger_donnees_specifiques("GAD7", patient_sel)
                     afficher_gad7(df, patient_sel)
 
-                # 8. ISI
-                with t_isi:
+                elif "ISI" in choix_vue:
                     df = charger_donnees_specifiques("ISI", patient_sel)
                     afficher_isi(df, patient_sel)
 
-                # 9. PEG
-                with t_peg:
+                elif "PEG" in choix_vue:
                     df = charger_donnees_specifiques("PEG", patient_sel)
                     afficher_peg(df, patient_sel)
 
-                # 10. WHO-5
-                with t_who5:
+                elif "WHO-5" in choix_vue:
                     df = charger_donnees_specifiques("WHO5", patient_sel)
                     afficher_who5(df, patient_sel)
 
-                # 11. WSAS
-                with t_wsas:
+                elif "WSAS" in choix_vue:
                     df = charger_donnees_specifiques("WSAS", patient_sel)
                     afficher_wsas(df, patient_sel)
 
-                # 12. PROBLÈMES
-                with t_prob:
+                elif "Problèmes" in choix_vue:
                     df = charger_donnees_specifiques("Resolution_Probleme", patient_sel)
                     if not df.empty: st.dataframe(df, use_container_width=True)
                     else: st.info("Aucune donnée.")
 
-                # 13. EXPOSITION
-                with t_expo:
+                elif "Expo" in choix_vue:
                     df = charger_donnees_specifiques("Exposition", patient_sel)
                     if not df.empty: st.dataframe(df, use_container_width=True)
                     else: st.info("Aucune donnée.")
 
-                # 14. BALANCE
-                with t_bal:
+                elif "Balance" in choix_vue:
                     df = charger_donnees_specifiques("Balance_Decisionnelle", patient_sel)
                     if not df.empty: st.dataframe(df, use_container_width=True)
                     else: st.info("Aucune donnée.")
 
-                # 15. SORC
-                with t_sorc:
+                elif "SORC" in choix_vue:
                     df = charger_donnees_specifiques("SORC", patient_sel)
                     if not df.empty: st.dataframe(df, use_container_width=True)
                     else: st.info("Aucune donnée.")
+        
         else:
             st.warning("Aucun patient trouvé.")
 
