@@ -27,6 +27,7 @@ PROTOCOLE_BARLOW = {
             {"titre": "Examen des plaintes présentées par le patient", "pdfs": []},
             {
                 "titre": "Présentation de la justification du traitement (Évaluation)", 
+                "details": "A venir",
                 "pdfs": [
                     "assets/MODAF10_Fiche_de_conceptualisation_thérapeute.pdf",
                     "assets/MODAF10_Exemple_de_Fiche_de_conceptualisation_thérapeute.pdf"
@@ -35,9 +36,14 @@ PROTOCOLE_BARLOW = {
             {"titre": "Description de la justification du Protocole Unifié", "pdfs": []},
             {
                 "titre": "Émotions fréquentes, tendues et indésirables", 
+                "details": "A venir",
                 "pdfs": ["assets/ModAF_Fiche_Questions_Emotions_négatives,_aversion_et_Comportement.pdf"]
             },
-            {"titre": "Réactions négatives ou croyances envers les émotions indésirables", "pdfs": []},
+            {
+                "titre": "Réactions négatives ou croyances envers les émotions indésirables",
+                "details": "A venir",
+                "pdfs": []
+            },
             {"titre": "Efforts pour éviter, fuir ou contrôler les émotions", "pdfs": []},
             {"titre": "Résumé des caractéristiques des troubles émotionnels", "pdfs": []},
             {"titre": "Objectifs du programme", "pdfs": []},
