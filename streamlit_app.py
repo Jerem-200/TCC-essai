@@ -377,7 +377,7 @@ else:
                         is_expanded = (code_mod == st.session_state.last_active_module)
 
                         # Colonnes pour le titre et le cadenas
-                        c_titre, c_lock = st.columns([0.85, 0.15])
+                        c_titre, c_lock = st.columns([0.95, 0.05])
                         
                         with c_titre:
                             mon_expander = st.expander(f"{icon} {data['titre']}", expanded=is_expanded)
