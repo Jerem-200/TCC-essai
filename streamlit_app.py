@@ -357,10 +357,10 @@ else:
                     progression_patient = charger_progression(patient_sel)
                     devoirs_exclus_memoire = charger_etat_devoirs(patient_sel)
                     
-                    if f"modules_termines_{patient_sel}" not in st.session_state:
-                        st.session_state[f"modules_termines_{patient_sel}"] = []
-                    termines_therapeute = st.session_state[f"modules_termines_{patient_sel}"]
-
+                    # 👇 LA LIGNE QUI MANQUAIT 👇
+                    modules_valides_db = charger_modules_valides(patient_sel) 
+                    
+                    # Initialisation variable session pour l'ouverture
                     if "last_active_module" not in st.session_state:
                         st.session_state.last_active_module = "module0"
 
@@ -370,7 +370,7 @@ else:
                     st.progress(min(nb_fait / nb_total, 1.0), text=f"Avancement : {nb_fait}/{nb_total} modules terminés")
                     st.write("---")
 
-# 3. BOUCLE DES MODULES (LOGIQUE VALIDATION + VERT + OUVERTURE)
+                    # 3. BOUCLE DES MODULES (LOGIQUE VALIDATION + VERT + OUVERTURE)
                     for i, (code_mod, data) in enumerate(PROTOCOLE_BARLOW.items()):
                         
                         # On vérifie si le module est validé (Vert)
