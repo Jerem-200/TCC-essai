@@ -346,7 +346,7 @@ else:
 
                 st.divider()
 
-# --- ZONE DE GESTION DU PROTOCOLE (BARLOW) - SPLIT SCREEN ---
+# --- ZONE DE GESTION DU PROTOCOLE (BARLOW) - VERSION 2 COLONNES DISTINCTES ---
                 from protocole_config import PROTOCOLE_BARLOW
                 import os
                 import json
@@ -361,7 +361,6 @@ else:
                         st.session_state[f"modules_termines_{patient_sel}"] = []
                     termines_therapeute = st.session_state[f"modules_termines_{patient_sel}"]
 
-                    # 2. Gestion ouverture onglet (Anti-Reset)
                     if "last_active_module" not in st.session_state:
                         st.session_state.last_active_module = "module0"
 
@@ -376,28 +375,23 @@ else:
                         
                         is_done = code_mod in termines_therapeute
                         icon = "✅" if is_done else "🟦"
-                        
-                        # On force l'ouverture du dernier module touché
                         is_expanded = (code_mod == st.session_state.last_active_module)
 
-                        # EN-TÊTE DU MODULE
-                        c_titre, c_lock = st.columns([0.90, 0.10])
+                        # En-tête (Titre + Cadenas)
+                        c_titre, c_lock = st.columns([0.95, 0.05])
                         with c_titre:
                             mon_expander = st.expander(f"{icon} {data['titre']}", expanded=is_expanded)
                         with c_lock:
-                            # Cadenas
                             is_accessible = code_mod in progression_patient
                             if is_accessible:
-                                if st.button("🔒", key=f"lock_{code_mod}"):
+                                if st.button("🔒", key=f"lock_{code_mod}", help="Bloquer l'accès"):
                                     progression_patient.remove(code_mod)
                                     sauvegarder_progression(patient_sel, progression_patient)
-                                    st.session_state.last_active_module = code_mod
                                     st.rerun()
                             else:
-                                if st.button("🔓", type="primary", key=f"unlock_{code_mod}"):
+                                if st.button("🔓", type="primary", key=f"unlock_{code_mod}", help="Débloquer"):
                                     progression_patient.append(code_mod)
                                     sauvegarder_progression(patient_sel, progression_patient)
-                                    st.session_state.last_active_module = code_mod
                                     st.rerun()
 
                         # CONTENU DU MODULE
@@ -413,19 +407,19 @@ else:
                                 # B. EXAMEN DES TÂCHES (2 Colonnes)
                                 if data['examen_devoirs']:
                                     st.markdown("**🔍 Examen des tâches précédentes**")
-                                    # On n'utilise pas de form ici car besoin de télécharger
                                     for idx, d in enumerate(data['examen_devoirs']):
-                                        col_txt, col_pdf = st.columns([0.65, 0.35])
-                                        with col_txt: 
-                                            st.write(f"• {d['titre']}")
-                                        with col_pdf:
+                                        c_txt, c_btn = st.columns([0.7, 0.3])
+                                        with c_txt: st.write(f"- {d['titre']}")
+                                        with c_btn:
                                             if d.get('pdf') and os.path.exists(d['pdf']):
                                                 with open(d['pdf'], "rb") as f:
                                                     st.download_button("📥 PDF", f, file_name=os.path.basename(d['pdf']), key=f"dl_rev_{code_mod}_{idx}")
                                     st.divider()
 
-                                # C. DÉROULÉ SÉANCE & DEVOIRS (LA SOLUTION SPLIT-SCREEN)
-                                # On crée 2 grandes colonnes : Gauche = Formulaire (Rapide) | Droite = Documents (Téléchargeables)
+                                # C. DÉROULÉ SÉANCE & DEVOIRS (LA VRAIE SOLUTION 2 COLONNES)
+                                # On sépare l'écran en deux : 
+                                # Gauche = Formulaire (Cases à cocher sans chargement)
+                                # Droite = Documents (Boutons de téléchargement multiples)
                                 col_form, col_docs = st.columns([0.65, 0.35])
                                 
                                 # --- COLONNE GAUCHE : LE FORMULAIRE (RAPIDE) ---
@@ -435,6 +429,7 @@ else:
                                         # 1. Étapes
                                         st.markdown("**📝 Étapes de la séance**")
                                         for i, etape in enumerate(data['etapes_seance']):
+                                            # Case à cocher (Zéro chargement au clic)
                                             st.checkbox(f"{etape['titre']}", key=f"step_{patient_sel}_{code_mod}_{i}")
                                         
                                         st.write("")
@@ -445,7 +440,6 @@ else:
                                         
                                         if data['taches_domicile']:
                                             st.markdown("**🏠 Assignation Devoirs**")
-                                            st.caption("Coché = Donné au patient")
                                             for j, dev in enumerate(data['taches_domicile']):
                                                 is_chk = (j not in indices_exclus)
                                                 val = st.checkbox(dev['titre'], value=is_chk, key=f"dev_{patient_sel}_{code_mod}_{j}")
@@ -455,58 +449,51 @@ else:
                                         
                                         # 3. Bouton Enregistrer UNIQUE
                                         if st.form_submit_button("💾 Enregistrer la séance", type="primary"):
-                                            # Sauvegarde devoirs
                                             if data['taches_domicile']:
                                                 nouveaux_exclus = [k for k, chk in enumerate(choix_devoirs_temp) if not chk]
                                                 devoirs_exclus_memoire[code_mod] = nouveaux_exclus
                                                 sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
                                             
-                                            # Déblocage auto (optionnel)
-                                            if code_mod not in progression_patient:
-                                                progression_patient.append(code_mod)
-                                                sauvegarder_progression(patient_sel, progression_patient)
-                                            
+                                            # Mémorise l'onglet pour ne pas le fermer au rechargement
                                             st.session_state.last_active_module = code_mod
                                             st.success("✅ Validé !")
                                             st.rerun()
 
-                                # --- COLONNE DROITE : LES PDF (VISIBLES & TÉLÉCHARGEABLES) ---
+                                # --- COLONNE DROITE : LES PDF MULTIPLES ---
                                 with col_docs:
-                                    st.info("📂 **Documents associés**")
+                                    st.markdown("**📂 Documents associés**")
                                     
+                                    # Pour aligner visuellement, on itère sur les mêmes étapes
                                     # 1. PDF des Étapes
-                                    has_step_pdf = False
                                     for etape in data['etapes_seance']:
+                                        # On crée un espace vertical pour simuler l'alignement avec la case à gauche
+                                        # (Approximatif mais visuellement cohérent)
                                         if etape.get('pdfs'):
-                                            has_step_pdf = True
-                                            st.caption(f"📍 {etape['titre'][:30]}...")
-                                            for pdf in etape['pdfs']:
-                                                if os.path.exists(pdf):
-                                                    nom = os.path.basename(pdf)
-                                                    with open(pdf, "rb") as f:
-                                                        st.download_button(f"📥 {nom}", f, key=f"dl_col_{code_mod}_{nom}")
-                                            st.write("") # Espace
-                                    
-                                    if not has_step_pdf:
-                                        st.caption("_Aucun PDF pour les étapes._")
+                                            # Petit titre pour savoir à quelle étape ça correspond
+                                            st.caption(f"📍 {etape['titre'][:20]}...") 
+                                            for k, pdf_path in enumerate(etape['pdfs']):
+                                                if os.path.exists(pdf_path):
+                                                    nom = os.path.basename(pdf_path)
+                                                    with open(pdf_path, "rb") as f:
+                                                        st.download_button(f"📥 {nom}", f, key=f"dl_col_{code_mod}_{i}_{k}")
+                                            st.write("") # Espace entre les groupes
+                                        else:
+                                            # Si pas de PDF, on met un espace vide pour garder l'alignement approximatif
+                                            st.write("") 
+                                            st.write("")
 
                                     st.divider()
 
                                     # 2. PDF des Devoirs
-                                    has_dev_pdf = False
                                     if data['taches_domicile']:
-                                        st.caption("🏠 **Documents Devoirs**")
+                                        st.markdown("**🏠 Docs Devoirs**")
                                         for dev in data['taches_domicile']:
-                                            if dev.get('pdf'):
-                                                has_dev_pdf = True
-                                                path = dev['pdf']
-                                                if os.path.exists(path):
-                                                    nom = os.path.basename(path)
-                                                    with open(path, "rb") as f:
-                                                        st.download_button(f"📥 {nom}", f, key=f"dl_col_dev_{code_mod}_{nom}")
-                                    
-                                    if not has_dev_pdf:
-                                        st.caption("_Aucun PDF pour les devoirs._")
+                                            if dev.get('pdf') and os.path.exists(dev['pdf']):
+                                                nom = os.path.basename(dev['pdf'])
+                                                with open(dev['pdf'], "rb") as f:
+                                                    st.download_button(f"📥 {nom}", f, key=f"dl_col_dev_{code_mod}_{nom}")
+                                            else:
+                                                st.write("") # Espace vide si pas de PDF
 
                             with t_docs:
                                 st.caption("Bibliothèque complète du module :")
