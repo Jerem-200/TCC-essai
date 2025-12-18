@@ -401,8 +401,9 @@ else:
                     st.progress(min(nb_fait / nb_total, 1.0), text=f"Avancement : {nb_fait}/{nb_total} modules terminés")
                     st.write("---")
 
-                    # 3. BOUCLE DES MODULES
-                    for code_mod, data in PROTOCOLE_BARLOW.items():
+                    # 3. BOUCLE DES MODULES (CORRIGÉE)
+                    # On utilise enumerate(..., start=1) pour avoir un index 'i' unique
+                    for i, (code_mod, data) in enumerate(PROTOCOLE_BARLOW.items(), start=1):
     
                         # --- LOGIQUE COULEUR : Si dans la liste DB, c'est vert ---
                         is_done = code_mod in modules_valides_db
@@ -411,20 +412,23 @@ else:
 
                         # EN-TÊTE (Titre + Cadenas)
                         c_titre, c_lock = st.columns([0.95, 0.05])
+                        
                         with c_titre:
-                            # CORRECTION : Ajout de key=... pour que le bloc reste ouvert même si l'icône change
-                            unique_key = f"exp_module_{patient_sel}_{code_mod}"
+                            # CORRECTION CLÉ UNIQUE : On ajoute 'th_pilotage' et l'index 'i'
+                            unique_key = f"th_pilotage_{patient_sel}_{i}_{code_mod}"
+                            
+                            # L'expander est créé ici avec la clé blindée
                             mon_expander = st.expander(f"{icon} {data['titre']}", expanded=is_expanded, key=unique_key)
                         
                         with c_lock:
                             is_accessible = code_mod in progression_patient
                             if is_accessible:
-                                if st.button("🔒", key=f"lock_{code_mod}", help="Bloquer l'accès"):
+                                if st.button("🔒", key=f"lock_{patient_sel}_{code_mod}", help="Bloquer l'accès"):
                                     progression_patient.remove(code_mod)
                                     sauvegarder_progression(patient_sel, progression_patient)
                                     st.rerun()
                             else:
-                                if st.button("🔓", type="primary", key=f"unlock_{code_mod}", help="Débloquer"):
+                                if st.button("🔓", type="primary", key=f"unlock_{patient_sel}_{code_mod}", help="Débloquer"):
                                     progression_patient.append(code_mod)
                                     sauvegarder_progression(patient_sel, progression_patient)
                                     st.rerun()
