@@ -314,78 +314,133 @@ else:
 
                 st.divider()
 
-# --- ZONE DE GESTION DU PROTOCOLE (ACCÈS TOTAL DOCUMENTS) ---
+                # --- ZONE DE GESTION DU PROTOCOLE (ACCÈS TOTAL DOCUMENTS) ---
                 from protocole_config import PROTOCOLE_BARLOW
                 import os # Nécessaire pour vérifier les fichiers
 
+                # --- ZONE DE GESTION DU PROTOCOLE (BARLOW) ---
+                from protocole_config import PROTOCOLE_BARLOW
+                import os
+
                 with st.expander("🗺️ Pilotage du Protocole (Barlow)", expanded=True):
-                    # 1. Barre de progression
-                    progression_actuelle = charger_progression(patient_sel)
+                    # --- BARRE DE PROGRESSION ---
+                    # Note : Ici on calcule la progression basée sur les "Modules Terminés"
+                    # Il faudra stocker les modules terminés dans une variable de session ou DB
+                    if f"modules_termines_{patient_sel}" not in st.session_state:
+                        st.session_state[f"modules_termines_{patient_sel}"] = []
+                    
+                    termines = st.session_state[f"modules_termines_{patient_sel}"]
                     nb_total = len(PROTOCOLE_BARLOW)
-                    nb_fait = len(progression_actuelle)
-                    st.progress(min(nb_fait / nb_total, 1.0), text=f"Progression : {nb_fait}/{nb_total} modules débloqués")
+                    nb_fait = len(termines)
+                    st.progress(min(nb_fait / nb_total, 1.0), text=f"Progression globale : {nb_fait}/{nb_total} modules terminés")
                     
                     st.divider()
 
-                    # 2. Affichage Module par Module
-                    for code_module, data in PROTOCOLE_BARLOW.items():
-                        is_unlocked = code_module in progression_actuelle
-                        icon = "✅" if is_unlocked else "🔒"
+                    # --- AFFICHAGE DES MODULES ---
+                    for code_mod, data in PROTOCOLE_BARLOW.items():
                         
-                        st.markdown(f"#### {icon} {data['titre']}")
+                        # Etat du module
+                        is_done = code_mod in termines
+                        icon_mod = "✅" if is_done else "🟦"
                         
-                        # On utilise des onglets pour organiser l'affichage (plus propre)
-                        tab_actions, tab_docs = st.tabs(["⚡ Actions & Gestion", "📂 Tous les Documents"])
+                        st.markdown(f"### {icon_mod} {data['titre']}")
                         
-                        # --- ONGLET 1 : CHECKLIST & DÉBLOCAGE ---
-                        with tab_actions:
-                            c1, c2 = st.columns([1, 1])
-                            with c1:
-                                st.caption("📋 CHECKLIST SÉANCE")
-                                for tache in data.get("taches_therapeute", []):
-                                    st.checkbox(tache, key=f"tache_{patient_sel}_{code_module}_{tache}")
+                        # ONGLETS : Procédure vs Documents
+                        tab_proc, tab_docs = st.tabs(["📖 Procédure & Suivi", "📂 Tous les Documents"])
+                        
+                        # --- ONGLET 1 : PROCÉDURE ---
+                        with tab_proc:
+                            # 1. Objectifs & Outils (Repliés pour gagner de la place)
+                            with st.expander("ℹ️ Objectifs & Outils"):
+                                st.markdown("**Objectifs :**")
+                                st.write(data['objectifs'])
+                                st.markdown("**Outils nécessaires :**")
+                                st.write(data['outils'])
                             
-                            with c2:
-                                st.caption("🔐 ACCÈS PATIENT")
-                                if is_unlocked:
-                                    if st.button(f"Verrouiller", key=f"lock_{code_module}"):
-                                        nouvelle_liste = [m for m in progression_actuelle if m != code_module]
-                                        sauvegarder_progression(patient_sel, nouvelle_liste)
+                            st.write("---")
+                            
+                            # 2. Contenu (Étapes à cocher)
+                            st.markdown("#### 📝 Étapes de la séance")
+                            for i, etape in enumerate(data['etapes_contenu']):
+                                key_etape = f"step_{patient_sel}_{code_mod}_{i}"
+                                col_check, col_desc = st.columns([0.1, 0.9])
+                                
+                                with col_check:
+                                    st.checkbox("", key=key_etape) # Juste la case
+                                
+                                with col_desc:
+                                    st.write(f"**{etape['titre']}**")
+                                    st.caption(etape['desc'])
+                                    if etape['pdf']:
+                                        st.caption(f"📄 Doc associé : {etape['pdf'].split('/')[-1]}")
+
+                            st.write("---")
+
+                            # 3. Tâches à domicile (Gestionnaire)
+                            st.markdown("#### 🏠 Tâches à domicile (Assignation)")
+                            st.caption("Décochez les tâches que vous NE VOULEZ PAS donner au patient.")
+                            
+                            devoirs_selectionnes = []
+                            for j, devoir in enumerate(data['devoirs']):
+                                key_dev = f"dev_{patient_sel}_{code_mod}_{j}"
+                                # Par défaut = True (Coché)
+                                is_assigned = st.checkbox(f"{devoir['tache']}", value=True, key=key_dev)
+                                if is_assigned:
+                                    devoirs_selectionnes.append(devoir)
+
+                            # 4. Actions de fin de module
+                            c_mail, c_valid = st.columns([1, 1])
+                            
+                            with c_mail:
+                                if st.button(f"📧 Préparer mail ({code_mod})", key=f"mail_{code_mod}"):
+                                    # Génération du texte du mail
+                                    sujet = f"TCC - Documents pour le {data['titre']}"
+                                    corps = "Bonjour,\n\nVoici les exercices pour notre prochaine séance :\n"
+                                    fichiers_a_joindre = []
+                                    for d in devoirs_selectionnes:
+                                        corps += f"- {d['tache']}\n"
+                                        if d['pdf']: fichiers_a_joindre.append(d['pdf'].split('/')[-1])
+                                    
+                                    st.info("Copiez ce texte dans votre mail :")
+                                    st.text_area("Corps du mail", value=corps)
+                                    if fichiers_a_joindre:
+                                        st.warning(f"⚠️ N'oubliez pas de joindre ces fichiers : {', '.join(fichiers_a_joindre)}")
+
+                            with c_valid:
+                                if is_done:
+                                    if st.button(f"❌ Marquer comme non-terminé", key=f"undone_{code_mod}"):
+                                        st.session_state[f"modules_termines_{patient_sel}"].remove(code_mod)
                                         st.rerun()
                                 else:
-                                    if st.button(f"Débloquer le module", type="primary", key=f"unlock_{code_module}"):
-                                        progression_actuelle.append(code_module)
-                                        sauvegarder_progression(patient_sel, progression_actuelle)
+                                    if st.button(f"✅ Marquer Module Terminé", type="primary", key=f"done_{code_mod}"):
+                                        st.session_state[f"modules_termines_{patient_sel}"].append(code_mod)
                                         st.rerun()
 
-                        # --- ONGLET 2 : DOCUMENTS (TÉLÉCHARGEMENT) ---
+                        # --- ONGLET 2 : DOCUMENTS ---
                         with tab_docs:
-                            # A. DOCUMENTS THÉRAPEUTE
-                            if data.get("fichiers_therapeute"):
-                                st.markdown("**🕵️ Vos Fiches (Thérapeute)**")
-                                for chemin in data["fichiers_therapeute"]:
-                                    nom_fichier = os.path.basename(chemin)
-                                    if os.path.exists(chemin):
-                                        with open(chemin, "rb") as f:
-                                            st.download_button(f"📥 {nom_fichier}", f, file_name=nom_fichier, key=f"dl_th_{code_module}_{nom_fichier}")
-                                    else:
-                                        st.error(f"Fichier manquant : {nom_fichier}")
+                            st.write("Retrouvez ici tous les PDF mentionnés dans ce module.")
                             
-                            st.write("") # Espace
+                            # On rassemble tous les PDF (étapes + devoirs)
+                            tous_pdfs = []
+                            for e in data['etapes_contenu']:
+                                if e['pdf']: tous_pdfs.append(e['pdf'])
+                            for d in data['devoirs']:
+                                if d['pdf']: tous_pdfs.append(d['pdf'])
                             
-                            # B. DOCUMENTS PATIENT (Pour vérification)
-                            if data.get("fichiers_patient"):
-                                st.markdown("**👤 Fiches du Patient (Pour vérification)**")
-                                for doc in data["fichiers_patient"]:
-                                    nom_fichier = os.path.basename(doc['fichier'])
-                                    if os.path.exists(doc['fichier']):
-                                        with open(doc['fichier'], "rb") as f:
-                                            # On met une icône différente pour distinguer (Audio vs PDF)
-                                            icone = "🎵" if doc.get('type') == 'audio' else "📄"
-                                            st.download_button(f"{icone} {doc['nom']}", f, file_name=nom_fichier, key=f"dl_pat_{code_module}_{nom_fichier}")
+                            # On dédoublonne
+                            tous_pdfs = list(set(tous_pdfs))
+                            
+                            if tous_pdfs:
+                                for pdf_path in tous_pdfs:
+                                    nom_f = os.path.basename(pdf_path)
+                                    if os.path.exists(pdf_path):
+                                        with open(pdf_path, "rb") as f:
+                                            st.download_button(f"📥 {nom_f}", f, file_name=nom_f, key=f"dl_all_{code_mod}_{nom_f}")
                                     else:
-                                        st.warning(f"Fichier introuvable : {nom_fichier}")
-
+                                        st.error(f"Fichier manquant : {nom_f}")
+                            else:
+                                st.info("Aucun document PDF pour ce module.")
+                        
                         st.divider()
 
                 # --- FONCTION POUR AJOUTER LE CADENAS DANS LE TITRE DE L'ONGLET ---
