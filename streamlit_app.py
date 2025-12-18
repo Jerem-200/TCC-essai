@@ -93,6 +93,35 @@ def verifier_code_patient(code):
     except: pass
     return False
 
+# --- GESTION DES MODULES VALIDÉS (Carré Vert) ---
+def charger_modules_valides(patient_id):
+    """Charge la liste des modules terminés à 100% (Vert)"""
+    try:
+        from connect_db import load_data
+        # On utilise une table 'Suivi_Validation' (à créer ou simuler)
+        # Si vous n'avez pas cette table, on peut utiliser un fichier ou une autre logique
+        # Pour cet exemple, je suppose que ça marche comme 'Progression'
+        data = load_data("Suivi_Validation") 
+        if data:
+            df = pd.DataFrame(data)
+            row = df[df["Patient"] == patient_id]
+            if not row.empty:
+                valides_str = str(row.iloc[0]["Modules_Valides"])
+                return [x.strip() for x in valides_str.split(",") if x.strip()]
+    except: pass
+    return []
+
+def sauvegarder_modules_valides(patient_id, liste_modules):
+    try:
+        from connect_db import save_data, delete_data_flexible
+        delete_data_flexible("Suivi_Validation", {"Patient": patient_id})
+        chaine_valides = ",".join(liste_modules)
+        save_data("Suivi_Validation", [patient_id, chaine_valides])
+        return True
+    except Exception as e:
+        print(f"Erreur save validation: {e}")
+        return False
+
 # =========================================================
 # GESTION DES PERMISSIONS (NOUVEAU)
 # =========================================================
@@ -356,6 +385,8 @@ else:
                     # 1. Chargement des données
                     progression_patient = charger_progression(patient_sel)
                     devoirs_exclus_memoire = charger_etat_devoirs(patient_sel)
+
+                    modules_valides_db = charger_modules_valides(patient_sel)
                     
                     if f"modules_termines_{patient_sel}" not in st.session_state:
                         st.session_state[f"modules_termines_{patient_sel}"] = []
@@ -366,21 +397,25 @@ else:
 
                     # Barre de progression
                     nb_total = len(PROTOCOLE_BARLOW)
-                    nb_fait = len(termines_therapeute)
+                    nb_fait = len(modules_valides_db)
                     st.progress(min(nb_fait / nb_total, 1.0), text=f"Avancement : {nb_fait}/{nb_total} modules terminés")
                     st.write("---")
 
                     # 3. BOUCLE DES MODULES
                     for code_mod, data in PROTOCOLE_BARLOW.items():
-                        
-                        is_done = code_mod in termines_therapeute
+    
+                        # --- LOGIQUE COULEUR : Si dans la liste DB, c'est vert ---
+                        is_done = code_mod in modules_valides_db
                         icon = "✅" if is_done else "🟦"
                         is_expanded = (code_mod == st.session_state.last_active_module)
 
                         # EN-TÊTE (Titre + Cadenas)
                         c_titre, c_lock = st.columns([0.95, 0.05])
                         with c_titre:
-                            mon_expander = st.expander(f"{icon} {data['titre']}", expanded=is_expanded)
+                            # CORRECTION : Ajout de key=... pour que le bloc reste ouvert même si l'icône change
+                            unique_key = f"exp_module_{patient_sel}_{code_mod}"
+                            mon_expander = st.expander(f"{icon} {data['titre']}", expanded=is_expanded, key=unique_key)
+                        
                         with c_lock:
                             is_accessible = code_mod in progression_patient
                             if is_accessible:
@@ -394,7 +429,7 @@ else:
                                     sauvegarder_progression(patient_sel, progression_patient)
                                     st.rerun()
 
-# CONTENU
+                        # CONTENU
                         with mon_expander:
                             t_action, t_docs = st.tabs(["⚡ Pilotage Séance", "📂 Documents PDF"])
                             
@@ -406,6 +441,9 @@ else:
 
                                 # --- DÉBUT DU FORMULAIRE UNIQUE (TOUT EST DEDANS) ---
                                 with st.form(key=f"form_{patient_sel}_{code_mod}"):
+
+                                    # LISTE POUR TRACKER SI TOUT EST COCHÉ
+                                    check_list = []
                                     
                                     # 1. EXAMEN DES TÂCHES PRÉCÉDENTES (Checklist)
                                     if data['examen_devoirs']:
@@ -413,8 +451,9 @@ else:
                                         st.caption("Cochez les tâches revues avec le patient.")
                                         for idx, d in enumerate(data['examen_devoirs']):
                                             # ICI : C'est maintenant une CASE À COCHER
-                                            st.checkbox(f"{d['titre']}", key=f"exam_{patient_sel}_{code_mod}_{idx}")
-                                            
+                                            val = st.checkbox(f"{d['titre']}", key=f"exam_{patient_sel}_{code_mod}_{idx}")
+                                            check_list.append(val)
+
                                             # Indication TEXTE du PDF (Pas de bouton ici)
                                             if d.get('pdf'):
                                                 nom = os.path.basename(d['pdf'])
@@ -424,15 +463,15 @@ else:
                                     # 2. ÉTAPES DE LA SÉANCE
                                     st.markdown("**📝 Étapes de la séance**")
                                     for i, etape in enumerate(data['etapes_seance']):
-                                        st.checkbox(f"{etape['titre']}", key=f"step_{patient_sel}_{code_mod}_{i}")
-                                        
+                                        val = st.checkbox(f"{etape['titre']}", key=f"step_{patient_sel}_{code_mod}_{i}")
+                                        check_list.append(val) # On ajoute à la liste de vérif
+
                                         # Indication TEXTE du PDF
                                         if etape.get('pdfs'):
                                             for pdf_path in etape['pdfs']:
                                                 nom = os.path.basename(pdf_path)
                                                 st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
                                     
-                                    st.write("")
                                     st.write("---")
 
                                     # 3. ASSIGNATION DEVOIRS
@@ -458,20 +497,30 @@ else:
                                     # 4. BOUTON ENREGISTRER (Valide tout le formulaire d'un coup)
                                     if st.form_submit_button("💾 Enregistrer la séance", type="primary"):
                                         
-                                        # Sauvegarde Devoirs (état des cases cochées/décochées)
+                                        # A. Sauvegarde Devoirs (état des cases cochées/décochées)
                                         if data['taches_domicile']:
                                             nouveaux_exclus = [k for k, chk in enumerate(choix_devoirs_temp) if not chk]
                                             devoirs_exclus_memoire[code_mod] = nouveaux_exclus
                                             sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
                                         
-                                        # Déblocage auto du module pour le patient
+                                        # B. Déblocage auto du module pour le patient
                                         if code_mod not in progression_patient:
                                             progression_patient.append(code_mod)
                                             sauvegarder_progression(patient_sel, progression_patient)
-                                        
+
+                                        # C. LOGIQUE COULEUR : EST-CE QUE TOUT EST COCHÉ ?
+                                        # Si check_list n'est pas vide ET que tout est True
+                                        tout_est_fini = all(check_list) if check_list else True
+
+                                        if tout_est_fini:
+                                            if code_mod not in modules_valides_db:
+                                                modules_valides_db.append(code_mod)
+                                                sauvegarder_modules_valides(patient_sel, modules_valides_db)
+                                                st.toast("✅ Module validé et passé au VERT !", icon="🎉")
+
                                         # Mémorisation onglet
                                         st.session_state.last_active_module = code_mod
-                                        
+                                        time.sleep(0.5)
                                         st.success("✅ Validé !")
                                         st.rerun()
 
