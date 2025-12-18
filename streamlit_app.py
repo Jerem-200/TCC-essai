@@ -381,7 +381,7 @@ else:
                         is_expanded = (code_mod == st.session_state.last_active_module)
 
                         # --- MODIFICATION : Colonnes pour mettre le cadenas à droite ---
-                        c_titre, c_lock = st.columns([0.85, 0.15])
+                        c_titre, c_lock = st.columns([0.95, 0.05])
                         
                         with c_titre:
                             # L'accordéon avec le titre du module
