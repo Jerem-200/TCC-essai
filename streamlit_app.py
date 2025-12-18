@@ -370,27 +370,23 @@ else:
                     st.progress(min(nb_fait / nb_total, 1.0), text=f"Avancement : {nb_fait}/{nb_total} modules terminés")
                     st.write("---")
 
-# 3. BOUCLE DES MODULES (MODIFIÉ POUR RESTER OUVERT)
-                    # On ajoute 'i' avec enumerate pour garantir une clé unique
+                    # 3. BOUCLE DES MODULES (Version compatible TOUTES VERSIONS)
+                    # On utilise enumerate pour garantir l'unicité des clés internes (boutons, forms)
                     for i, (code_mod, data) in enumerate(PROTOCOLE_BARLOW.items()):
                         
                         is_done = code_mod in termines_therapeute
                         icon = "✅" if is_done else "🟦"
                         
-                        # C'est cette ligne qui maintient l'ouverture après le rerun
-                        is_expanded = (code_mod == st.session_state.last_active_module)
+                        # LOGIQUE D'OUVERTURE :
+                        # Si ce module est celui qu'on vient de modifier, on force l'ouverture
+                        should_be_expanded = (code_mod == st.session_state.last_active_module)
 
                         # EN-TÊTE (Titre + Cadenas)
                         c_titre, c_lock = st.columns([0.95, 0.05])
                         with c_titre:
-                            # CRÉATION D'UNE CLÉ UNIQUE (ESSENTIEL POUR ÉVITER LA FERMETURE)
-                            unique_key_expander = f"exp_master_{patient_sel}_{i}_{code_mod}"
-                            
-                            mon_expander = st.expander(
-                                f"{icon} {data['titre']}", 
-                                expanded=is_expanded, 
-                                key=unique_key_expander # <--- L'AJOUT CRUCIAL
-                            )
+                            # --- MODIFICATION ICI : ON A ENLEVÉ 'key=...' ---
+                            # On se base uniquement sur 'expanded' pour l'ouverture
+                            mon_expander = st.expander(f"{icon} {data['titre']}", expanded=should_be_expanded)
                         
                         with c_lock:
                             is_accessible = code_mod in progression_patient
@@ -416,7 +412,7 @@ else:
                                     st.caption(data['outils'])
 
                                 # --- DÉBUT DU FORMULAIRE ---
-                                # On ajoute aussi une clé unique au form pour éviter tout conflit
+                                # On garde la KEY ici, c'est crucial pour éviter les conflits de données
                                 with st.form(key=f"form_main_{patient_sel}_{code_mod}"):
                                     
                                     # 1. EXAMEN DES TÂCHES PRÉCÉDENTES
@@ -464,7 +460,7 @@ else:
                                     st.write("")
                                     
                                     # 4. BOUTON ENREGISTRER
-                                    # Le clic déclenche le rerun, mais grâce à last_active_module et key=unique_key, ça restera ouvert
+                                    # Quand on clique, on met à jour 'last_active_module'
                                     if st.form_submit_button("💾 Enregistrer la séance", type="primary"):
                                         
                                         # Sauvegarde Devoirs
@@ -478,11 +474,11 @@ else:
                                             progression_patient.append(code_mod)
                                             sauvegarder_progression(patient_sel, progression_patient)
                                         
-                                        # IMPORTANT : On mémorise quel module doit rester ouvert
+                                        # CRUCIAL : On dit à Streamlit que cet onglet doit rester ouvert au prochain chargement
                                         st.session_state.last_active_module = code_mod
                                         
                                         st.success("✅ Validé !")
-                                        time.sleep(0.5) # Petit délai pour voir le message vert
+                                        time.sleep(0.5)
                                         st.rerun()
 
                             # ONGLET 2 : DOCUMENTS
@@ -493,7 +489,6 @@ else:
                                         nom_fichier = os.path.basename(chemin)
                                         if os.path.exists(chemin):
                                             with open(chemin, "rb") as f:
-                                                # Ajout d'une clé unique pour le bouton download aussi
                                                 st.download_button(
                                                     f"📥 {nom_fichier}", 
                                                     f, 
