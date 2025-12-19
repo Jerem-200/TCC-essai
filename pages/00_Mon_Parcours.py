@@ -142,8 +142,15 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
                         
                         reponses = {}
                         score_total = 0
+                        nom_emotion = ""
+
+                        # --- CAS SPÉCIAL : Demander le nom de l'émotion ---
+                        if config_q.get("ask_emotion"):
+                            nom_emotion = st.text_input("Quelle est l'émotion concernée (ex: Colère, Honte) ?", key=f"emo_name_{code_mod}_{choix_q}")
+                            if nom_emotion:
+                                reponses["Émotion identifiée"] = nom_emotion
                         
-                        # --- TYPE 1 : Échelles numériques simples (Dépression, Emotions...) ---
+                        # --- TYPE 1 : Échelles numériques simples ---
                         if config_q['type'] == "scale_0_8":
                             for q in config_q['questions']:
                                 st.write(q)
@@ -151,41 +158,49 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
                                 reponses[q] = val
                                 score_total += val
                         
-                        # --- TYPE 2 : Texte libre (Progrès) ---
+                        # --- TYPE 2 : Texte libre ---
                         elif config_q['type'] == "text":
                             for q in config_q['questions']:
                                 val = st.text_area(q, height=100, key=f"txt_{code_mod}_{choix_q}_{q}")
                                 reponses[q] = val
                             score_total = -1
 
-                        # --- TYPE 3 : OASIS (QCM Spécifique Anxiété) ---
+                        # --- TYPE 3 : QCM OASIS/ODSIS ---
                         elif config_q['type'] == "qcm_oasis":
                             for item in config_q['questions']:
-                                st.markdown(f"**{item['label']}**")
-                                # On affiche les options complètes (texte)
+                                # Si on a un nom d'émotion, on l'injecte dans la question pour la rendre plus personnelle
+                                label_dyn = item['label']
+                                
+                                st.markdown(f"**{label_dyn}**")
                                 choix = st.radio(
                                     "Votre réponse :", 
                                     item['options'], 
                                     key=f"rad_{code_mod}_{choix_q}_{item['id']}",
                                     label_visibility="collapsed"
                                 )
-                                # On extrait le chiffre au début (ex: "3 = Sévère..." -> 3)
                                 try:
                                     valeur = int(choix.split("=")[0].strip())
                                 except:
                                     valeur = 0
                                 
-                                reponses[item['label']] = choix # On garde le texte complet pour le détail
+                                reponses[item['label']] = choix
                                 score_total += valeur
 
                         st.write("")
                         
                         if st.form_submit_button("Envoyer", type="primary"):
-                            nom_enregistrement = f"{code_mod} - {choix_q}"
-                            if sauvegarder_reponse_hebdo(current_user, nom_enregistrement, str(score_total), reponses):
-                                st.success("✅ Enregistré avec succès !")
-                                time.sleep(1)
-                                st.rerun()
+                            # Si c'est l'échelle émotion, on vérifie que le nom est rempli
+                            if config_q.get("ask_emotion") and not nom_emotion:
+                                st.error("Veuillez indiquer le nom de l'émotion avant d'envoyer.")
+                            else:
+                                nom_final = f"{code_mod} - {choix_q}"
+                                if nom_emotion:
+                                    nom_final += f" ({nom_emotion})"
+                                    
+                                if sauvegarder_reponse_hebdo(current_user, nom_final, str(score_total), reponses):
+                                    st.success("✅ Enregistré avec succès !")
+                                    time.sleep(1)
+                                    st.rerun()
 
     else:
         with st.container(border=True):

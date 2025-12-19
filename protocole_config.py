@@ -69,17 +69,132 @@ QUESTIONS_HEBDO = {
     },
 
     "Dépression": {
-        "titre": "☁️ Échelle de Dépression",
-        "description": "Évaluez l'intensité moyenne de votre tristesse/dépression cette semaine (0 = Nulle, 8 = Extrême).",
-        "type": "scale_0_8",
-        "questions": ["À quel point vous êtes-vous senti(e) triste ou déprimé(e) cette semaine ?"]
+        "titre": "☁️ Échelle de Dépression (ODSIS)",
+        "description": "Entourez le numéro correspondant à la réponse qui décrit le mieux votre expérience de cette dernière semaine.",
+        "type": "qcm_oasis",  # On réutilise le type QCM
+        "questions": [
+            {
+                "id": "freq_dep",
+                "label": "1. Au cours de la dernière semaine, combien de fois vous êtes-vous senti déprimé ?",
+                "options": [
+                    "0 = Aucune dépression au cours de la dernière semaine.",
+                    "1 = Dépression peu fréquente. Je me suis senti(e) déprimé(e) à quelques reprises.",
+                    "2 = Dépression occasionnelle. Je me sentais déprimé(e) la plupart du temps.",
+                    "3 = Dépression fréquente. Je me sentais déprimé(e) la plupart du temps.",
+                    "4 = Dépression constante. Je me sentais déprimé(e) tout le temps."
+                ]
+            },
+            {
+                "id": "intensite_dep",
+                "label": "2. Lorsque vous vous êtes senti déprimé, quelle était l'intensité ou la gravité ?",
+                "options": [
+                    "0 = Peu ou Aucune : La dépression était absente ou à peine perceptible.",
+                    "1 = Léger : La dépression était à un niveau bas.",
+                    "2 = Modéré : La dépression était parfois intense.",
+                    "3 = Sévère : La dépression était intense la plupart du temps.",
+                    "4 = Extrême : La dépression était écrasante."
+                ]
+            },
+            {
+                "id": "interet_dep",
+                "label": "3. À quelle fréquence avez-vous eu des difficultés à vous intéresser à des activités ?",
+                "options": [
+                    "0 = Aucun : Je n'ai eu aucune difficulté à m'engager ou à m'intéresser à des activités.",
+                    "1 = Peu fréquent : Quelques fois j'ai eu de la difficulté... Mon style de vie n'a pas été affecté.",
+                    "2 = Occasionnel : J'ai eu de la difficulté... Mon style de vie n'a changé que de façon mineure.",
+                    "3 = Fréquent : J'ai beaucoup de difficulté... J'ai apporté des changements importants à mon style de vie.",
+                    "4 = Tout le temps : J'ai été incapable de participer... Mon mode de vie a été largement affecté."
+                ]
+            },
+            {
+                "id": "interf_travail_dep",
+                "label": "4. Perturbation de la capacité à faire les choses (travail/école/maison) ?",
+                "options": [
+                    "0 = Aucun : Aucune interférence due à la dépression.",
+                    "1 = Léger : Ma dépression a causé des interférences... mais tout ce qui doit être fait se fait encore.",
+                    "2 = Modéré : Ma dépression interfère définitivement avec les tâches. Peu de choses se font aussi bien que par le passé.",
+                    "3 = Sévère : Ma dépression a vraiment changé ma capacité à faire avancer les choses. Beaucoup de choses ne sont pas faites.",
+                    "4 = Extrême : Ma dépression est devenue invalidante. Incapable d'accomplir des tâches (démission, dettes, etc.)."
+                ]
+            },
+            {
+                "id": "interf_social_dep",
+                "label": "5. Interférence avec la vie sociale et les relations ?",
+                "options": [
+                    "0 = Aucun : Ma dépression n'affecte pas mes relations.",
+                    "1 = Léger : Interfère légèrement. Certaines relations ont souffert mais vie sociale épanouie.",
+                    "2 = Modéré : Quelques interférences. Je ne dépense pas autant de temps avec les autres mais je socialise encore.",
+                    "3 = Sévère : Mes amitiés ont beaucoup souffert. Je n'aime pas les activités sociales. Je socialise très peu.",
+                    "4 = Extrême : Ma dépression a complètement perturbé mes activités sociales. Relations terminées ou famille tendue."
+                ]
+            }
+        ]
     },
+
     "Autres Émotions Négatives": {
-        "titre": "😡 Autres Émotions Négatives",
-        "description": "Colère, Culpabilité, Honte, etc. (0 = Nulle, 8 = Extrême).",
-        "type": "scale_0_8",
-        "questions": ["Intensité de la Colère", "Intensité de la Culpabilité", "Intensité de la Honte"]
+        "titre": "Autres Émotions Négatives (Facultatif)",
+        "description": "Identifiez une émotion avec laquelle vous avez lutté (ex: colère, honte, jalousie). Répondez ensuite aux questions pour cette émotion spécifique.",
+        "type": "qcm_oasis",
+        "ask_emotion": True, # <--- SIGNAL POUR AFFICHER LE CHAMP TEXTE
+        "questions": [
+            {
+                "id": "freq_other",
+                "label": "1. Au cours de la dernière semaine, combien de fois vous êtes-vous senti(e) ainsi ?",
+                "options": [
+                    "0 = Non : Je n'ai pas ressenti cette émotion la semaine dernière.",
+                    "1 = Peu fréquent : J'ai ressenti cette émotion plusieurs fois.",
+                    "2 = Occasionnel : J'ai ressenti cette émotion la plupart du temps.",
+                    "3 = Fréquent : J'ai ressenti cette émotion la plupart du temps (intensité plus forte).",
+                    "4 = Constante : J'ai ressenti cette émotion tout le temps."
+                ]
+            },
+            {
+                "id": "intensite_other",
+                "label": "2. Lorsque vous avez ressenti cette émotion, quelle était son intensité ?",
+                "options": [
+                    "0 = Peu ou Aucune : Cette émotion était absente ou à peine perceptible.",
+                    "1 = Léger : Cette émotion était à un niveau bas.",
+                    "2 = Modéré : Cette émotion était parfois intense.",
+                    "3 = Sévère : Cette émotion était intense la plupart du temps.",
+                    "4 = Extrême : Cette émotion était écrasante."
+                ]
+            },
+            {
+                "id": "interf_activites_other",
+                "label": "3. À quelle fréquence avez-vous eu du mal à vous intéresser à des activités à cause de cette émotion ?",
+                "options": [
+                    "0 = Aucune : Je n'ai eu aucune difficulté à m'engager ou à m'intéresser.",
+                    "1 = Peu fréquent : À quelques reprises, j'ai eu de la difficulté. Mon style de vie n'a pas été affecté.",
+                    "2 = Occasionnel : J'ai eu de la difficulté. Mon style de vie n'a changé que de façon mineure.",
+                    "3 = Fréquent : J'ai beaucoup de difficulté. J'ai apporté des changements importants à mon style de vie.",
+                    "4 = Tout le temps : J'ai été incapable de participer. Mon mode de vie a été largement affecté."
+                ]
+            },
+            {
+                "id": "interf_travail_other",
+                "label": "4. Dans quelle mesure cette émotion a-t-elle gêné votre capacité à faire les choses (travail/école/maison) ?",
+                "options": [
+                    "0 = Aucune : Aucune interférence due à cette émotion.",
+                    "1 = Léger : Cette émotion a causé des interférences, mais tout ce qui doit être fait se fait encore.",
+                    "2 = Modéré : Cette émotion interfère définitivement avec les tâches. La plupart des choses se font encore.",
+                    "3 = Sévère : Cette émotion a vraiment changé ma capacité à faire avancer les choses.",
+                    "4 = Extrême : Cette émotion est devenue invalidante. Incapable d'accomplir des tâches."
+                ]
+            },
+            {
+                "id": "interf_social_other",
+                "label": "5. Dans quelle mesure cette émotion a-t-elle gêné votre vie sociale et vos relations ?",
+                "options": [
+                    "0 = Aucune : Cette émotion n'affecte pas mes relations.",
+                    "1 = Léger : Cette émotion interfère légèrement avec mes relations.",
+                    "2 = Modéré : J'ai vécu quelques interférences avec ma vie sociale, mais je socialise encore.",
+                    "3 = Sévère : Mes amitiés et autres relations ont beaucoup souffert à cause de cette émotion.",
+                    "4 = Extrême : Cette émotion a complètement perturbé mes activités sociales."
+                ]
+            }
+        ]
     },
+
     "Émotions Positives": {
         "titre": "🌞 Émotions Positives",
         "description": "Joie, Enthousiasme, Fierté, etc. (0 = Nulle, 8 = Extrême).",
