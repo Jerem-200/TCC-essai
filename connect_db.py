@@ -3,6 +3,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 import mysql.connector
+import json
 
 # --- FONCTION DE CONNEXION ---
 def get_client():
@@ -148,3 +149,19 @@ def load_data(nom_onglet):
         return ws.get_all_records() # Retourne une liste de dicts
     except:
         return [] # Retourne une liste vide si l'onglet n'existe pas ou erreur
+    
+
+def sauvegarder_reponse_hebdo(patient_id, nom_questionnaire, score_global, details_dict):
+    """Enregistre une réponse à un questionnaire hebdo."""
+    try:
+        from connect_db import save_data
+        # On sauvegarde chaque remplissage comme une nouvelle ligne (historique)
+        # Date du jour
+        date_jour = datetime.now().strftime("%Y-%m-%d %H:%M")
+        json_details = json.dumps(details_dict)
+        
+        save_data("Reponses_Hebdo", [patient_id, date_jour, nom_questionnaire, score_global, json_details])
+        return True
+    except Exception as e:
+        st.error(f"Erreur sauvegarde hebdo : {e}")
+        return False

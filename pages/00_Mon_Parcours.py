@@ -1,89 +1,121 @@
 import streamlit as st
 import os
-from protocole_config import PROTOCOLE_BARLOW
-
-# Import sécurisé
-try:
-    from streamlit_app import charger_progression, charger_etat_devoirs
-except ImportError:
-    # Fallback si l'import direct échoue (copie de sécurité)
-    def charger_progression(uid): 
-        try:
-            from connect_db import load_data
-            import pandas as pd
-            data = load_data("Progression")
-            if data:
-                df = pd.DataFrame(data)
-                row = df[df["Patient"] == uid]
-                if not row.empty:
-                    return [x.strip() for x in str(row.iloc[0]["Modules_Actifs"]).split(",") if x.strip()]
-        except: pass
-        return ["module0"]
-        
-    def charger_etat_devoirs(uid): return {}
+import time
+from protocole_config import PROTOCOLE_BARLOW, QUESTIONS_HEBDO # <--- Import modifié
+from connect_db import load_data, sauvegarder_reponse_hebdo # <--- Import modifié
 
 st.set_page_config(page_title="Mon Parcours", page_icon="🗺️")
 
+# --- CSS pour masquer la sidebar par défaut si besoin ---
+st.markdown("""
+    <style>
+        [data-testid="stSidebarNav"] {display: none;}
+    </style>
+""", unsafe_allow_html=True)
+
+# --- Fonction de chargement progression (copie locale ou import si vous l'avez mis dans connect_db) ---
+def charger_progression_locale(patient_id):
+    try:
+        data = load_data("Progression")
+        if data:
+            import pandas as pd
+            df = pd.DataFrame(data)
+            row = df[df["Patient"] == patient_id]
+            if not row.empty:
+                modules_str = str(row.iloc[0]["Modules_Actifs"])
+                return [x.strip() for x in modules_str.split(",") if x.strip()]
+    except: pass
+    return ["intro"]
+
+# --- SIDEBAR DE NAVIGATION ---
+with st.sidebar:
+    st.page_link("streamlit_app.py", label="🏠 Retour Accueil")
+    st.divider()
+
+# --- VERIFICATION CONNEXION ---
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
-    st.warning("🔒 Veuillez vous connecter.")
+    st.warning("Veuillez vous connecter sur la page d'accueil.")
     st.stop()
 
-# --- FORCER LE CHARGEMENT DES DONNÉES FRAÎCHES ---
-current_user = st.session_state.get("user_id", "")
-modules_debloques = charger_progression(current_user) # Charge depuis la DB
-devoirs_exclus = charger_etat_devoirs(current_user)
+patient_id = st.session_state.user_id
+st.title("🗺️ Mon Parcours TCC")
 
-st.title("🗺️ Mon Parcours de Soin")
+# --- CHARGEMENT ---
+modules_actifs = charger_progression_locale(patient_id)
 
-# --- BOUCLE MODULES ---
+# --- BOUCLE D'AFFICHAGE DES MODULES ---
 for code_mod, data in PROTOCOLE_BARLOW.items():
     
-    # Vérification stricte si le module est dans la liste chargée
-    if code_mod in modules_debloques:
+    # On affiche le module seulement s'il est dans la liste des actifs
+    if code_mod in modules_actifs:
         
-        # Par défaut, on ferme tout, sauf le dernier débloqué éventuellement
-        with st.expander(f"✅ {data['titre']}", expanded=False):
+        # Titre du module
+        with st.expander(f"📘 {data['titre']}", expanded=True):
             
-            tab_proc, tab_docs = st.tabs(["📖 Ma Séance", "📂 Documents"])
+            # Onglets pour organiser le contenu
+            tab_contenu, tab_quest = st.tabs(["📖 Contenu & Exercices", "📝 Bilans & Questionnaires"])
             
-            # ONGLET 1 : DÉROULÉ SIMPLIFIÉ
-            with tab_proc:
+            # --- ONGLET 1 : CONTENU CLASSIQUE ---
+            with tab_contenu:
                 st.info(f"**Objectifs :** {data['objectifs']}")
                 
-                # Tâches à domicile (Filtrées)
-                st.markdown("##### 🏠 À faire pour la prochaine fois")
-                exclus_ici = devoirs_exclus.get(code_mod, [])
-                a_faire = False
-                
-                if data['taches_domicile']:
-                    for j, dev in enumerate(data['taches_domicile']):
-                        if j not in exclus_ici:
-                            a_faire = True
-                            st.write(f"👉 **{dev['titre']}**")
-                            if dev.get('pdf') and os.path.exists(dev['pdf']):
-                                with open(dev['pdf'], "rb") as f:
-                                    st.download_button("Télécharger", f, file_name=os.path.basename(dev['pdf']), key=f"dl_dev_{code_mod}_{j}")
-                
-                if not a_faire:
-                    st.success("🎉 Aucun devoir spécifique.")
-                else:
-                    st.write("")
-                    with st.expander("📸 Envoyer mon travail"):
-                        st.camera_input("Prendre une photo", key=f"cam_{code_mod}")
-
-            # ONGLET 2 : TOUS LES DOCS (Liste plate)
-            with tab_docs:
-                st.write("Tous les fichiers du module :")
+                st.markdown("### 📄 Documents à consulter")
+                found_doc = False
                 if 'pdfs_module' in data and data['pdfs_module']:
-                    for path in data['pdfs_module']:
-                        name = os.path.basename(path)
-                        if os.path.exists(path):
-                            with open(path, "rb") as f:
-                                st.download_button(f"📥 {name}", f, file_name=name, key=f"dl_pat_all_{code_mod}_{name}")
-                else:
-                    st.info("Aucun document.")
+                    for chemin in data['pdfs_module']:
+                        nom_fichier = os.path.basename(chemin)
+                        if os.path.exists(chemin):
+                            found_doc = True
+                            with open(chemin, "rb") as f:
+                                st.download_button(f"📥 Télécharger {nom_fichier}", f, file_name=nom_fichier, key=f"dl_pat_{code_mod}_{nom_fichier}")
+                
+                if not found_doc:
+                    st.caption("Pas de document PDF spécifique pour ce module.")
+
+            # --- ONGLET 2 : QUESTIONNAIRES INTÉGRÉS (NOUVEAU) ---
+            with tab_quest:
+                st.markdown("##### Remplir un bilan pour ce module")
+                st.caption("Sélectionnez un questionnaire ci-dessous si votre thérapeute vous l'a demandé.")
+                
+                # Sélecteur de questionnaire
+                # On ajoute une clé unique basée sur le module pour éviter les conflits
+                choix_q = st.selectbox("Choisir le questionnaire :", list(QUESTIONS_HEBDO.keys()), key=f"sel_q_{code_mod}")
+                
+                if choix_q:
+                    config_q = QUESTIONS_HEBDO[choix_q]
+                    
+                    # Formulaire unique par module et par questionnaire
+                    with st.form(key=f"form_{code_mod}_{choix_q}"):
+                        st.markdown(f"**{config_q['titre']}**")
+                        st.caption(config_q['description'])
+                        
+                        reponses = {}
+                        score_total = 0
+                        
+                        # Type Echelle
+                        if config_q['type'] == "scale_0_8":
+                            for q in config_q['questions']:
+                                st.write(q)
+                                val = st.slider("Intensité", 0, 8, 0, key=f"sld_{code_mod}_{choix_q}_{q}")
+                                reponses[q] = val
+                                score_total += val
+                        
+                        # Type Texte
+                        elif config_q['type'] == "text":
+                            for q in config_q['questions']:
+                                val = st.text_area(q, height=80, key=f"txt_{code_mod}_{choix_q}_{q}")
+                                reponses[q] = val
+                            score_total = -1
+
+                        st.write("")
+                        
+                        if st.form_submit_button("Envoyer", type="primary"):
+                            if sauvegarder_reponse_hebdo(patient_id, f"{code_mod} - {choix_q}", str(score_total), reponses):
+                                st.success("✅ Enregistré !")
+                                time.sleep(1)
+                                st.rerun()
 
     else:
-        with st.container(border=True):
-            st.write(f"🔒 **{data['titre']}**")
-            st.caption("Verrouillé par votre thérapeute.")
+        # Module bloqué (optionnel, pour montrer ce qui vient après)
+        with st.expander(f"🔒 {data['titre']} (Bientôt disponible)", expanded=False):
+            st.caption("Ce module sera débloqué par votre thérapeute au fur et à mesure de votre progression.")

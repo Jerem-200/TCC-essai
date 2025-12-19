@@ -1,6 +1,45 @@
 # ==============================================================================
 # CONFIGURATION DU PROTOCOLE UNIFIÉ (BARLOW) - STRUCTURE ERGONOMIQUE
 # ==============================================================================
+# =========================================================
+# CONFIGURATION DES QUESTIONNAIRES HEBDOMADAIRES (BARLOW)
+# =========================================================
+QUESTIONS_HEBDO = {
+    "Anxiété": {
+        "titre": "📉 Échelle d'Anxiété",
+        "description": "Évaluez l'intensité moyenne de votre anxiété cette semaine (0 = Nulle, 8 = Extrême).",
+        "type": "scale_0_8",
+        "questions": ["À quel point vous êtes-vous senti(e) anxieux(se) ou nerveux(se) cette semaine ?"]
+    },
+    "Dépression": {
+        "titre": "☁️ Échelle de Dépression",
+        "description": "Évaluez l'intensité moyenne de votre tristesse/dépression cette semaine (0 = Nulle, 8 = Extrême).",
+        "type": "scale_0_8",
+        "questions": ["À quel point vous êtes-vous senti(e) triste ou déprimé(e) cette semaine ?"]
+    },
+    "Autres Émotions Négatives": {
+        "titre": "😡 Autres Émotions Négatives",
+        "description": "Colère, Culpabilité, Honte, etc. (0 = Nulle, 8 = Extrême).",
+        "type": "scale_0_8",
+        "questions": ["Intensité de la Colère", "Intensité de la Culpabilité", "Intensité de la Honte"]
+    },
+    "Émotions Positives": {
+        "titre": "🌞 Émotions Positives",
+        "description": "Joie, Enthousiasme, Fierté, etc. (0 = Nulle, 8 = Extrême).",
+        "type": "scale_0_8",
+        "questions": ["À quel point avez-vous ressenti de la joie ou du plaisir cette semaine ?"]
+    },
+    "Fiche de Progrès": {
+        "titre": "📈 Fiche des Progrès (Tâches à domicile)",
+        "description": "Notez ici vos réussites et difficultés concernant les exercices.",
+        "type": "text",
+        "questions": [
+            "Quelles tâches avez-vous accomplies cette semaine ?",
+            "Quelles difficultés avez-vous rencontrées ?",
+            "Qu'avez-vous appris ?"
+        ]
+    }
+}
 
 PROTOCOLE_BARLOW = {
     "module0": {
@@ -427,3 +466,4 @@ PROTOCOLE_BARLOW = {
         "taches_domicile": []
     }
 }
+
