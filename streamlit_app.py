@@ -243,6 +243,36 @@ def sauvegarder_etat_devoirs(patient_id, dict_devoirs_exclus):
         st.error(f"Erreur sauvegarde devoirs : {e}")
         return False
 
+# --- GESTION DES NOTES DE SÉANCE (NOUVEAU) ---
+def charger_notes_seance(patient_id):
+    """Charge les notes textuelles du thérapeute pour chaque module."""
+    try:
+        from connect_db import load_data
+        # On utilise une table 'Notes_Seance' (à créer ou simuler)
+        data = load_data("Notes_Seance")
+        if data:
+            df = pd.DataFrame(data)
+            row = df[df["Patient"] == patient_id]
+            if not row.empty:
+                # Format JSON : {"module1": "Patient va bien...", "module2": "..."}
+                json_str = row.iloc[0]["Donnees_Json"]
+                return json.loads(json_str)
+    except: pass
+    return {}
+
+def sauvegarder_notes_seance(patient_id, dict_notes):
+    """Sauvegarde les notes."""
+    try:
+        from connect_db import save_data, delete_data_flexible
+        delete_data_flexible("Notes_Seance", {"Patient": patient_id})
+        
+        json_str = json.dumps(dict_notes)
+        save_data("Notes_Seance", [patient_id, json_str])
+        return True
+    except Exception as e:
+        st.error(f"Erreur sauvegarde notes : {e}")
+        return False
+
 # =========================================================
 # 2. ÉCRAN DE CONNEXION
 # =========================================================
@@ -385,9 +415,8 @@ else:
                     # 1. Chargement des données
                     progression_patient = charger_progression(patient_sel)
                     devoirs_exclus_memoire = charger_etat_devoirs(patient_sel)
-                    
-                    # 👇 LA LIGNE QUI MANQUAIT 👇
                     modules_valides_db = charger_modules_valides(patient_sel) 
+                    notes_seance_db = charger_notes_seance(patient_sel)
                     
                     # Initialisation variable session pour l'ouverture
                     if "last_active_module" not in st.session_state:
@@ -499,6 +528,20 @@ else:
                                                 st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom_pdf}</small>", unsafe_allow_html=True)
 
                                     st.write("")
+
+                                    # --- D. NOUVEAU : ZONE DE COMMENTAIRES / CR ---
+                                    st.markdown("**👩‍⚕️ Notes de séance & Plan d'action**")
+                                    # On récupère le texte existant ou vide
+                                    texte_actuel = notes_seance_db.get(code_mod, "")
+                                    # Le Text Area
+                                    nouvelle_note = st.text_area(
+                                        "Compte-rendu et points à retenir pour la prochaine fois :",
+                                        value=texte_actuel,
+                                        height=150,
+                                        key=f"note_area_{patient_sel}_{code_mod}"
+                                    )
+
+                                    st.write("")
                                     
                                     # 4. ENREGISTRER
                                     if st.form_submit_button("💾 Enregistrer la séance", type="primary"):
@@ -508,13 +551,17 @@ else:
                                             nouveaux_exclus = [k for k, chk in enumerate(choix_devoirs_temp) if not chk]
                                             devoirs_exclus_memoire[code_mod] = nouveaux_exclus
                                             sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
+
+                                        # B. Sauvegarde des Notes (NOUVEAU)
+                                        notes_seance_db[code_mod] = nouvelle_note
+                                        sauvegarder_notes_seance(patient_sel, notes_seance_db)
                                         
-                                        # B. Déblocage du module (Progression)
+                                        # C. Déblocage du module (Progression)
                                         if code_mod not in progression_patient:
                                             progression_patient.append(code_mod)
                                             sauvegarder_progression(patient_sel, progression_patient)
                                         
-                                        # C. LOGIQUE VERT (Validation)
+                                        # D. LOGIQUE VERT (Validation)
                                         # On vérifie si toutes les cases "Actions" (check_list) sont cochées
                                         tout_est_fini = all(check_list) if check_list else True
                                         
@@ -524,7 +571,7 @@ else:
                                                 sauvegarder_modules_valides(patient_sel, modules_valides_db)
                                                 st.toast("✅ Module validé (Vert) !", icon="🎉")
                                         
-                                        # D. Maintien ouverture
+                                        # E. Maintien ouverture
                                         st.session_state.last_active_module = code_mod
                                         
                                         st.success("✅ Sauvegardé !")
