@@ -1,8 +1,41 @@
 import streamlit as st
 import os
 import time
+import pandas as pd  
+import altair as alt 
+import json
 from protocole_config import PROTOCOLE_BARLOW, QUESTIONS_HEBDO 
 from connect_db import load_data, sauvegarder_reponse_hebdo
+
+# --- FONCTION POUR CHARGER L'HISTORIQUE (NOUVEAU) ---
+def charger_donnees_graphique(patient_id):
+    """Récupère et nettoie l'historique pour les graphiques."""
+    try:
+        raw_data = load_data("Reponses_Hebdo")
+        if raw_data:
+            df = pd.DataFrame(raw_data)
+            # On filtre pour le patient actuel
+            df = df[df["Patient"] == patient_id].copy()
+            
+            if not df.empty:
+                # 1. Nettoyage des dates
+                df["Date"] = pd.to_datetime(df["Date"])
+                
+                # 2. Nettoyage des scores (forcer en numérique)
+                df["Score_Global"] = pd.to_numeric(df["Score_Global"], errors='coerce')
+                
+                # 3. Nettoyage des noms (ex: "module1 - Anxiété" -> "Anxiété")
+                # On enlève le préfixe du module pour pouvoir suivre l'évolution globale
+                def nettoyer_nom(x):
+                    if " - " in str(x):
+                        return str(x).split(" - ")[1].split(" (")[0] # Garde "Anxiété"
+                    return str(x)
+                
+                df["Type"] = df["Questionnaire"].apply(nettoyer_nom)
+                return df
+    except Exception as e:
+        print(f"Erreur graph: {e}")
+    return pd.DataFrame()
 
 # Import sécurisé
 try:
@@ -58,7 +91,7 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
         # Par défaut, on ferme tout
         with st.expander(f"✅ {data['titre']}", expanded=False):
             
-            tab_proc, tab_docs, tab_exos = st.tabs(["📖 Ma Séance", "📂 Documents", "📝 Mes Exercices"])
+            tab_proc, tab_docs, tab_exos, tab_suivi = st.tabs(["📖 Ma Séance", "📂 Documents", "📝 Mes Exercices", "📈 Suivi"])
             
             # --- ONGLET 1 : DÉROULÉ INFORMATIF (MODIFIÉ) ---
             with tab_proc:
@@ -201,6 +234,46 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
                                     st.success("✅ Enregistré avec succès !")
                                     time.sleep(1)
                                     st.rerun()
+
+            # --- ONGLET 4 : SUIVI (NOUVEAU) ---
+            with tab_suivi:
+                st.markdown("##### 📈 Mes Progrès")
+                
+                # 1. Chargement des données
+                df_history = charger_donnees_graphique(current_user)
+                
+                if not df_history.empty:
+                    # 2. Sélecteur pour filtrer quel graphique voir
+                    types_dispos = df_history["Type"].unique().tolist()
+                    type_voir = st.multiselect("Afficher les courbes de :", types_dispos, default=types_dispos[:2], key=f"multi_{code_mod}")
+                    
+                    if type_voir:
+                        # 3. Création du graphique Altair
+                        # On filtre les données
+                        df_chart = df_history[df_history["Type"].isin(type_voir)]
+                        
+                        # Graphique de ligne
+                        chart = alt.Chart(df_chart).mark_line(point=True).encode(
+                            x=alt.X('Date', title='Date'),
+                            y=alt.Y('Score_Global', title='Score'),
+                            color=alt.Color('Type', title='Échelle'),
+                            tooltip=['Date', 'Type', 'Score_Global']
+                        ).properties(height=300)
+                        
+                        st.altair_chart(chart, use_container_width=True)
+                        
+                        # Petit tableau récapitulatif en dessous
+                        with st.expander("Voir l'historique détaillé"):
+                            st.dataframe(
+                                df_chart[["Date", "Type", "Score_Global"]].sort_values("Date", ascending=False),
+                                use_container_width=True,
+                                hide_index=True
+                            )
+                    else:
+                        st.info("Sélectionnez une échelle ci-dessus pour voir la courbe.")
+                else:
+                    st.info("Pas encore assez de données pour afficher un graphique.")
+                    st.caption("Remplissez vos premiers questionnaires dans l'onglet 'Mes Exercices' !")
 
     else:
         with st.container(border=True):
