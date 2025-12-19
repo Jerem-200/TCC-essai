@@ -1,11 +1,10 @@
 import streamlit as st
 import os
-from protocole_config import PROTOCOLE_BARLOW
-from protocole_config import PROTOCOLE_BARLOW, QUESTIONS_HEBDO # <--- Import modifié
-from connect_db import load_data, sauvegarder_reponse_hebdo #
+import time  # <--- Ajouté pour gérer le rechargement après sauvegarde
+from protocole_config import PROTOCOLE_BARLOW, QUESTIONS_HEBDO 
+from connect_db import load_data, sauvegarder_reponse_hebdo
 
-
-# Import sécurisé
+# Import sécurisé (On garde ta logique de sécurité)
 try:
     from streamlit_app import charger_progression, charger_etat_devoirs
 except ImportError:
@@ -27,6 +26,18 @@ except ImportError:
 
 st.set_page_config(page_title="Mon Parcours", page_icon="🗺️")
 
+# Masquer la navigation latérale par défaut
+st.markdown("""
+    <style>
+        [data-testid="stSidebarNav"] {display: none;}
+    </style>
+""", unsafe_allow_html=True)
+
+# Sidebar de navigation
+with st.sidebar:
+    st.page_link("streamlit_app.py", label="🏠 Retour Accueil")
+    st.divider()
+
 if "authentifie" not in st.session_state or not st.session_state.authentifie:
     st.warning("🔒 Veuillez vous connecter.")
     st.stop()
@@ -44,10 +55,11 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
     # Vérification stricte si le module est dans la liste chargée
     if code_mod in modules_debloques:
         
-        # Par défaut, on ferme tout, sauf le dernier débloqué éventuellement
+        # Par défaut, on ferme tout
         with st.expander(f"✅ {data['titre']}", expanded=False):
             
-            tab_proc, tab_docs = st.tabs(["📖 Ma Séance", "📂 Documents"])
+            # --- MODIFICATION ICI : AJOUT DU 3ème ONGLET ---
+            tab_proc, tab_docs, tab_exos = st.tabs(["📖 Ma Séance", "📂 Documents", "📝 Mes Exercices"])
             
             # ONGLET 1 : DÉROULÉ SIMPLIFIÉ
             with tab_proc:
@@ -85,6 +97,53 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
                                 st.download_button(f"📥 {name}", f, file_name=name, key=f"dl_pat_all_{code_mod}_{name}")
                 else:
                     st.info("Aucun document.")
+
+            # --- ONGLET 3 : MES EXERCICES (NOUVEAU) ---
+            with tab_exos:
+                st.markdown("##### 📝 Remplir un bilan ou un exercice")
+                st.caption("Sélectionnez le questionnaire ci-dessous pour le remplir numériquement.")
+
+                # Sélecteur de questionnaire avec clé unique par module
+                choix_q = st.selectbox("Choisir l'exercice :", list(QUESTIONS_HEBDO.keys()), key=f"sel_q_{code_mod}")
+                
+                if choix_q:
+                    config_q = QUESTIONS_HEBDO[choix_q]
+                    
+                    # Formulaire unique
+                    with st.form(key=f"form_exo_{code_mod}_{choix_q}"):
+                        st.markdown(f"**{config_q['titre']}**")
+                        st.caption(config_q['description'])
+                        
+                        reponses = {}
+                        score_total = 0
+                        
+                        # Cas A : Échelles numériques
+                        if config_q['type'] == "scale_0_8":
+                            for q in config_q['questions']:
+                                st.write(q)
+                                # Slider unique
+                                val = st.slider("Intensité", 0, 8, 0, key=f"sld_{code_mod}_{choix_q}_{q}")
+                                reponses[q] = val
+                                score_total += val
+                        
+                        # Cas B : Texte libre
+                        elif config_q['type'] == "text":
+                            for q in config_q['questions']:
+                                # Text area unique
+                                val = st.text_area(q, height=100, key=f"txt_{code_mod}_{choix_q}_{q}")
+                                reponses[q] = val
+                            score_total = -1
+
+                        st.write("")
+                        
+                        if st.form_submit_button("Envoyer", type="primary"):
+                            # On sauvegarde avec une référence au module actuel
+                            nom_enregistrement = f"{code_mod} - {choix_q}"
+                            
+                            if sauvegarder_reponse_hebdo(current_user, nom_enregistrement, str(score_total), reponses):
+                                st.success("✅ Enregistré avec succès !")
+                                time.sleep(1)
+                                st.rerun()
 
     else:
         with st.container(border=True):
