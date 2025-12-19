@@ -153,6 +153,7 @@ def sauvegarder_blocages(patient_id, liste_cles):
         return False
     
 # --- GESTION COMBINÉE : VALIDATION + COMMENTAIRES (Onglet Suivi_Validation) ---
+@st.cache_data(ttl=60)
 def charger_suivi_global(patient_id):
     """
     Récupère à la fois la liste des modules validés (Vert) 
