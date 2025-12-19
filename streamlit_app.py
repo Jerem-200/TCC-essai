@@ -23,6 +23,46 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
+# CONFIGURATION DES QUESTIONNAIRES HEBDOMADAIRES (BARLOW)
+# =========================================================
+QUESTIONS_HEBDO = {
+    "Anxiété": {
+        "titre": "📉 Échelle d'Anxiété",
+        "description": "Évaluez l'intensité moyenne de votre anxiété cette semaine (0 = Nulle, 8 = Extrême).",
+        "type": "scale_0_8",
+        "questions": ["À quel point vous êtes-vous senti(e) anxieux(se) ou nerveux(se) cette semaine ?"]
+    },
+    "Dépression": {
+        "titre": "☁️ Échelle de Dépression",
+        "description": "Évaluez l'intensité moyenne de votre tristesse/dépression cette semaine (0 = Nulle, 8 = Extrême).",
+        "type": "scale_0_8",
+        "questions": ["À quel point vous êtes-vous senti(e) triste ou déprimé(e) cette semaine ?"]
+    },
+    "Autres Émotions Négatives": {
+        "titre": "😡 Autres Émotions Négatives",
+        "description": "Colère, Culpabilité, Honte, etc. (0 = Nulle, 8 = Extrême).",
+        "type": "scale_0_8",
+        "questions": ["Intensité de la Colère", "Intensité de la Culpabilité", "Intensité de la Honte"]
+    },
+    "Émotions Positives": {
+        "titre": "🌞 Émotions Positives",
+        "description": "Joie, Enthousiasme, Fierté, etc. (0 = Nulle, 8 = Extrême).",
+        "type": "scale_0_8",
+        "questions": ["À quel point avez-vous ressenti de la joie ou du plaisir cette semaine ?"]
+    },
+    "Fiche de Progrès": {
+        "titre": "📈 Fiche des Progrès (Tâches à domicile)",
+        "description": "Notez ici vos réussites et difficultés concernant les exercices.",
+        "type": "text",
+        "questions": [
+            "Quelles tâches avez-vous accomplies cette semaine ?",
+            "Quelles difficultés avez-vous rencontrées ?",
+            "Qu'avez-vous appris ?"
+        ]
+    }
+}
+
+# =========================================================
 # 0. SÉCURITÉ & UTILITAIRES
 # =========================================================
 
@@ -275,6 +315,21 @@ def sauvegarder_etat_devoirs(patient_id, dict_devoirs_exclus):
         return True
     except Exception as e:
         st.error(f"Erreur sauvegarde devoirs : {e}")
+        return False
+
+def sauvegarder_reponse_hebdo(patient_id, nom_questionnaire, score_global, details_dict):
+    """Enregistre une réponse à un questionnaire hebdo."""
+    try:
+        from connect_db import save_data
+        # On sauvegarde chaque remplissage comme une nouvelle ligne (historique)
+        # Date du jour
+        date_jour = datetime.now().strftime("%Y-%m-%d %H:%M")
+        json_details = json.dumps(details_dict)
+        
+        save_data("Reponses_Hebdo", [patient_id, date_jour, nom_questionnaire, score_global, json_details])
+        return True
+    except Exception as e:
+        st.error(f"Erreur sauvegarde hebdo : {e}")
         return False
 
 # --- GESTION DES NOTES DE SÉANCE (NOUVEAU) ---
@@ -556,40 +611,19 @@ else:
                                     st.write("")
                                     st.write("---")
 
-                                    # C. ASSIGNATION DEVOIRS
+                                    # C. DEVOIRS
                                     indices_exclus = devoirs_exclus_memoire.get(code_mod, [])
-                                    
-                                    # Vérifie si ce module a déjà été sauvegardé une fois
-                                    deja_sauvegarde = code_mod in devoirs_exclus_memoire
-                                    
                                     choix_devoirs_temp = [] 
-                                    
                                     if data['taches_domicile']:
                                         st.markdown("**🏠 Assignation Devoirs**")
-                                        st.caption("Décochez pour ne pas donner le devoir.")
-                                        
                                         for j, dev in enumerate(data['taches_domicile']):
-                                            
-                                            # 1. LOGIQUE INTELLIGENTE (Coché ou pas ?)
-                                            titre_lower = dev['titre'].lower()
-                                            
-                                            # Liste des mots clés à décocher par défaut
-                                            est_optionnelle = "autres émotions négatives" in titre_lower or "émotions positives" in titre_lower
-                                            
-                                            if deja_sauvegarde:
-                                                # Si on a déjà un historique, on respecte ce qui a été fait (Coché si pas dans les exclus)
-                                                is_chk = (j not in indices_exclus)
-                                            else:
-                                                # Si c'est la première fois : On coche tout SAUF les optionnelles
-                                                is_chk = not est_optionnelle
-
-                                            # 2. Affichage
+                                            is_chk = (j not in indices_exclus)
                                             val = st.checkbox(dev['titre'], value=is_chk, key=f"dev_{patient_sel}_{code_mod}_{j}")
                                             choix_devoirs_temp.append(val)
-                                            
                                             if dev.get('pdf'):
-                                                nom_pdf = os.path.basename(dev['pdf'])
-                                                st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom_pdf}</small>", unsafe_allow_html=True)
+                                                nom = os.path.basename(dev['pdf'])
+                                                st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
+                                    st.write("---")
                                     
                                     # D. COMMENTAIRES
                                     st.markdown("**👩‍⚕️ Notes de séance**")
@@ -802,6 +836,54 @@ else:
         # SECTION 1 : AGENDAS
         # =========================================================
         st.markdown("### 📅 Mes Agendas (Quotidien)")
+
+        # =========================================================
+        # SECTION 0 : BILANS HEBDOMADAIRES (NUMÉRIQUES)
+        # =========================================================
+        st.info("📝 **C'est le moment du bilan ?** Cliquez ci-dessous pour remplir vos questionnaires.")
+        
+        with st.expander("✍️ Remplir mes questionnaires de la semaine", expanded=False):
+            
+            # 1. Menu déroulant pour choisir le questionnaire
+            choix_quest = st.selectbox("Quel questionnaire voulez-vous remplir ?", list(QUESTIONS_HEBDO.keys()))
+            
+            # 2. Récupération de la config
+            config_q = QUESTIONS_HEBDO[choix_quest]
+            st.markdown(f"#### {config_q['titre']}")
+            st.caption(config_q['description'])
+            
+            # 3. Génération du formulaire
+            with st.form(key=f"form_hebdo_{choix_quest}"):
+                
+                reponses = {}
+                score_total = 0
+                
+                # Cas A : Échelles numériques (0-8)
+                if config_q['type'] == "scale_0_8":
+                    for q in config_q['questions']:
+                        st.write(f"**{q}**")
+                        # Slider 0 à 8
+                        val = st.slider("Intensité", 0, 8, 0, key=f"slider_{choix_quest}_{q}")
+                        reponses[q] = val
+                        score_total += val # Somme simple pour l'instant
+                
+                # Cas B : Texte (Fiche progrès)
+                elif config_q['type'] == "text":
+                    for q in config_q['questions']:
+                        val = st.text_area(q, height=100, key=f"txt_{choix_quest}_{q}")
+                        reponses[q] = val
+                    score_total = -1 # Pas de score numérique applicable
+                
+                st.write("")
+                
+                # 4. Bouton de validation
+                if st.form_submit_button("Envoyer ce questionnaire", type="primary"):
+                    if sauvegarder_reponse_hebdo(st.session_state.user_id, choix_quest, str(score_total), reponses):
+                        st.success("✅ Réponse enregistrée avec succès !")
+                        time.sleep(1)
+                        st.rerun()
+        
+        st.divider()
         
         c1, c2, c3, c4 = st.columns(4)
         
