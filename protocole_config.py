@@ -342,6 +342,16 @@ PROTOCOLE_BARLOW = {
                 "pdfs": ["assets/MOD1.20_Fiche_balance_motivationnelle.pdf"]
             }
         ],
+
+        "exercices": [
+            {
+                "id": "fiche_objectifs",
+                "titre": "🎯 Fiche : Objectifs du Traitement",
+                "type": "fiche_objectifs_traitement", # Type spécial
+                "description": "Définissez vos problèmes principaux et transformez-les en objectifs concrets."
+            }
+        ],
+
         "taches_domicile": [
             {"titre": "Fiche Objectifs du traitement", "pdf": "assets/MOD1.10_Fiche_Objectifs_du_traitement.pdf"},
             {"titre": "Echelle d'anxiété", "pdf": "assets/Echelle_d'anxiété.pdf"},
