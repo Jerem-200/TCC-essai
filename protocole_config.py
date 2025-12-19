@@ -6,11 +6,68 @@
 # =========================================================
 QUESTIONS_HEBDO = {
     "Anxiété": {
-        "titre": "📉 Échelle d'Anxiété",
-        "description": "Évaluez l'intensité moyenne de votre anxiété cette semaine (0 = Nulle, 8 = Extrême).",
-        "type": "scale_0_8",
-        "questions": ["À quel point vous êtes-vous senti(e) anxieux(se) ou nerveux(se) cette semaine ?"]
+        "titre": "📉 Échelle d'Anxiété (OASIS)",
+        "description": "Entourez le numéro correspondant à la réponse qui décrit le mieux votre expérience au cours de la semaine passée.",
+        "type": "qcm_oasis",  # <--- NOUVEAU TYPE SPÉCIFIQUE
+        "questions": [
+            {
+                "id": "freq",
+                "label": "1. À quelle fréquence vous êtes-vous senti anxieux ?",
+                "options": [
+                    "0 = Aucune anxiété au cours de la semaine dernière.",
+                    "1 = Anxiété peu fréquente. Je me suis senti anxieux à quelques reprises.",
+                    "2 = Anxiété occasionnelle. Je me sentais anxieux la plupart du temps. C'était difficile de se détendre.",
+                    "3 = Anxiété fréquente. Je me sentais anxieux la plupart du temps. C'était très difficile de se détendre.",
+                    "4 = Anxiété constante. Je me sentais anxieux tout le temps et je n'étais jamais vraiment détendu."
+                ]
+            },
+            {
+                "id": "intensite",
+                "label": "2. Quelle était l'intensité ou la gravité de votre anxiété ?",
+                "options": [
+                    "0 = Peu ou pas du tout : L'anxiété était absente ou à peine perceptible.",
+                    "1 = Légère : L'anxiété était à un niveau bas. Il était possible de se détendre. Symptômes physiques légers.",
+                    "2 = Modérée : L'anxiété était parfois pénible. C'était difficile de se détendre ou de se concentrer.",
+                    "3 = Sévère : L'anxiété était intense la plupart du temps. Symptômes physiques extrêmement inconfortables.",
+                    "4 = Extrême : L'anxiété était envahissante. Il était impossible de se détendre. Symptômes insupportables."
+                ]
+            },
+            {
+                "id": "evitement",
+                "label": "3. À quelle fréquence avez-vous évité des situations, lieux ou objets ?",
+                "options": [
+                    "0 = Aucun : Je n'évite pas les lieux, les situations, les activités ou les choses à cause de la peur.",
+                    "1 = Peu fréquent : J'évite quelque chose de temps en temps, mais mon style de vie n'est pas affecté.",
+                    "2 = Occasionnellement : J'ai une certaine peur, mais cela reste gérable. Mon style de vie n'a changé que de façon mineure.",
+                    "3 = Fréquent : J'ai une peur considérable et j'essaie vraiment d'éviter les choses. Changements importants à mon style de vie.",
+                    "4 = Tout le temps : Éviter des objets/situations a pris le dessus sur ma vie. Mode de vie largement affecté."
+                ]
+            },
+            {
+                "id": "interf_travail",
+                "label": "4. Perturbation de la capacité à faire les choses (travail/école/maison) ?",
+                "options": [
+                    "0 = Aucun : Aucune interférence due à l'anxiété.",
+                    "1 = Léger : Mon anxiété a causé des interférences mais tout ce qui doit être fait se fait encore.",
+                    "2 = Modéré : Mon anxiété interfère définitivement avec les tâches. La plupart des choses se font encore, mais moins bien.",
+                    "3 = Sévère : Mon anxiété a vraiment modifié ma capacité à faire avancer les choses. Ma performance a souffert.",
+                    "4 = Extrême : Mon anxiété est devenue invalidante. Incapable d'accomplir des tâches (démission, échec scolaire, etc.)."
+                ]
+            },
+            {
+                "id": "interf_social",
+                "label": "5. Interférence avec la vie sociale et les relations ?",
+                "options": [
+                    "0 = Aucun : Mon anxiété n'affecte pas mes relations.",
+                    "1 = Léger : Interfère légèrement. Certaines relations ont souffert mais vie sociale épanouissante.",
+                    "2 = Modéré : Interférences vécues, mais j'ai encore quelques relations proches. Je socialise encore parfois.",
+                    "3 = Sévère : Mes amitiés ont beaucoup souffert. Je n'aime pas les activités sociales. Je socialise très peu.",
+                    "4 = Extrême : Mon anxiété a complètement perturbé mes activités sociales. Relations terminées ou famille tendue."
+                ]
+            }
+        ]
     },
+
     "Dépression": {
         "titre": "☁️ Échelle de Dépression",
         "description": "Évaluez l'intensité moyenne de votre tristesse/dépression cette semaine (0 = Nulle, 8 = Extrême).",

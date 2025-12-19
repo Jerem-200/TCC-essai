@@ -92,7 +92,17 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
                         if j not in exclus_ici:
                             a_faire = True
                             # Affichage simple sans case à cocher
-                            st.markdown(f" **{dev['titre']}**")
+                            st.markdown(f"👉 **{dev['titre']}**")
+                            
+                            # Bouton de téléchargement si PDF
+                            if dev.get('pdf') and os.path.exists(dev['pdf']):
+                                with open(dev['pdf'], "rb") as f:
+                                    st.download_button(
+                                        f"📥 Télécharger le support", 
+                                        f, 
+                                        file_name=os.path.basename(dev['pdf']), 
+                                        key=f"dl_dev_{code_mod}_{j}"
+                                    )
                 
                 if not a_faire:
                     st.success("🎉 Aucun devoir spécifique pour la prochaine fois.")
@@ -125,6 +135,7 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
                 if choix_q:
                     config_q = QUESTIONS_HEBDO[choix_q]
                     
+                    # Formulaire unique
                     with st.form(key=f"form_exo_{code_mod}_{choix_q}"):
                         st.markdown(f"**{config_q['titre']}**")
                         st.caption(config_q['description'])
@@ -132,6 +143,7 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
                         reponses = {}
                         score_total = 0
                         
+                        # --- TYPE 1 : Échelles numériques simples (Dépression, Emotions...) ---
                         if config_q['type'] == "scale_0_8":
                             for q in config_q['questions']:
                                 st.write(q)
@@ -139,11 +151,32 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
                                 reponses[q] = val
                                 score_total += val
                         
+                        # --- TYPE 2 : Texte libre (Progrès) ---
                         elif config_q['type'] == "text":
                             for q in config_q['questions']:
                                 val = st.text_area(q, height=100, key=f"txt_{code_mod}_{choix_q}_{q}")
                                 reponses[q] = val
                             score_total = -1
+
+                        # --- TYPE 3 : OASIS (QCM Spécifique Anxiété) ---
+                        elif config_q['type'] == "qcm_oasis":
+                            for item in config_q['questions']:
+                                st.markdown(f"**{item['label']}**")
+                                # On affiche les options complètes (texte)
+                                choix = st.radio(
+                                    "Votre réponse :", 
+                                    item['options'], 
+                                    key=f"rad_{code_mod}_{choix_q}_{item['id']}",
+                                    label_visibility="collapsed"
+                                )
+                                # On extrait le chiffre au début (ex: "3 = Sévère..." -> 3)
+                                try:
+                                    valeur = int(choix.split("=")[0].strip())
+                                except:
+                                    valeur = 0
+                                
+                                reponses[item['label']] = choix # On garde le texte complet pour le détail
+                                score_total += valeur
 
                         st.write("")
                         
