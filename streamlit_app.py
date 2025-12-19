@@ -152,33 +152,62 @@ def sauvegarder_blocages(patient_id, liste_cles):
         st.error(f"Erreur sauvegarde : {e}")
         return False
     
-# --- GESTION DES MODULES VALIDÉS (Carré Vert) ---
-def charger_modules_valides(patient_id):
-    """Charge la liste des modules terminés à 100% (Vert)"""
+# --- GESTION COMBINÉE : VALIDATION + COMMENTAIRES (Onglet Suivi_Validation) ---
+def charger_suivi_global(patient_id):
+    """
+    Récupère à la fois la liste des modules validés (Vert) 
+    ET les commentaires du thérapeute depuis l'onglet 'Suivi_Validation'.
+    Retourne : (liste_modules_valides, dictionnaire_commentaires)
+    """
     try:
         from connect_db import load_data
-        # On utilise une table 'Suivi_Validation' (à créer ou simuler)
-        # Si vous n'avez pas cette table, on peut utiliser un fichier ou une autre logique
-        # Pour cet exemple, je suppose que ça marche comme 'Progression'
         data = load_data("Suivi_Validation") 
         if data:
             df = pd.DataFrame(data)
             row = df[df["Patient"] == patient_id]
             if not row.empty:
-                valides_str = str(row.iloc[0]["Modules_Valides"])
-                return [x.strip() for x in valides_str.split(",") if x.strip()]
-    except: pass
-    return []
+                # 1. Récupération des modules validés
+                valides_str = str(row.iloc[0].get("Modules_Valides", ""))
+                liste_valides = [x.strip() for x in valides_str.split(",") if x.strip()]
+                
+                # 2. Récupération des commentaires (JSON stocké dans la colonne 'Commentaires')
+                commentaires_json = row.iloc[0].get("Commentaires", "{}")
+                # Petit nettoyage si la cellule est vide ou nan
+                if not commentaires_json or commentaires_json == "nan" or commentaires_json == "None":
+                    dict_notes = {}
+                else:
+                    try:
+                        dict_notes = json.loads(str(commentaires_json))
+                    except:
+                        dict_notes = {}
+                
+                return liste_valides, dict_notes
+    except Exception as e:
+        print(f"Erreur chargement suivi: {e}")
+        pass
+    return [], {}
 
-def sauvegarder_modules_valides(patient_id, liste_modules):
+def sauvegarder_suivi_global(patient_id, liste_modules, dict_notes):
+    """Enregistre tout (Validation + Notes) dans l'onglet Suivi_Validation."""
     try:
         from connect_db import save_data, delete_data_flexible
+        
+        # 1. Supprimer l'ancienne ligne
         delete_data_flexible("Suivi_Validation", {"Patient": patient_id})
+        
+        # 2. Préparer les données
         chaine_valides = ",".join(liste_modules)
-        save_data("Suivi_Validation", [patient_id, chaine_valides])
+        json_notes = json.dumps(dict_notes)
+        
+        # 3. Sauvegarder : [Patient, Modules_Valides, Commentaires]
+        # Assure-toi que ton Google Sheet a bien ces 3 colonnes dans cet ordre
+        save_data("Suivi_Validation", [patient_id, chaine_valides, json_notes])
+        
+        # 4. Vider le cache pour rechargement immédiat
+        charger_suivi_global.clear() # Important pour voir le changement tout de suite
         return True
     except Exception as e:
-        print(f"Erreur save validation: {e}")
+        st.error(f"Erreur sauvegarde globale : {e}")
         return False
     
 # =========================================================
@@ -412,13 +441,13 @@ else:
 
                 with st.expander("🗺️ Pilotage du Protocole (Barlow)", expanded=True):
                     
-                    # 1. Chargement des données
+                    # 1. Chargement des données (VERSION OPTIMISÉE)
                     progression_patient = charger_progression(patient_sel)
                     devoirs_exclus_memoire = charger_etat_devoirs(patient_sel)
-                    modules_valides_db = charger_modules_valides(patient_sel) 
-                    notes_seance_db = charger_notes_seance(patient_sel)
                     
-                    # Initialisation variable session pour l'ouverture
+                    # --- NOUVEAU : On charge Validation ET Notes en une seule fois ---
+                    modules_valides_db, notes_seance_db = charger_suivi_global(patient_sel)
+                    
                     if "last_active_module" not in st.session_state:
                         st.session_state.last_active_module = "module0"
 
@@ -428,14 +457,11 @@ else:
                     st.progress(min(nb_fait / nb_total, 1.0), text=f"Avancement : {nb_fait}/{nb_total} modules terminés")
                     st.write("---")
 
-                    # 3. BOUCLE DES MODULES (LOGIQUE VALIDATION + VERT + OUVERTURE)
+                    # 3. BOUCLE DES MODULES
                     for i, (code_mod, data) in enumerate(PROTOCOLE_BARLOW.items()):
                         
-                        # On vérifie si le module est validé (Vert)
                         is_done = code_mod in modules_valides_db
                         icon = "✅" if is_done else "🟦"
-                        
-                        # Logique d'ouverture (reste ouvert après enregistrement)
                         should_be_expanded = (code_mod == st.session_state.last_active_module)
 
                         # EN-TÊTE
@@ -468,47 +494,39 @@ else:
                                 # --- FORMULAIRE ---
                                 with st.form(key=f"form_main_{patient_sel}_{code_mod}"):
                                     
-                                    # LISTE POUR VÉRIFIER SI TOUT EST COCHÉ
                                     check_list = []
 
-                                    # 1. EXAMEN DES TÂCHES
+                                    # A. EXAMEN DES TÂCHES
                                     if data['examen_devoirs']:
                                         st.markdown("**🔍 Examen des tâches précédentes**")
                                         st.caption("Cochez les tâches revues.")
                                         for idx, d in enumerate(data['examen_devoirs']):
-                                            # On capture la valeur (True/False)
                                             val = st.checkbox(f"{d['titre']}", key=f"exam_{patient_sel}_{code_mod}_{idx}")
                                             check_list.append(val)
-                                            
                                             if d.get('pdf'):
                                                 nom = os.path.basename(d['pdf'])
                                                 st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
                                         st.write("---")
                                     
-                                    # 2. ÉTAPES DE LA SÉANCE
+                                    # B. ÉTAPES SÉANCE
                                     st.markdown("**📝 Étapes de la séance**")
                                     for idx_etape, etape in enumerate(data['etapes_seance']):
-                                        
-                                        # --- AJOUT INFO-BULLE ---
-                                        # On cherche si une description existe dans le fichier de config, sinon rien
                                         info_bulle = etape.get('details', None) 
-                                        
-                                        # On capture la valeur avec le paramètre 'help' ajouté
                                         val = st.checkbox(
                                             f"{etape['titre']}", 
                                             key=f"step_{patient_sel}_{code_mod}_{idx_etape}",
-                                            help=info_bulle  # <--- C'EST ICI QUE L'INFO-BULLE S'AFFICHE
+                                            help=info_bulle
                                         )
                                         check_list.append(val)
-                                        
                                         if etape.get('pdfs'):
                                             for pdf_path in etape['pdfs']:
                                                 nom = os.path.basename(pdf_path)
                                                 st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
+                                    
                                     st.write("")
                                     st.write("---")
 
-                                    # 3. DEVOIRS
+                                    # C. ASSIGNATION DEVOIRS
                                     indices_exclus = devoirs_exclus_memoire.get(code_mod, [])
                                     choix_devoirs_temp = [] 
                                     
@@ -518,24 +536,19 @@ else:
                                         
                                         for j, dev in enumerate(data['taches_domicile']):
                                             is_chk = (j not in indices_exclus)
-                                            # Pour les devoirs, on considère que c'est "Fait" si le thérapeute a pris une décision (coché ou décoché)
-                                            # Donc on ajoute True à check_list par défaut car c'est une action d'assignation
                                             val = st.checkbox(dev['titre'], value=is_chk, key=f"dev_{patient_sel}_{code_mod}_{j}")
                                             choix_devoirs_temp.append(val)
-                                            
                                             if dev.get('pdf'):
                                                 nom_pdf = os.path.basename(dev['pdf'])
                                                 st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom_pdf}</small>", unsafe_allow_html=True)
 
-                                    st.write("")
-
-                                    # --- D. NOUVEAU : ZONE DE COMMENTAIRES / CR ---
+                                    st.write("---")
+                                    
+                                    # D. COMMENTAIRES (CLOUD)
                                     st.markdown("**👩‍⚕️ Notes de séance & Plan d'action**")
-                                    # On récupère le texte existant ou vide
                                     texte_actuel = notes_seance_db.get(code_mod, "")
-                                    # Le Text Area
                                     nouvelle_note = st.text_area(
-                                        "Compte-rendu et points à retenir pour la prochaine fois :",
+                                        "Compte-rendu :",
                                         value=texte_actuel,
                                         height=150,
                                         key=f"note_area_{patient_sel}_{code_mod}"
@@ -543,38 +556,45 @@ else:
 
                                     st.write("")
                                     
-                                    # 4. ENREGISTRER
+                                    # E. ENREGISTRER (AVEC LOGIQUE CORRIGÉE)
                                     if st.form_submit_button("💾 Enregistrer la séance", type="primary"):
                                         
-                                        # A. Sauvegarde Devoirs Exclus
+                                        # 1. Devoirs
                                         if data['taches_domicile']:
                                             nouveaux_exclus = [k for k, chk in enumerate(choix_devoirs_temp) if not chk]
                                             devoirs_exclus_memoire[code_mod] = nouveaux_exclus
                                             sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
-
-                                        # B. Sauvegarde des Notes (NOUVEAU)
-                                        notes_seance_db[code_mod] = nouvelle_note
-                                        sauvegarder_notes_seance(patient_sel, notes_seance_db)
                                         
-                                        # C. Déblocage du module (Progression)
+                                        # 2. Mise à jour de la note dans le dictionnaire local
+                                        notes_seance_db[code_mod] = nouvelle_note
+
+                                        # 3. Progression (Déblocage)
                                         if code_mod not in progression_patient:
                                             progression_patient.append(code_mod)
                                             sauvegarder_progression(patient_sel, progression_patient)
                                         
-                                        # D. LOGIQUE VERT (Validation)
-                                        # On vérifie si toutes les cases "Actions" (check_list) sont cochées
+                                        # 4. LOGIQUE VERT / BLEU (CORRIGÉE)
+                                        # Est-ce que tout est coché maintenant ?
                                         tout_est_fini = all(check_list) if check_list else True
                                         
                                         if tout_est_fini:
+                                            # SI TOUT EST FAIT -> On ajoute à la liste si pas déjà présent
                                             if code_mod not in modules_valides_db:
                                                 modules_valides_db.append(code_mod)
-                                                sauvegarder_modules_valides(patient_sel, modules_valides_db)
                                                 st.toast("✅ Module validé (Vert) !", icon="🎉")
+                                        else:
+                                            # SI TOUT N'EST PAS FAIT -> On retire de la liste si présent (RETOUR BLEU)
+                                            if code_mod in modules_valides_db:
+                                                modules_valides_db.remove(code_mod)
+                                                st.toast("ℹ️ Module repassé en cours (Bleu)", icon="ue800")
+
+                                        # 5. SAUVEGARDE GLOBALE (Notes + Validation)
+                                        sauvegarder_suivi_global(patient_sel, modules_valides_db, notes_seance_db)
                                         
-                                        # E. Maintien ouverture
+                                        # 6. Maintien ouverture
                                         st.session_state.last_active_module = code_mod
                                         
-                                        st.success("✅ Sauvegardé !")
+                                        st.success("✅ Séance enregistrée dans le Cloud !")
                                         time.sleep(0.5)
                                         st.rerun()
 
