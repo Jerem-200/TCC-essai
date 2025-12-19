@@ -87,7 +87,8 @@ with st.expander("📊 **Mon Espace de Suivi (Questionnaires & Courbes)**", expa
         
         with c_q1:
             choix_q = st.selectbox("1️⃣ Choisir le questionnaire :", list(QUESTIONS_HEBDO.keys()))
-        
+            
+
         with c_q2:
             if choix_q:
                 config_q = QUESTIONS_HEBDO[choix_q]
@@ -135,11 +136,7 @@ with st.expander("📊 **Mon Espace de Suivi (Questionnaires & Courbes)**", expa
                             st.error("Indiquez l'émotion.")
                         else:
                             # Construction du nom pour l'historique
-                            nom_final = choix_q
-                            if mod_concerne and "Aucun" not in mod_concerne:
-                                code_simple = mod_concerne.split(":")[0].strip()
-                                nom_final = f"{code_simple} - {choix_q}"
-                            
+                            nom_final = choix_q                            
                             if nom_emotion: nom_final += f" ({nom_emotion})"
 
                             if sauvegarder_reponse_hebdo(current_user, nom_final, str(score_total), reponses):
