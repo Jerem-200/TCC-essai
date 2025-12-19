@@ -440,13 +440,16 @@ else:
                 import os
                 import json
 
+                # 
+
                 with st.expander("🗺️ Pilotage du Protocole (Barlow)", expanded=True):
                     
-                    # 1. Chargement des données (VERSION OPTIMISÉE)
+                    # 1. Chargement des données (OPTIMISÉ)
                     progression_patient = charger_progression(patient_sel)
                     devoirs_exclus_memoire = charger_etat_devoirs(patient_sel)
                     
-                    # --- NOUVEAU : On charge Validation ET Notes en une seule fois ---
+                    # On charge Validation ET Notes en une seule fois (plus rapide)
+                    # On a supprimé la ligne 'charger_notes_seance' qui était inutile ici
                     modules_valides_db, notes_seance_db = charger_suivi_global(patient_sel)
                     
                     if "last_active_module" not in st.session_state:
@@ -557,45 +560,45 @@ else:
 
                                     st.write("")
                                     
-                                    # E. ENREGISTRER (AVEC LOGIQUE CORRIGÉE)
+                                    # E. ENREGISTRER (OPTIMISÉ)
                                     if st.form_submit_button("💾 Enregistrer la séance", type="primary"):
                                         
-                                        # 1. Devoirs
+                                        # 1. Sauvegarde Devoirs Exclus
                                         if data['taches_domicile']:
                                             nouveaux_exclus = [k for k, chk in enumerate(choix_devoirs_temp) if not chk]
+                                            # Petite optimisation : on ne sauvegarde que si ça a changé (Optionnel, mais garde comme ça pour l'instant)
                                             devoirs_exclus_memoire[code_mod] = nouveaux_exclus
                                             sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
                                         
-                                        # 2. Mise à jour de la note dans le dictionnaire local
+                                        # 2. Mise à jour mémoire locale des notes
                                         notes_seance_db[code_mod] = nouvelle_note
+                                        # SUPPRESSION DE LA SAUVEGARDE REDONDANTE ICI
 
                                         # 3. Progression (Déblocage)
+                                        # Optimisation : on ne sauvegarde que si c'est nouveau
                                         if code_mod not in progression_patient:
                                             progression_patient.append(code_mod)
                                             sauvegarder_progression(patient_sel, progression_patient)
                                         
-                                        # 4. LOGIQUE VERT / BLEU (CORRIGÉE)
-                                        # Est-ce que tout est coché maintenant ?
+                                        # 4. LOGIQUE VERT / BLEU
                                         tout_est_fini = all(check_list) if check_list else True
                                         
                                         if tout_est_fini:
-                                            # SI TOUT EST FAIT -> On ajoute à la liste si pas déjà présent
                                             if code_mod not in modules_valides_db:
                                                 modules_valides_db.append(code_mod)
                                                 st.toast("✅ Module validé (Vert) !", icon="🎉")
                                         else:
-                                            # SI TOUT N'EST PAS FAIT -> On retire de la liste si présent (RETOUR BLEU)
                                             if code_mod in modules_valides_db:
                                                 modules_valides_db.remove(code_mod)
                                                 st.toast("ℹ️ Module repassé en cours (Bleu)", icon="ue800")
 
-                                        # 5. SAUVEGARDE GLOBALE (Notes + Validation)
+                                        # 5. SAUVEGARDE GLOBALE (C'est elle qui sauvegarde les notes ET la validation)
                                         sauvegarder_suivi_global(patient_sel, modules_valides_db, notes_seance_db)
                                         
                                         # 6. Maintien ouverture
                                         st.session_state.last_active_module = code_mod
                                         
-                                        st.success("✅ Séance enregistrée dans le Cloud !")
+                                        st.success("✅ Séance enregistrée !")
                                         time.sleep(0.5)
                                         st.rerun()
 
