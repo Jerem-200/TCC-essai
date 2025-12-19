@@ -556,19 +556,40 @@ else:
                                     st.write("")
                                     st.write("---")
 
-                                    # C. DEVOIRS
+                                    # C. ASSIGNATION DEVOIRS
                                     indices_exclus = devoirs_exclus_memoire.get(code_mod, [])
+                                    
+                                    # Vérifie si ce module a déjà été sauvegardé une fois
+                                    deja_sauvegarde = code_mod in devoirs_exclus_memoire
+                                    
                                     choix_devoirs_temp = [] 
+                                    
                                     if data['taches_domicile']:
                                         st.markdown("**🏠 Assignation Devoirs**")
+                                        st.caption("Décochez pour ne pas donner le devoir.")
+                                        
                                         for j, dev in enumerate(data['taches_domicile']):
-                                            is_chk = (j not in indices_exclus)
+                                            
+                                            # 1. LOGIQUE INTELLIGENTE (Coché ou pas ?)
+                                            titre_lower = dev['titre'].lower()
+                                            
+                                            # Liste des mots clés à décocher par défaut
+                                            est_optionnelle = "autres émotions négatives" in titre_lower or "émotions positives" in titre_lower
+                                            
+                                            if deja_sauvegarde:
+                                                # Si on a déjà un historique, on respecte ce qui a été fait (Coché si pas dans les exclus)
+                                                is_chk = (j not in indices_exclus)
+                                            else:
+                                                # Si c'est la première fois : On coche tout SAUF les optionnelles
+                                                is_chk = not est_optionnelle
+
+                                            # 2. Affichage
                                             val = st.checkbox(dev['titre'], value=is_chk, key=f"dev_{patient_sel}_{code_mod}_{j}")
                                             choix_devoirs_temp.append(val)
+                                            
                                             if dev.get('pdf'):
-                                                nom = os.path.basename(dev['pdf'])
-                                                st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
-                                    st.write("---")
+                                                nom_pdf = os.path.basename(dev['pdf'])
+                                                st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom_pdf}</small>", unsafe_allow_html=True)
                                     
                                     # D. COMMENTAIRES
                                     st.markdown("**👩‍⚕️ Notes de séance**")
@@ -930,8 +951,6 @@ else:
             
             st.title("Navigation")
             st.page_link("streamlit_app.py", label="🏠 Accueil")
-
-            # 👇 AJOUTER CE BLOC ICI 👇
             st.info("🎯 **Protocole**")
             st.page_link("pages/00_Mon_Parcours.py", label="Mon Parcours", icon="🗺️")
             st.divider()
