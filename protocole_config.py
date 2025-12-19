@@ -24,7 +24,7 @@ PROTOCOLE_BARLOW = {
         "examen_devoirs": [], # Rien au module 0
 
         "etapes_seance": [
-            {"titre": "Examen des plaintes présentées par le patient", "pdfs": []},
+            {"titre": "Examen des plaintes présentées par le patient", "details": "A venir","pdfs": []},
             {
                 "titre": "Présentation de la justification du traitement (Évaluation)", 
                 "details": "A venir",
@@ -386,7 +386,7 @@ PROTOCOLE_BARLOW = {
                 "titre": "Établissement d'objectifs à long terme", "details": "A venir",
                 "pdfs": ["assets/MOD8.2_Fiche_Plan_pour_maintenir_et_continuer_à_progresser.pdf"]
             },
-            {"titre": "Fin du traitement", "pdfs": []}
+            {"titre": "Fin du traitement", "details": "A venir", "pdfs": []}
         ],
 
         "taches_domicile": []
