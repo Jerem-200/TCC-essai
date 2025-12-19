@@ -316,6 +316,15 @@ PROTOCOLE_BARLOW = {
             }
         ],
 
+        "exercices": [
+            {
+                "id": "fiche_objectifs",
+                "titre": "🎯 Fiche : Objectifs du Traitement",
+                "type": "fiche_objectifs_traitement", # Un type spécial pour cette mise en page
+                "description": "Définissez vos problèmes principaux et transformez-les en objectifs concrets découpés en étapes."
+            }
+        ],
+        
         "taches_domicile": []
     },
 

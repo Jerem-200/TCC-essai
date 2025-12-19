@@ -171,21 +171,24 @@ st.write("---")
 # =========================================================
 st.header("🗺️ Ma Progression")
 
-# On boucle sur TOUS les modules du protocole
 for code_mod, data in PROTOCOLE_BARLOW.items():
     
-    # Si débloqué
+    # Vérification si le module est débloqué
     if code_mod in modules_debloques:
         
-        # Affichage classique (Expander) qui montre bien la liste verticale
         with st.expander(f"✅ {data['titre']}", expanded=False):
             
-            t_seance, t_doc = st.tabs(["📖 Résumé Séance", "📂 Documents"])
+            # On prépare les onglets. S'il y a des exercices, on ajoute un onglet.
+            liste_onglets = ["📖 Résumé Séance", "📂 Documents"]
+            has_exos = "exercices" in data and data["exercices"]
+            if has_exos:
+                liste_onglets.append("📝 Exercices")
             
-            # Contenu léger (Texte uniquement = Très rapide)
-            with t_seance:
+            tabs = st.tabs(liste_onglets)
+            
+            # --- ONGLET 1 : RÉSUMÉ SÉANCE ---
+            with tabs[0]:
                 st.info(f"**Objectifs :** {data['objectifs']}")
-                
                 c1, c2 = st.columns(2)
                 with c1:
                     st.markdown("**📝 Ce que nous avons vu :**")
@@ -193,7 +196,6 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
                         for etape in data['etapes_seance']:
                             st.markdown(f"- {etape['titre']}")
                     else: st.caption("N/A")
-                
                 with c2:
                     st.markdown("**🏠 Travail à la maison :**")
                     exclus = devoirs_exclus.get(code_mod, [])
@@ -212,7 +214,8 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
                         with st.expander("📸 Envoyer une photo"):
                             st.camera_input("Photo", key=f"c_{code_mod}")
 
-            with t_doc:
+            # --- ONGLET 2 : DOCUMENTS ---
+            with tabs[1]:
                 if 'pdfs_module' in data and data['pdfs_module']:
                     for p in data['pdfs_module']:
                         if os.path.exists(p):
@@ -220,8 +223,71 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
                                 st.download_button(f"📥 {os.path.basename(p)}", f, file_name=os.path.basename(p), key=f"da_{code_mod}_{os.path.basename(p)}")
                 else: st.caption("Aucun document.")
 
+            # --- ONGLET 3 : EXERCICES (NOUVEAU) ---
+            if has_exos:
+                with tabs[2]:
+                    for exo in data["exercices"]:
+                        st.subheader(exo["titre"])
+                        st.caption(exo["description"])
+                        
+                        # --- LOGIQUE SPÉCIFIQUE : FICHE OBJECTIFS ---
+                        if exo["type"] == "fiche_objectifs_traitement":
+                            with st.form(key=f"form_exo_{code_mod}_{exo['id']}"):
+                                st.markdown("Remplissez ce tableau pour clarifier vos objectifs.")
+                                
+                                # Le Problème Principal
+                                st.markdown("#### 1. Le Problème")
+                                st.caption("Comment vos émotions (tristesse, anxiété, etc.) ont-elles engendré des problèmes ?")
+                                pb_principal = st.text_area("Problème principal :", height=100, key=f"pb_{code_mod}")
+                                
+                                st.divider()
+                                
+                                # Les Objectifs (On en propose 2 pour commencer)
+                                st.markdown("#### 2. Objectifs & Étapes")
+                                st.caption("Quels objectifs concrets pourraient résoudre ce problème ? Décomposez-les en étapes.")
+
+                                c_obj1, c_obj2 = st.columns(2)
+                                
+                                # Objectif 1
+                                with c_obj1:
+                                    st.markdown("**Objectif Concret 1**")
+                                    obj1 = st.text_input("Intitulé de l'objectif 1 :", key=f"o1_{code_mod}")
+                                    st.markdown("_Les étapes nécessaires :_")
+                                    steps1 = []
+                                    for i in range(4):
+                                        s = st.text_input(f"Étape {i+1}", key=f"s1_{i}_{code_mod}")
+                                        steps1.append(s)
+
+                                # Objectif 2
+                                with c_obj2:
+                                    st.markdown("**Objectif Concret 2**")
+                                    obj2 = st.text_input("Intitulé de l'objectif 2 :", key=f"o2_{code_mod}")
+                                    st.markdown("_Les étapes nécessaires :_")
+                                    steps2 = []
+                                    for i in range(4):
+                                        s = st.text_input(f"Étape {i+1}", key=f"s2_{i}_{code_mod}")
+                                        steps2.append(s)
+
+                                st.write("")
+                                if st.form_submit_button("💾 Enregistrer mes objectifs", type="primary"):
+                                    # On structure les données pour la sauvegarde
+                                    reponses_json = {
+                                        "Problème Principal": pb_principal,
+                                        "Objectif 1": obj1,
+                                        "Etapes Objectif 1": [s for s in steps1 if s],
+                                        "Objectif 2": obj2,
+                                        "Etapes Objectif 2": [s for s in steps2 if s]
+                                    }
+                                    
+                                    # On utilise la fonction générique de sauvegarde
+                                    nom_sauvegarde = f"{code_mod} - {exo['titre']}"
+                                    if sauvegarder_reponse_hebdo(current_user, nom_sauvegarde, "N/A", reponses_json):
+                                        st.success("✅ Objectifs enregistrés ! Vous pouvez les retrouver dans l'onglet 'Documents' ou votre historique.")
+                                        time.sleep(1)
+                                        st.rerun()
+
     else:
-        # Module bloqué
+        # Module verrouillé
         with st.container():
             st.markdown(f"🔒 **{data['titre']}** _(Verrouillé)_")
             st.divider()
