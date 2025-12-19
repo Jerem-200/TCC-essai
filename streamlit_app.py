@@ -793,17 +793,17 @@ else:
                 st.warning("**Sommeil**")
                 st.page_link("pages/10_Agenda_Sommeil.py", label="Ouvrir", icon="🌙")
         
-        if "activites" not in OUTILS_AUTORISES:
+        if "activites" in OUTILS_AUTORISES:
             with c2:
                 st.warning("**Activités**")
                 st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="📝")
         
-        if "conso" not in OUTILS_AUTORISES:
+        if "conso" in OUTILS_AUTORISES:
             with c3:
                 st.warning("**Consommations**")
                 st.page_link("pages/13_Agenda_Consos.py", label="Ouvrir", icon="🍷")
         
-        if "compulsions" not in OUTILS_AUTORISES:
+        if "compulsions" in OUTILS_AUTORISES:
             with c4:
                 st.warning("**Compulsions**")
                 st.page_link("pages/14_Agenda_Compulsions.py", label="Ouvrir", icon="🛑")
@@ -817,32 +817,32 @@ else:
         
         c5, c6, c7 = st.columns(3)
         with c5:
-            if "beck" not in OUTILS_AUTORISES:
+            if "beck" in OUTILS_AUTORISES:
                 st.info("**Restructuration (Beck)**")
                 st.page_link("pages/01_Colonnes_Beck.py", label="Lancer", icon="🧩")
                 st.write("")
             
-            if "sorc" not in OUTILS_AUTORISES:
+            if "sorc" in OUTILS_AUTORISES:
                 st.info("**Analyse SORC**")
                 st.page_link("pages/12_Analyse_SORC.py", label="Lancer", icon="🔍")
             
         with c6:
-            if "problemes" not in OUTILS_AUTORISES:
+            if "problemes" in OUTILS_AUTORISES:
                 st.info("**Résolution Problème**")
                 st.page_link("pages/06_Resolution_Probleme.py", label="Lancer", icon="💡")
                 st.write("")
             
-            if "balance" not in OUTILS_AUTORISES:
+            if "balance" in OUTILS_AUTORISES:
                 st.info("**Balance Décisionnelle**")
                 st.page_link("pages/11_Balance_Decisionnelle.py", label="Lancer", icon="⚖️")
 
         with c7:
-            if "expo" not in OUTILS_AUTORISES:
+            if "expo" in OUTILS_AUTORISES:
                 st.info("**Exposition**")
                 st.page_link("pages/09_Exposition.py", label="Lancer", icon="🧗")
                 st.write("")
             
-            if "relax" not in OUTILS_AUTORISES:
+            if "relax" in OUTILS_AUTORISES:
                 st.info("**Relaxation**")
                 st.page_link("pages/07_Relaxation.py", label="Lancer", icon="🧘")
 
@@ -855,29 +855,29 @@ else:
         
         m1, m2, m3 = st.columns(3)
         with m1:
-            if "phq9" not in OUTILS_AUTORISES:
+            if "phq9" in OUTILS_AUTORISES:
                 st.success("**PHQ-9 (Dépression)**")
                 st.page_link("pages/15_Echelle_PHQ9.py", label="Lancer", icon="📊")
         with m2:
-            if "gad7" not in OUTILS_AUTORISES:
+            if "gad7" in OUTILS_AUTORISES:
                 st.success("**GAD-7 (Anxiété)**")
                 st.page_link("pages/16_Echelle_GAD7.py", label="Lancer", icon="📊")
         with m3:
-            if "who5" not in OUTILS_AUTORISES:
+            if "who5" in OUTILS_AUTORISES:
                 st.success("**WHO-5 (Bien-être)**")
                 st.page_link("pages/20_Echelle_WHO5.py", label="Lancer", icon="📊")
 
         m4, m5, m6 = st.columns(3)
         with m4:
-            if "isi" not in OUTILS_AUTORISES:
+            if "isi" in OUTILS_AUTORISES:
                 st.success("**ISI (Insomnie)**")
                 st.page_link("pages/17_Echelle_ISI.py", label="Lancer", icon="📊")
         with m5:
-            if "peg" not in OUTILS_AUTORISES:
+            if "peg" in OUTILS_AUTORISES:
                 st.success("**PEG (Douleur)**")
                 st.page_link("pages/18_Echelle_PEG.py", label="Lancer", icon="📊")
         with m6:
-            if "wsas" not in OUTILS_AUTORISES:
+            if "wsas" in OUTILS_AUTORISES:
                 st.success("**WSAS (Impact)**")
                 st.page_link("pages/19_Echelle_WSAS.py", label="Lancer", icon="📊")
 
