@@ -1,10 +1,10 @@
 import streamlit as st
 import os
-import time  # <--- Ajouté pour gérer le rechargement après sauvegarde
+import time
 from protocole_config import PROTOCOLE_BARLOW, QUESTIONS_HEBDO 
 from connect_db import load_data, sauvegarder_reponse_hebdo
 
-# Import sécurisé (On garde ta logique de sécurité)
+# Import sécurisé
 try:
     from streamlit_app import charger_progression, charger_etat_devoirs
 except ImportError:
@@ -44,7 +44,7 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
 
 # --- FORCER LE CHARGEMENT DES DONNÉES FRAÎCHES ---
 current_user = st.session_state.get("user_id", "")
-modules_debloques = charger_progression(current_user) # Charge depuis la DB
+modules_debloques = charger_progression(current_user)
 devoirs_exclus = charger_etat_devoirs(current_user)
 
 st.title("🗺️ Mon Parcours de Soin")
@@ -58,35 +58,62 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
         # Par défaut, on ferme tout
         with st.expander(f"✅ {data['titre']}", expanded=False):
             
-            # --- MODIFICATION ICI : AJOUT DU 3ème ONGLET ---
             tab_proc, tab_docs, tab_exos = st.tabs(["📖 Ma Séance", "📂 Documents", "📝 Mes Exercices"])
             
-            # ONGLET 1 : DÉROULÉ SIMPLIFIÉ
+            # --- ONGLET 1 : DÉROULÉ INFORMATIF (MODIFIÉ) ---
             with tab_proc:
-                st.info(f"**Objectifs :** {data['objectifs']}")
+                # 1. Rappel des objectifs
+                st.info(f"**Objectifs du module :** {data['objectifs']}")
                 
-                # Tâches à domicile (Filtrées)
-                st.markdown("##### 🏠 À faire pour la prochaine fois")
+                # 2. Rappel des étapes de la séance (Lecture seule)
+                st.markdown("### 📝 Ce que nous avons vu")
+                if data['etapes_seance']:
+                    for etape in data['etapes_seance']:
+                        # Affiche le titre de l'étape
+                        st.markdown(f"- **{etape['titre']}**")
+                        # Affiche le détail en petit (italique) si disponible
+                        details = etape.get('details')
+                        if details:
+                            st.caption(f"&nbsp;&nbsp;&nbsp;_{details}_")
+                else:
+                    st.write("Pas d'étape spécifique listée.")
+
+                st.divider()
+
+                # 3. Rappel des devoirs (Lecture seule + Téléchargement)
+                st.markdown("### 🏠 Travail à la maison")
+                
                 exclus_ici = devoirs_exclus.get(code_mod, [])
                 a_faire = False
                 
                 if data['taches_domicile']:
                     for j, dev in enumerate(data['taches_domicile']):
+                        # On affiche seulement si le thérapeute ne l'a pas décoché (exclu)
                         if j not in exclus_ici:
                             a_faire = True
-                            st.write(f"👉 **{dev['titre']}**")
+                            # Affichage simple sans case à cocher
+                            st.markdown(f"👉 **{dev['titre']}**")
+                            
+                            # Bouton de téléchargement si PDF
                             if dev.get('pdf') and os.path.exists(dev['pdf']):
                                 with open(dev['pdf'], "rb") as f:
-                                    st.download_button("Télécharger", f, file_name=os.path.basename(dev['pdf']), key=f"dl_dev_{code_mod}_{j}")
+                                    st.download_button(
+                                        f"📥 Télécharger le support", 
+                                        f, 
+                                        file_name=os.path.basename(dev['pdf']), 
+                                        key=f"dl_dev_{code_mod}_{j}"
+                                    )
                 
                 if not a_faire:
-                    st.success("🎉 Aucun devoir spécifique.")
+                    st.success("🎉 Aucun devoir spécifique pour la prochaine fois.")
                 else:
+                    # On garde la caméra car c'est utile pour envoyer le travail, 
+                    # mais ce n'est pas une "case à cocher" de validation.
                     st.write("")
-                    with st.expander("📸 Envoyer mon travail"):
+                    with st.expander("📸 Envoyer une photo de mon travail au thérapeute"):
                         st.camera_input("Prendre une photo", key=f"cam_{code_mod}")
 
-            # ONGLET 2 : TOUS LES DOCS (Liste plate)
+            # --- ONGLET 2 : TOUS LES DOCS (INCHANGÉ) ---
             with tab_docs:
                 st.write("Tous les fichiers du module :")
                 if 'pdfs_module' in data and data['pdfs_module']:
@@ -98,18 +125,16 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
                 else:
                     st.info("Aucun document.")
 
-            # --- ONGLET 3 : MES EXERCICES (NOUVEAU) ---
+            # --- ONGLET 3 : MES EXERCICES (INCHANGÉ) ---
             with tab_exos:
                 st.markdown("##### 📝 Remplir un bilan ou un exercice")
                 st.caption("Sélectionnez le questionnaire ci-dessous pour le remplir numériquement.")
 
-                # Sélecteur de questionnaire avec clé unique par module
                 choix_q = st.selectbox("Choisir l'exercice :", list(QUESTIONS_HEBDO.keys()), key=f"sel_q_{code_mod}")
                 
                 if choix_q:
                     config_q = QUESTIONS_HEBDO[choix_q]
                     
-                    # Formulaire unique
                     with st.form(key=f"form_exo_{code_mod}_{choix_q}"):
                         st.markdown(f"**{config_q['titre']}**")
                         st.caption(config_q['description'])
@@ -117,19 +142,15 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
                         reponses = {}
                         score_total = 0
                         
-                        # Cas A : Échelles numériques
                         if config_q['type'] == "scale_0_8":
                             for q in config_q['questions']:
                                 st.write(q)
-                                # Slider unique
                                 val = st.slider("Intensité", 0, 8, 0, key=f"sld_{code_mod}_{choix_q}_{q}")
                                 reponses[q] = val
                                 score_total += val
                         
-                        # Cas B : Texte libre
                         elif config_q['type'] == "text":
                             for q in config_q['questions']:
-                                # Text area unique
                                 val = st.text_area(q, height=100, key=f"txt_{code_mod}_{choix_q}_{q}")
                                 reponses[q] = val
                             score_total = -1
@@ -137,9 +158,7 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
                         st.write("")
                         
                         if st.form_submit_button("Envoyer", type="primary"):
-                            # On sauvegarde avec une référence au module actuel
                             nom_enregistrement = f"{code_mod} - {choix_q}"
-                            
                             if sauvegarder_reponse_hebdo(current_user, nom_enregistrement, str(score_total), reponses):
                                 st.success("✅ Enregistré avec succès !")
                                 time.sleep(1)
