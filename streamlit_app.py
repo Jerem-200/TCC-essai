@@ -94,10 +94,10 @@ def verifier_code_patient(code):
     return False
 
 # =========================================================
-# GESTION DES PERMISSIONS (NOUVEAU)
+# GESTION DES PERMISSIONS (NOUVEAU SYSTÈME : WHITELIST)
 # =========================================================
 
-# Dictionnaire des fonctionnalités contrôlables
+# Liste de tous les outils disponibles
 MAP_OUTILS = {
     "🌙 Agenda Sommeil": "sommeil",
     "📝 Registre Activités": "activites",
@@ -117,39 +117,43 @@ MAP_OUTILS = {
     "📊 WSAS (Handicap)": "wsas"
 }
 
-@st.cache_data(ttl=60)
-def charger_blocages(patient_id):
-    """Récupère la liste des clés bloquées pour un patient"""
+@st.cache_data(ttl=300)
+def charger_outils_autorises(patient_id):
+    """
+    Récupère la liste des outils EXPLICITEMENT autorisés pour un patient.
+    Par défaut (si pas de ligne), retourne une liste vide [].
+    """
     try:
         from connect_db import load_data
-        data = load_data("Permissions")
+        # On utilise une nouvelle table 'Outils_Autorises' (à créer dans GSheets : Patient | Outils)
+        data = load_data("Outils_Autorises")
         if data:
             df = pd.DataFrame(data)
-            # On cherche la ligne du patient
             row = df[df["Patient"] == patient_id]
             if not row.empty:
-                # On récupère la chaine "conso,beck" et on en fait une liste
-                bloques_str = str(row.iloc[0]["Bloques"])
-                return [x.strip() for x in bloques_str.split(",") if x.strip()]
+                # La colonne s'appelle 'Outils' et contient "sommeil,beck,phq9"
+                outils_str = str(row.iloc[0]["Outils"])
+                return [x.strip() for x in outils_str.split(",") if x.strip()]
     except: pass
-    return [] # Rien n'est bloqué par défaut
+    return [] # Tout est bloqué par défaut
 
-def sauvegarder_blocages(patient_id, liste_cles):
-    """Enregistre la nouvelle liste de blocages"""
+def sauvegarder_outils_autorises(patient_id, liste_cles):
+    """Enregistre la nouvelle liste d'outils autorisés."""
     try:
         from connect_db import save_data, delete_data_flexible
-        # 1. On supprime l'ancienne permission pour éviter les doublons
-        delete_data_flexible("Permissions", {"Patient": patient_id})
         
-        # 2. On recrée la ligne
-        chaine_blocage = ",".join(liste_cles)
-        save_data("Permissions", [patient_id, chaine_blocage])
+        # 1. Nettoyage
+        delete_data_flexible("Outils_Autorises", {"Patient": patient_id})
         
-        # 3. On vide le cache pour que l'effet soit immédiat
-        charger_blocages.clear()
+        # 2. Sauvegarde
+        chaine_outils = ",".join(liste_cles)
+        save_data("Outils_Autorises", [patient_id, chaine_outils])
+        
+        # 3. Mise à jour du cache
+        charger_outils_autorises.clear()
         return True
     except Exception as e:
-        st.error(f"Erreur sauvegarde : {e}")
+        st.error(f"Erreur sauvegarde outils : {e}")
         return False
     
 # --- GESTION COMBINÉE : VALIDATION + COMMENTAIRES (Onglet Suivi_Validation) ---
@@ -361,8 +365,8 @@ if not st.session_state.authentifie:
 # 3. TABLEAUX DE BORD (CONNECTÉ)
 # =========================================================
 else:
-    # -----------------------------------------------------
-    # A. ESPACE THÉRAPEUTE (OPTIMISÉ & COMPLET)
+# -----------------------------------------------------
+    # A. ESPACE THÉRAPEUTE (OPTIMISÉ & RAPIDE)
     # -----------------------------------------------------
     if st.session_state.user_type == "therapeute":
         st.title("🩺 Espace Thérapeute")
@@ -375,19 +379,22 @@ else:
                 st.rerun()
         st.divider()
 
-        # 1. CRÉATION PATIENT
-        with st.expander("➕ Nouveau Patient"):
+        # --- OPTIMISATION : Chargement unique de la liste des patients ---
+        if "liste_patients_cache" not in st.session_state:
             df_pats = recuperer_mes_patients(st.session_state.user_id)
-            prochain_id = "PAT-001"
             if not df_pats.empty:
-                try:
-                    ids = df_pats["Identifiant"].tolist()
-                    nums = [int(x.split('-')[1]) for x in ids if x.startswith("PAT-") and '-' in x]
-                    if nums: prochain_id = f"PAT-{max(nums)+1:03d}"
-                except: pass
+                st.session_state.liste_patients_cache = df_pats["Identifiant"].unique().tolist()
+            else:
+                st.session_state.liste_patients_cache = []
 
+        # 1. CRÉATION PATIENT (Code simplifié pour ne pas alourdir)
+        with st.expander("➕ Nouveau Patient"):
             c_gen1, c_gen2 = st.columns([1, 2])
-            with c_gen1: id_dossier = st.text_input("Dossier", value=prochain_id)
+            with c_gen1: 
+                # Calcul rapide de l'ID suivant sans appel DB si possible
+                nb_pats = len(st.session_state.liste_patients_cache)
+                prochain_id = f"PAT-{nb_pats+1:03d}"
+                id_dossier = st.text_input("Dossier", value=prochain_id)
             with c_gen2:
                 st.write(" ")
                 if st.button("Générer accès"):
@@ -396,62 +403,80 @@ else:
                         from connect_db import save_data
                         save_data("Codes_Patients", [ac_code, st.session_state.user_id, id_dossier, str(datetime.now().date())])
                         st.success(f"Créé : {id_dossier} -> Code : {ac_code}")
+                        # On force le rechargement de la liste au prochain tour
+                        if "liste_patients_cache" in st.session_state:
+                            del st.session_state.liste_patients_cache
                         recuperer_mes_patients.clear()
+                        time.sleep(1)
+                        st.rerun()
                     except Exception as e: st.error(e)
 
-        # 2. VISUALISATION COMPLÈTE (AVEC MENU DÉROULANT RAPIDE)
+        # 2. SÉLECTION PATIENT
         st.subheader("📂 Dossiers Patients")
         
-        df_mes_patients = recuperer_mes_patients(st.session_state.user_id)
-        
-        if not df_mes_patients.empty:
-            liste_patients = df_mes_patients["Identifiant"].unique().tolist()
-            patient_sel = st.selectbox("Sélectionner un dossier :", liste_patients)
+        if st.session_state.liste_patients_cache:
+            patient_sel = st.selectbox("Sélectionner un dossier :", st.session_state.liste_patients_cache)
 
             if patient_sel:
                 st.markdown(f"### 👤 {patient_sel}")
                 
-                # 1. CHARGEMENT DES BLOCAGES (Pour savoir quoi marquer d'un cadenas)
-                blocages_actuels = charger_blocages(patient_sel)
+                # --- GESTION DES OUTILS (NOUVELLE LOGIQUE WHITELIST) ---
+                # C'est ici qu'on définit la variable qui manquait
+                outils_autorises = charger_outils_autorises(patient_sel)
 
-                # --- ZONE DE GESTION DES ACCÈS ---
-                with st.expander("🔒 Gérer les permissions (Bloquer des outils)"):
-                    INV_MAP = {v: k for k, v in MAP_OUTILS.items()}
-                    default_options = [INV_MAP[k] for k in blocages_actuels if k in INV_MAP]
+                with st.expander("🔒 Débloquer des outils pour le patient"):
+                    st.caption("Par défaut, tout est masqué. Cochez les outils pour les rendre accessibles.")
                     
-                    choix_bloques = st.multiselect(
-                        "Outils masqués pour ce patient :",
+                    # On crée la liste des noms lisibles déjà activés
+                    INV_MAP = {v: k for k, v in MAP_OUTILS.items()}
+                    default_options = [INV_MAP[k] for k in outils_autorises if k in INV_MAP]
+                    
+                    choix_ouverts = st.multiselect(
+                        "Outils accessibles :",
                         options=list(MAP_OUTILS.keys()),
                         default=default_options
                     )
                     
                     if st.button("💾 Mettre à jour les accès"):
-                        nouvelle_liste_cles = [MAP_OUTILS[nom] for nom in choix_bloques]
-                        if sauvegarder_blocages(patient_sel, nouvelle_liste_cles):
+                        nouvelle_liste_cles = [MAP_OUTILS[nom] for nom in choix_ouverts]
+                        if sauvegarder_outils_autorises(patient_sel, nouvelle_liste_cles):
                             st.success("Accès mis à jour !")
-                            blocages_actuels = charger_blocages(patient_sel) # Recharge immédiate
-                            time.sleep(1)
+                            time.sleep(0.5)
                             st.rerun()
 
                 st.divider()
 
-# --- ZONE DE GESTION DU PROTOCOLE (BARLOW) - FLUIDITÉ TOTALE ---
+# --- ZONE DE GESTION DU PROTOCOLE (BARLOW) ---
                 from protocole_config import PROTOCOLE_BARLOW
                 import os
                 import json
 
-                # 
-
                 with st.expander("🗺️ Pilotage du Protocole (Barlow)", expanded=True):
                     
-                    # 1. Chargement des données (OPTIMISÉ)
-                    progression_patient = charger_progression(patient_sel)
-                    devoirs_exclus_memoire = charger_etat_devoirs(patient_sel)
+                    # --- CHARGEMENT OPTIMISÉ (CACHE SESSION) ---
+                    # On crée une clé unique pour le cache de ce patient
+                    cache_key = f"cache_data_{patient_sel}"
                     
-                    # On charge Validation ET Notes en une seule fois (plus rapide)
-                    # On a supprimé la ligne 'charger_notes_seance' qui était inutile ici
-                    modules_valides_db, notes_seance_db = charger_suivi_global(patient_sel)
+                    # Si les données ne sont pas en session, on les charge depuis la DB
+                    if cache_key not in st.session_state:
+                        progression = charger_progression(patient_sel)
+                        devoirs = charger_etat_devoirs(patient_sel)
+                        valides, notes = charger_suivi_global(patient_sel)
+                        
+                        st.session_state[cache_key] = {
+                            "progression": progression,
+                            "devoirs": devoirs,
+                            "valides": valides,
+                            "notes": notes
+                        }
                     
+                    # On travaille avec les données de la session (C'est INSTANTANÉ)
+                    data_session = st.session_state[cache_key]
+                    progression_patient = data_session["progression"]
+                    devoirs_exclus_memoire = data_session["devoirs"]
+                    modules_valides_db = data_session["valides"]
+                    notes_seance_db = data_session["notes"]
+
                     if "last_active_module" not in st.session_state:
                         st.session_state.last_active_module = "module0"
 
@@ -478,12 +503,16 @@ else:
                             if is_accessible:
                                 if st.button("🔒", key=f"lock_{patient_sel}_{code_mod}", help="Bloquer l'accès"):
                                     progression_patient.remove(code_mod)
+                                    # Mise à jour DB + Session
                                     sauvegarder_progression(patient_sel, progression_patient)
+                                    st.session_state[cache_key]["progression"] = progression_patient
                                     st.rerun()
                             else:
                                 if st.button("🔓", type="primary", key=f"unlock_{patient_sel}_{code_mod}", help="Débloquer"):
                                     progression_patient.append(code_mod)
+                                    # Mise à jour DB + Session
                                     sauvegarder_progression(patient_sel, progression_patient)
+                                    st.session_state[cache_key]["progression"] = progression_patient
                                     st.rerun()
 
                         # CONTENU
@@ -495,15 +524,12 @@ else:
                                     st.info(data['objectifs'])
                                     st.caption(data['outils'])
 
-                                # --- FORMULAIRE ---
                                 with st.form(key=f"form_main_{patient_sel}_{code_mod}"):
-                                    
                                     check_list = []
 
                                     # A. EXAMEN DES TÂCHES
                                     if data['examen_devoirs']:
                                         st.markdown("**🔍 Examen des tâches précédentes**")
-                                        st.caption("Cochez les tâches revues.")
                                         for idx, d in enumerate(data['examen_devoirs']):
                                             val = st.checkbox(f"{d['titre']}", key=f"exam_{patient_sel}_{code_mod}_{idx}")
                                             check_list.append(val)
@@ -530,79 +556,75 @@ else:
                                     st.write("")
                                     st.write("---")
 
-                                    # C. ASSIGNATION DEVOIRS
+                                    # C. DEVOIRS
                                     indices_exclus = devoirs_exclus_memoire.get(code_mod, [])
                                     choix_devoirs_temp = [] 
-                                    
                                     if data['taches_domicile']:
                                         st.markdown("**🏠 Assignation Devoirs**")
-                                        st.caption("Décochez pour ne pas donner le devoir.")
-                                        
                                         for j, dev in enumerate(data['taches_domicile']):
                                             is_chk = (j not in indices_exclus)
                                             val = st.checkbox(dev['titre'], value=is_chk, key=f"dev_{patient_sel}_{code_mod}_{j}")
                                             choix_devoirs_temp.append(val)
                                             if dev.get('pdf'):
-                                                nom_pdf = os.path.basename(dev['pdf'])
-                                                st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom_pdf}</small>", unsafe_allow_html=True)
-
+                                                nom = os.path.basename(dev['pdf'])
+                                                st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
                                     st.write("---")
                                     
-                                    # D. COMMENTAIRES (CLOUD)
-                                    st.markdown("**👩‍⚕️ Notes de séance & Plan d'action**")
+                                    # D. COMMENTAIRES
+                                    st.markdown("**👩‍⚕️ Notes de séance**")
                                     texte_actuel = notes_seance_db.get(code_mod, "")
-                                    nouvelle_note = st.text_area(
-                                        "Compte-rendu :",
-                                        value=texte_actuel,
-                                        height=150,
-                                        key=f"note_area_{patient_sel}_{code_mod}"
-                                    )
-
+                                    nouvelle_note = st.text_area("Compte-rendu :", value=texte_actuel, height=150, key=f"note_area_{patient_sel}_{code_mod}")
                                     st.write("")
                                     
-                                    # E. ENREGISTRER (OPTIMISÉ)
+                                    # E. ENREGISTRER (RAPIDE)
                                     if st.form_submit_button("💾 Enregistrer la séance", type="primary"):
                                         
-                                        # 1. Sauvegarde Devoirs Exclus
+                                        # 1. Mise à jour Session State (Instantané pour l'utilisateur)
+                                        
+                                        # Devoirs
                                         if data['taches_domicile']:
                                             nouveaux_exclus = [k for k, chk in enumerate(choix_devoirs_temp) if not chk]
-                                            # Petite optimisation : on ne sauvegarde que si ça a changé (Optionnel, mais garde comme ça pour l'instant)
                                             devoirs_exclus_memoire[code_mod] = nouveaux_exclus
-                                            sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
+                                            st.session_state[cache_key]["devoirs"] = devoirs_exclus_memoire
                                         
-                                        # 2. Mise à jour mémoire locale des notes
+                                        # Notes
                                         notes_seance_db[code_mod] = nouvelle_note
-                                        # SUPPRESSION DE LA SAUVEGARDE REDONDANTE ICI
+                                        st.session_state[cache_key]["notes"] = notes_seance_db
 
-                                        # 3. Progression (Déblocage)
-                                        # Optimisation : on ne sauvegarde que si c'est nouveau
+                                        # Progression
                                         if code_mod not in progression_patient:
                                             progression_patient.append(code_mod)
-                                            sauvegarder_progression(patient_sel, progression_patient)
+                                            st.session_state[cache_key]["progression"] = progression_patient
                                         
-                                        # 4. LOGIQUE VERT / BLEU
+                                        # Validation
                                         tout_est_fini = all(check_list) if check_list else True
-                                        
                                         if tout_est_fini:
                                             if code_mod not in modules_valides_db:
                                                 modules_valides_db.append(code_mod)
-                                                st.toast("✅ Module validé (Vert) !", icon="🎉")
+                                                st.toast("✅ Validé (Vert) !", icon="🎉")
                                         else:
                                             if code_mod in modules_valides_db:
                                                 modules_valides_db.remove(code_mod)
-                                                st.toast("ℹ️ Module repassé en cours (Bleu)", icon="ue800")
+                                                st.toast("ℹ️ En cours (Bleu)", icon="ue800")
+                                        st.session_state[cache_key]["valides"] = modules_valides_db
 
-                                        # 5. SAUVEGARDE GLOBALE (C'est elle qui sauvegarde les notes ET la validation)
+                                        # 2. Sauvegarde Cloud (Le "Slow part")
+                                        # On lance les sauvegardes mais on affiche le succès tout de suite
+                                        if data['taches_domicile']:
+                                            sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
+                                        
+                                        if code_mod not in charger_progression(patient_sel): # Vérif légère
+                                            sauvegarder_progression(patient_sel, progression_patient)
+                                            
                                         sauvegarder_suivi_global(patient_sel, modules_valides_db, notes_seance_db)
                                         
-                                        # 6. Maintien ouverture
+                                        # 3. Rafraîchissement
                                         st.session_state.last_active_module = code_mod
-                                        
-                                        st.success("✅ Séance enregistrée !")
-                                        time.sleep(0.5)
+                                        st.success("✅ Enregistré !")
+                                        time.sleep(0.1) # Très court juste pour l'UX
                                         st.rerun()
 
-                            # ONGLET 2 : DOCUMENTS
+                            # ONGLET 2 (inchangé)
                             with t_docs:
                                 st.info("📂 Documents")
                                 if 'pdfs_module' in data and data['pdfs_module']:
@@ -610,20 +632,14 @@ else:
                                         nom_fichier = os.path.basename(chemin)
                                         if os.path.exists(chemin):
                                             with open(chemin, "rb") as f:
-                                                st.download_button(
-                                                    f"📥 {nom_fichier}", 
-                                                    f, 
-                                                    file_name=nom_fichier, 
-                                                    key=f"dl_th_all_{patient_sel}_{code_mod}_{nom_fichier}"
-                                                )
-                                        else:
-                                            st.warning(f"Fichier manquant : {nom_fichier}")
-                                else:
-                                    st.caption("Aucun document.")
+                                                st.download_button(f"📥 {nom_fichier}", f, file_name=nom_fichier, key=f"dl_th_{patient_sel}_{code_mod}_{nom_fichier}")
+                                        else: st.warning(f"Manque : {nom_fichier}")
+                                else: st.caption("Aucun document.")
 
-                # --- FONCTION POUR AJOUTER LE CADENAS DANS LE TITRE DE L'ONGLET ---
+                # --- FONCTION POUR AJOUTER LE CADENAS DANS LE TITRE ---
                 def T(titre, cle_technique):
-                    if cle_technique in blocages_actuels:
+                    # Si l'outil N'EST PAS dans la liste des autorisés, on met un cadenas
+                    if cle_technique not in outils_autorises:
                         return f"{titre} 🔒"
                     return titre
 
@@ -741,14 +757,14 @@ else:
 
             
 
-# -----------------------------------------------------
+    # -----------------------------------------------------
     # B. ESPACE PATIENT (AVEC FILTRAGE)
     # -----------------------------------------------------
     elif st.session_state.user_type == "patient":
         
-        # 1. CHARGEMENT DES BLOCAGES
-        # On récupère la liste des interdits (ex: ['conso', 'gad7'])
-        OUTILS_BLOQUES = charger_blocages(st.session_state.user_id)
+        # 1. CHARGEMENT DES AUTORISATIONS (WHITELIST)
+        # On remplace l'ancien appel 'charger_blocages' par le nouveau
+        OUTILS_AUTORISES = charger_outils_autorises(st.session_state.user_id)
         
         c_titre, c_logout = st.columns([4, 1])
         with c_titre:
@@ -768,23 +784,26 @@ else:
         
         c1, c2, c3, c4 = st.columns(4)
         
-        # On affiche la colonne et le bouton SEULEMENT si la clé n'est pas dans OUTILS_BLOQUES
-        if "sommeil" not in OUTILS_BLOQUES:
+        # ATTENTION : On change la condition !
+        # Avant : if "sommeil" not in OUTILS_BLOQUES
+        # Maintenant : if "sommeil" in OUTILS_AUTORISES
+        
+        if "sommeil" in OUTILS_AUTORISES:
             with c1:
                 st.warning("**Sommeil**")
                 st.page_link("pages/10_Agenda_Sommeil.py", label="Ouvrir", icon="🌙")
         
-        if "activites" not in OUTILS_BLOQUES:
+        if "activites" not in OUTILS_AUTORISES:
             with c2:
                 st.warning("**Activités**")
                 st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="📝")
         
-        if "conso" not in OUTILS_BLOQUES:
+        if "conso" not in OUTILS_AUTORISES:
             with c3:
                 st.warning("**Consommations**")
                 st.page_link("pages/13_Agenda_Consos.py", label="Ouvrir", icon="🍷")
         
-        if "compulsions" not in OUTILS_BLOQUES:
+        if "compulsions" not in OUTILS_AUTORISES:
             with c4:
                 st.warning("**Compulsions**")
                 st.page_link("pages/14_Agenda_Compulsions.py", label="Ouvrir", icon="🛑")
@@ -798,32 +817,32 @@ else:
         
         c5, c6, c7 = st.columns(3)
         with c5:
-            if "beck" not in OUTILS_BLOQUES:
+            if "beck" not in OUTILS_AUTORISES:
                 st.info("**Restructuration (Beck)**")
                 st.page_link("pages/01_Colonnes_Beck.py", label="Lancer", icon="🧩")
                 st.write("")
             
-            if "sorc" not in OUTILS_BLOQUES:
+            if "sorc" not in OUTILS_AUTORISES:
                 st.info("**Analyse SORC**")
                 st.page_link("pages/12_Analyse_SORC.py", label="Lancer", icon="🔍")
             
         with c6:
-            if "problemes" not in OUTILS_BLOQUES:
+            if "problemes" not in OUTILS_AUTORISES:
                 st.info("**Résolution Problème**")
                 st.page_link("pages/06_Resolution_Probleme.py", label="Lancer", icon="💡")
                 st.write("")
             
-            if "balance" not in OUTILS_BLOQUES:
+            if "balance" not in OUTILS_AUTORISES:
                 st.info("**Balance Décisionnelle**")
                 st.page_link("pages/11_Balance_Decisionnelle.py", label="Lancer", icon="⚖️")
 
         with c7:
-            if "expo" not in OUTILS_BLOQUES:
+            if "expo" not in OUTILS_AUTORISES:
                 st.info("**Exposition**")
                 st.page_link("pages/09_Exposition.py", label="Lancer", icon="🧗")
                 st.write("")
             
-            if "relax" not in OUTILS_BLOQUES:
+            if "relax" not in OUTILS_AUTORISES:
                 st.info("**Relaxation**")
                 st.page_link("pages/07_Relaxation.py", label="Lancer", icon="🧘")
 
@@ -836,29 +855,29 @@ else:
         
         m1, m2, m3 = st.columns(3)
         with m1:
-            if "phq9" not in OUTILS_BLOQUES:
+            if "phq9" not in OUTILS_AUTORISES:
                 st.success("**PHQ-9 (Dépression)**")
                 st.page_link("pages/15_Echelle_PHQ9.py", label="Lancer", icon="📊")
         with m2:
-            if "gad7" not in OUTILS_BLOQUES:
+            if "gad7" not in OUTILS_AUTORISES:
                 st.success("**GAD-7 (Anxiété)**")
                 st.page_link("pages/16_Echelle_GAD7.py", label="Lancer", icon="📊")
         with m3:
-            if "who5" not in OUTILS_BLOQUES:
+            if "who5" not in OUTILS_AUTORISES:
                 st.success("**WHO-5 (Bien-être)**")
                 st.page_link("pages/20_Echelle_WHO5.py", label="Lancer", icon="📊")
 
         m4, m5, m6 = st.columns(3)
         with m4:
-            if "isi" not in OUTILS_BLOQUES:
+            if "isi" not in OUTILS_AUTORISES:
                 st.success("**ISI (Insomnie)**")
                 st.page_link("pages/17_Echelle_ISI.py", label="Lancer", icon="📊")
         with m5:
-            if "peg" not in OUTILS_BLOQUES:
+            if "peg" not in OUTILS_AUTORISES:
                 st.success("**PEG (Douleur)**")
                 st.page_link("pages/18_Echelle_PEG.py", label="Lancer", icon="📊")
         with m6:
-            if "wsas" not in OUTILS_BLOQUES:
+            if "wsas" not in OUTILS_AUTORISES:
                 st.success("**WSAS (Impact)**")
                 st.page_link("pages/19_Echelle_WSAS.py", label="Lancer", icon="📊")
 
@@ -903,7 +922,7 @@ else:
             
             # 2. Chargement des permissions (au cas où)
             # On s'assure d'avoir la liste à jour
-            OUTILS_BLOQUES = charger_blocages(st.session_state.user_id)
+            OUTILS_AUTORISES = charger_outils_autorises(st.session_state.user_id)
 
             # 3. Affichage Menu
             st.write(f"👤 ID: **{display_id}**")
@@ -920,43 +939,43 @@ else:
             
             # --- AGENDAS ---
             st.caption("📅 Agendas")
-            if "sommeil" not in OUTILS_BLOQUES:
+            if "sommeil" in OUTILS_AUTORISES:
                 st.page_link("pages/10_Agenda_Sommeil.py", label="🌙 Sommeil")
-            if "activites" not in OUTILS_BLOQUES:
+            if "activites" in OUTILS_AUTORISES:
                 st.page_link("pages/05_Registre_Activites.py", label="📝 Activités")
-            if "conso" not in OUTILS_BLOQUES:
+            if "conso" in OUTILS_AUTORISES:
                 st.page_link("pages/13_Agenda_Consos.py", label="🍷 Consos")
-            if "compulsions" not in OUTILS_BLOQUES:
+            if "compulsions" in OUTILS_AUTORISES:
                 st.page_link("pages/14_Agenda_Compulsions.py", label="🛑 Compulsions")
             
             # --- OUTILS ---
             st.caption("🛠️ Outils")
-            if "beck" not in OUTILS_BLOQUES:
+            if "beck" in OUTILS_AUTORISES:
                 st.page_link("pages/01_Colonnes_Beck.py", label="🧩 Beck")
-            if "sorc" not in OUTILS_BLOQUES:
+            if "sorc" in OUTILS_AUTORISES:
                 st.page_link("pages/12_Analyse_SORC.py", label="🔍 SORC")
-            if "problemes" not in OUTILS_BLOQUES:
+            if "problemes" in OUTILS_AUTORISES:
                 st.page_link("pages/06_Resolution_Probleme.py", label="💡 Problèmes")
-            if "balance" not in OUTILS_BLOQUES:
+            if "balance" in OUTILS_AUTORISES:
                 st.page_link("pages/11_Balance_Decisionnelle.py", label="⚖️ Balance")
-            if "expo" not in OUTILS_BLOQUES:
+            if "expo" in OUTILS_AUTORISES:
                 st.page_link("pages/09_Exposition.py", label="🧗 Exposition")
-            if "relax" not in OUTILS_BLOQUES:
+            if "relax" in OUTILS_AUTORISES:
                 st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
             
             # --- ÉCHELLES ---
             st.caption("📊 Échelles")
-            if "phq9" not in OUTILS_BLOQUES:
+            if "phq9" in OUTILS_AUTORISES:
                 st.page_link("pages/15_Echelle_PHQ9.py", label="📊 PHQ-9")
-            if "gad7" not in OUTILS_BLOQUES:
+            if "gad7" in OUTILS_AUTORISES:
                 st.page_link("pages/16_Echelle_GAD7.py", label="📊 GAD-7")
-            if "who5" not in OUTILS_BLOQUES:
+            if "who5" in OUTILS_AUTORISES:
                 st.page_link("pages/20_Echelle_WHO5.py", label="📊 WHO-5")
-            if "isi" not in OUTILS_BLOQUES:
+            if "isi" in OUTILS_AUTORISES:
                 st.page_link("pages/17_Echelle_ISI.py", label="📊 ISI")
-            if "peg" not in OUTILS_BLOQUES:
+            if "peg" in OUTILS_AUTORISES:
                 st.page_link("pages/18_Echelle_PEG.py", label="📊 PEG")
-            if "wsas" not in OUTILS_BLOQUES:
+            if "wsas" in OUTILS_AUTORISES:
                 st.page_link("pages/19_Echelle_WSAS.py", label="📊 WSAS")
             
             # --- BILAN (Toujours visible) ---
