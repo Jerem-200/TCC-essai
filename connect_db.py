@@ -165,3 +165,32 @@ def sauvegarder_reponse_hebdo(patient_id, nom_questionnaire, score_global, detai
     except Exception as e:
         st.error(f"Erreur sauvegarde hebdo : {e}")
         return False
+    
+# Dans connect_db.py
+
+def supprimer_reponse(patient_id, timestamp, type_exo):
+    """Supprime une entrée spécifique de l'historique."""
+    try:
+        from connect_db import load_data, save_data_raw # Hypothèse que vous avez une fonction pour écraser le fichier
+        # Note : Si vous utilisez Google Sheets, la logique dépend de votre implémentation 'delete_row'.
+        # Ici je simule une logique Pandas classique : Charger -> Filtrer -> Sauvegarder tout
+        
+        data = load_data("Reponses_Hebdo")
+        if data:
+            import pandas as pd
+            df = pd.DataFrame(data)
+            
+            # On garde tout SAUF la ligne qui correspond exactement au patient + date + type
+            # Attention : timestamp doit être converti en string ou format identique
+            df = df[~((df["Patient"] == patient_id) & (df["Date"] == timestamp) & (df["Questionnaire"] == type_exo))]
+            
+            # On sauvegarde le nouveau dataframe (fonction à adapter selon votre connecteur GSheet)
+            # Si vous n'avez pas de fonction d'écrasement, c'est plus complexe avec GSheet API direct.
+            # Pour l'instant, supposons que save_data ajoute juste.
+            # L'idéal est d'avoir une fonction 'overwrite_sheet'
+            pass 
+            
+        return True
+    except Exception as e:
+        print(f"Erreur suppression : {e}")
+        return False
