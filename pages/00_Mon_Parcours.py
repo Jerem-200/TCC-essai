@@ -141,16 +141,12 @@ with tab_parcours:
 
 
 # =========================================================
-# 2. MES OUTILS
-# =========================================================
-# =========================================================
 # 2. MES OUTILS (EXERCICES DYNAMIQUES)
 # =========================================================
 with tab_outils:
     
-    # Recherche des exercices disponibles
+    # Recherche des exercices disponibles dans les modules débloqués
     liste_exos_dispos = []
-    
     for m in modules_debloques:
         if m in PROTOCOLE_BARLOW and "exercices" in PROTOCOLE_BARLOW[m]:
             for exo in PROTOCOLE_BARLOW[m]["exercices"]:
@@ -164,10 +160,9 @@ with tab_outils:
     
     with col_menu:
         st.subheader("Choix de l'outil")
-        
         if not liste_exos_dispos:
             st.warning("⚠️ Aucun exercice trouvé.")
-            st.info("💡 Astuce : Les exercices apparaissent ici une fois que votre thérapeute a débloqué le module correspondant.")
+            st.info("Les exercices apparaîtront ici quand vous débloquerez les modules.")
             exo_choisi = None
         else:
             options_map = {f"{x['mod_code']} - {x['exo_data']['titre']}": x for x in liste_exos_dispos}
@@ -224,96 +219,136 @@ with tab_outils:
                                 st.success("✅ Sauvegardé !"); st.session_state.temp_main_pb = ""; st.session_state.temp_objectives_list = []; time.sleep(1); st.rerun()
 
             # ---------------------------------------------------------
-            # TYPE 2 : FICHE ARC ÉMOTIONNEL (Module 2) - NOUVEAU !
+            # TYPE 2 : FICHE ARC ÉMOTIONNEL (Module 2)
             # ---------------------------------------------------------
             elif exo_data["type"] == "fiche_arc_emotionnel":
-                
-                # Initialisation liste temporaire
-                if "temp_arc_list" not in st.session_state:
-                    st.session_state.temp_arc_list = []
+                if "temp_arc_list" not in st.session_state: st.session_state.temp_arc_list = []
 
                 st.markdown("#### ➕ Ajouter une situation")
-                st.caption("Décrivez une expérience récente. (Remplissez et cliquez sur 'Ajouter')")
-
                 with st.form("form_add_arc", clear_on_submit=True):
-                    
-                    # 1. ANTÉCÉDENTS
-                    st.markdown("**🅰️ Antécédents (Le Déclencheur)**")
+                    st.markdown("**🅰️ Antécédents**")
                     col_a1, col_a2 = st.columns([1, 2])
-                    with col_a1: 
-                        date_evt = st.text_input("Date/Heure :", placeholder="Lundi matin...")
-                    with col_a2: 
-                        antecedent = st.text_area("Qu'est-ce qui a déclenché l'émotion ?", height=70, placeholder="Situation, événement, pensée...")
+                    with col_a1: date_evt = st.text_input("Date/Heure :")
+                    with col_a2: antecedent = st.text_area("Déclencheur :", height=70)
                     
-                    st.divider()
-                    
-                    # 2. RÉPONSES (3 Composantes)
-                    st.markdown("**⚡ Réponses (L'expérience émotionnelle)**")
+                    st.markdown("**⚡ Réponses**")
                     c_r1, c_r2, c_r3 = st.columns(3)
-                    with c_r1: pensees = st.text_area("💭 Pensées", height=100, placeholder="Ce que je me suis dit...")
-                    with c_r2: sensations = st.text_area("💓 Sensations", height=100, placeholder="Coeur qui bat, chaleur...")
-                    with c_r3: comportements = st.text_area("🏃 Comportements", height=100, placeholder="Ce que j'ai fait (ou évité)...")
+                    with c_r1: pensees = st.text_area("💭 Pensées", height=80)
+                    with c_r2: sensations = st.text_area("💓 Sensations", height=80)
+                    with c_r3: comportements = st.text_area("🏃 Comportements", height=80)
 
-                    st.divider()
-
-                    # 3. CONSÉQUENCES
                     st.markdown("**🏁 Conséquences**")
                     c_c1, c_c2 = st.columns(2)
-                    with c_c1: c_court = st.text_area("Court terme (Avantages ?)", height=70, placeholder="Soulagement immédiat ?")
-                    with c_c2: c_long = st.text_area("Long terme (Inconvénients ?)", height=70, placeholder="Augmentation anxiété future ?")
+                    with c_c1: c_court = st.text_area("Court terme", height=60)
+                    with c_c2: c_long = st.text_area("Long terme", height=60)
 
-                    if st.form_submit_button("Ajouter cette situation à ma fiche"):
+                    if st.form_submit_button("Ajouter"):
                         if antecedent:
-                            entree = {
-                                "date": date_evt,
-                                "antecedent": antecedent,
-                                "pensees": pensees,
-                                "sensations": sensations,
-                                "comportements": comportements,
-                                "c_court": c_court,
-                                "c_long": c_long
-                            }
-                            st.session_state.temp_arc_list.append(entree)
+                            st.session_state.temp_arc_list.append({
+                                "date": date_evt, "antecedent": antecedent, "pensees": pensees,
+                                "sensations": sensations, "comportements": comportements,
+                                "c_court": c_court, "c_long": c_long
+                            })
                             st.rerun()
-                        else:
-                            st.error("L'antécédent est obligatoire pour comprendre la situation.")
 
-                # AFFICHAGE DE LA LISTE EN COURS
                 if st.session_state.temp_arc_list:
-                    st.markdown("##### 📋 Situations à enregistrer :")
+                    st.markdown("##### 📋 Situations :")
                     for i, arc in enumerate(st.session_state.temp_arc_list):
-                        with st.expander(f"Situation {i+1} : {arc['date']} - {arc['antecedent'][:40]}...", expanded=False):
-                            c1, c2, c3 = st.columns(3)
-                            with c1: st.info(f"**Antécédent:**\n{arc['antecedent']}")
-                            with c2: st.warning(f"**Réponses:**\n💭 {arc['pensees']}\n💓 {arc['sensations']}\n🏃 {arc['comportements']}")
-                            with c3: st.error(f"**Conséquences:**\nCT: {arc['c_court']}\nLT: {arc['c_long']}")
-                            
+                        with st.expander(f"{arc['date']} - {arc['antecedent'][:30]}...", expanded=False):
+                            st.write(f"**Déclencheur:** {arc['antecedent']}")
+                            st.caption(f"Rép: {arc['pensees']} / {arc['sensations']} / {arc['comportements']}")
                             if st.button("Supprimer", key=f"del_arc_{i}"):
-                                st.session_state.temp_arc_list.pop(i)
-                                st.rerun()
+                                st.session_state.temp_arc_list.pop(i); st.rerun()
+                    
+                    if st.button("💾 Sauvegarder ARC", type="primary"):
+                        payload = {"type_exercice": "ARC Emotionnel", "liste_arc": st.session_state.temp_arc_list}
+                        if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
+                            st.success("✅ Sauvegardé !"); st.session_state.temp_arc_list = []; time.sleep(1); st.rerun()
+
+            # ---------------------------------------------------------
+            # TYPE 3 : PLEINE CONSCIENCE (Module 3) - NOUVEAU !
+            # ---------------------------------------------------------
+            elif exo_data["type"] == "fiche_pleine_conscience":
+                
+                # Initialisation liste temporaire
+                if "temp_mindfulness_list" not in st.session_state:
+                    st.session_state.temp_mindfulness_list = []
+
+                st.markdown("#### ➕ Enregistrer une pratique")
+                st.caption("Remplissez ce formulaire après votre écoute audio ou exercice.")
+
+                with st.form("form_add_mindful", clear_on_submit=True):
+                    
+                    # Ligne 1 : Date et Type
+                    c_m1, c_m2 = st.columns([1, 2])
+                    with c_m1: 
+                        date_m = st.text_input("Date :", value=datetime.now().strftime("%d/%m"))
+                    with c_m2:
+                        type_exo = st.selectbox("Choix de l'exercice :", 
+                            ["Initiation à la méditation", "Induction d'humeur consciente", "Ancrage dans le présent"])
+
+                    st.divider()
+                    st.markdown("**Qu'avez-vous remarqué ?**")
+                    
+                    # Ligne 2 : Observations (3 colonnes)
+                    c_obs1, c_obs2, c_obs3 = st.columns(3)
+                    with c_obs1: obs_pensees = st.text_area("💭 Pensées", height=100)
+                    with c_obs2: obs_sensations = st.text_area("💓 Sensations physiques", height=100)
+                    with c_obs3: obs_comportements = st.text_area("🏃 Comportements/Impulsions", height=100)
                     
                     st.divider()
-                    if st.button("💾 Sauvegarder définitivement cette fiche ARC", type="primary"):
+                    
+                    # Ligne 3 : Scores (Sliders)
+                    c_s1, c_s2 = st.columns(2)
+                    with c_s1:
+                        st.markdown("**Degré de réussite à ne pas juger ?**")
+                        score_jugement = st.slider("0 (Pas du tout) à 10 (Extrêmement)", 0, 10, 5, key="sld_jugement")
+                    with c_s2:
+                        st.markdown("**Degré d'efficacité à vous ancrer ?**")
+                        score_ancrage = st.slider("0 (Pas du tout) à 10 (Extrêmement)", 0, 10, 5, key="sld_ancrage")
+
+                    if st.form_submit_button("Ajouter cette pratique"):
+                        entree = {
+                            "date": date_m,
+                            "type_exo": type_exo,
+                            "pensees": obs_pensees,
+                            "sensations": obs_sensations,
+                            "comportements": obs_comportements,
+                            "score_jugement": score_jugement,
+                            "score_ancrage": score_ancrage
+                        }
+                        st.session_state.temp_mindfulness_list.append(entree)
+                        st.rerun()
+
+                # AFFICHAGE LISTE
+                if st.session_state.temp_mindfulness_list:
+                    st.markdown("##### 📋 Pratiques à enregistrer :")
+                    for i, item in enumerate(st.session_state.temp_mindfulness_list):
+                        with st.expander(f"{item['date']} - {item['type_exo']}", expanded=False):
+                            st.write(f"💭 {item['pensees']} | 💓 {item['sensations']}")
+                            st.caption(f"Scores: Non-jugement {item['score_jugement']}/10 | Ancrage {item['score_ancrage']}/10")
+                            if st.button("Supprimer", key=f"del_mind_{i}"):
+                                st.session_state.temp_mindfulness_list.pop(i); st.rerun()
+
+                    st.divider()
+                    if st.button("💾 Sauvegarder la fiche Pleine Conscience", type="primary"):
                         payload = {
-                            "type_exercice": "ARC Emotionnel",
-                            "liste_arc": st.session_state.temp_arc_list
+                            "type_exercice": "Pleine Conscience",
+                            "liste_pratiques": st.session_state.temp_mindfulness_list
                         }
                         if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
-                            st.success("✅ Fiche ARC sauvegardée dans le cloud !")
-                            st.session_state.temp_arc_list = []
-                            time.sleep(1)
-                            st.rerun()
+                            st.success("✅ Fiche sauvegardée !"); st.session_state.temp_mindfulness_list = []; time.sleep(1); st.rerun()
 
-    # --- HISTORIQUE EXERCICES (LECTURE DU CLOUD) ---
+
+    # --- HISTORIQUE EXERCICES ---
     st.divider()
     with st.expander("📜 Historique de mes exercices réalisés", expanded=False):
         if not df_history.empty and "Questionnaire" in df_history.columns:
-            # Filtre pour ne garder que les exercices
             df_exos = df_history[df_history["Questionnaire"].str.contains("Exercice", na=False)].copy()
             if not df_exos.empty:
                 for idx, row in df_exos.iterrows():
                     c_d, c_n, c_a = st.columns([1, 3, 1])
-                    with c_d: st.write(row["Date"].strftime("%d/%m/%Y"))
+                    with c_d: st.write(row["Date"].strftime("%d/%m"))
                     with c_n: st.write(f"**{row['Questionnaire']}**")
                     with c_a:
                         if st.button("Supprimer", key=f"del_h_{idx}"):
@@ -324,11 +359,26 @@ with tab_outils:
                         try:
                             d = json.loads(row["Details_Json"])
                             
-                            # A. Format ARC Emotionnel
-                            if "liste_arc" in d:
+                            # A. PLEINE CONSCIENCE (NOUVEAU)
+                            if "liste_pratiques" in d:
+                                for p in d["liste_pratiques"]:
+                                    st.markdown(f"🧘 **{p['date']} - {p['type_exo']}**")
+                                    col_obs, col_scr = st.columns([2, 1])
+                                    with col_obs:
+                                        st.caption("OBSERVATIONS")
+                                        if p['pensees']: st.write(f"💭 Pensées : {p['pensees']}")
+                                        if p['sensations']: st.write(f"💓 Sensations : {p['sensations']}")
+                                        if p['comportements']: st.write(f"🏃 Actions : {p['comportements']}")
+                                    with col_scr:
+                                        st.caption("SCORES")
+                                        st.metric("Non-jugement", f"{p['score_jugement']}/10")
+                                        st.metric("Ancrage", f"{p['score_ancrage']}/10")
+                                    st.divider()
+
+                            # B. ARC Emotionnel
+                            elif "liste_arc" in d:
                                 for arc in d["liste_arc"]:
                                     st.markdown(f"**📅 {arc['date']}**")
-                                    # Affichage en colonnes pour la lecture
                                     k1, k2, k3 = st.columns(3)
                                     with k1: 
                                         st.caption("ANTÉCÉDENT")
@@ -337,14 +387,12 @@ with tab_outils:
                                         st.caption("RÉPONSES")
                                         st.write(f"💭 {arc['pensees']}")
                                         st.write(f"💓 {arc['sensations']}")
-                                        st.write(f"🏃 {arc['comportements']}")
                                     with k3:
                                         st.caption("CONSÉQUENCES")
                                         st.write(f"CT: {arc['c_court']}")
-                                        st.write(f"LT: {arc['c_long']}")
                                     st.divider()
 
-                            # B. Format Objectifs
+                            # C. Objectifs
                             elif "probleme_principal" in d:
                                 st.info(f"**Problème :** {d['probleme_principal']}")
                                 if "liste_objectifs" in d:
@@ -353,9 +401,8 @@ with tab_outils:
                                         for s in it.get('etapes', []): st.write(f"- {s}")
                                         st.write("---")
                             
-                            # C. Format Brut (Fallback)
                             else: st.json(d)
-                        except: st.write("Erreur lecture.")
+                        except: st.write("Erreur lecture détail.")
             else: st.info("Aucun exercice sauvegardé.")
         else: st.info("Historique vide.")
 

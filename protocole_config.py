@@ -433,6 +433,15 @@ PROTOCOLE_BARLOW = {
             {"titre": "Fiche ARC émotionnel", "pdf": "assets/MOD2.2_Fiche_suivre_mon_ARC_émotionnel.pdf"}
         ],
 
+        "exercices": [
+            {
+                "id": "fiche_pleine_conscience",
+                "titre": "🧘 Fiche : Pleine conscience des émotions",
+                "type": "fiche_pleine_conscience", # Type technique unique
+                "description": "Enregistrez votre expérience après vos exercices (Initiation, Induction d'humeur, Ancrage)."
+            }
+        ],
+
         "etapes_seance": [
             {"titre": "Introduction à la pleine conscience des émotions", "details": "A venir", "pdfs": []},
             {"titre": "Conscience des émotions sans jugement", "details": "A venir","pdfs": []},
