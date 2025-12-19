@@ -91,7 +91,12 @@ PROTOCOLE_BARLOW = {
         ],
 
         "taches_domicile": [
-            {"titre": "Fiche Objectifs du traitement", "pdf": "assets/MOD1.10_Fiche_Objectifs_du_traitement.pdf"}
+            {"titre": "Fiche Objectifs du traitement", "pdf": "assets/MOD1.10_Fiche_Objectifs_du_traitement.pdf"},
+            {"titre": "Echelle d'anxiété", "pdf": "assets/Echelle_d'anxiété.pdf"},
+            {"titre": "Echelle de dépression", "pdf": "Echelle_de_dépression.pdf"},
+            {"titre": "Echelle des autres émotions négatives", "pdf": "Echelle_des_autres_émotions_négatives.pdf"},
+            {"titre": "Echelle des émotions positives", "pdf": "Echelle_des_émotions_positives.pdf"},
+            {"titre": "Fiche des progrès", "pdf": "MODAF05_Fiche_des_Progrès.pdf"}
         ]
     },
 
@@ -129,7 +134,12 @@ PROTOCOLE_BARLOW = {
 
         "taches_domicile": [
             {"titre": "Modèle 3 composantes", "pdf": "assets/MOD2.1 Fiche_Modèle_à_trois_composantes_de_l'Emotion.pdf"},
-            {"titre": "ARC émotionnel", "pdf": "assets/MOD2.2_Fiche_suivre_mon_ARC_émotionnel.pdf"}
+            {"titre": "ARC émotionnel", "pdf": "assets/MOD2.2_Fiche_suivre_mon_ARC_émotionnel.pdf"},
+            {"titre": "Echelle d'anxiété", "pdf": "assets/Echelle_d'anxiété.pdf"},
+            {"titre": "Echelle de dépression", "pdf": "Echelle_de_dépression.pdf"},
+            {"titre": "Echelle des autres émotions négatives", "pdf": "Echelle_des_autres_émotions_négatives.pdf"},
+            {"titre": "Echelle des émotions positives", "pdf": "Echelle_des_émotions_positives.pdf"},
+            {"titre": "Fiche des progrès", "pdf": "MODAF05_Fiche_des_Progrès.pdf"}
         ]
     },
 
@@ -181,7 +191,12 @@ PROTOCOLE_BARLOW = {
         "taches_domicile": [
             {"titre": "Fiche Pleine Conscience", "pdf": "assets/MOD3_Fiche_Pleine_Conscience_des_émotions.pdf"},
             {"titre": "Semaine 1 : Audio Méditation", "pdf": "assets/Audio_Méditation.mp3"},
-            {"titre": "Semaine 2 : Audio Ancrage", "pdf": "assets/Audio_Ancrage.mp3"}
+            {"titre": "Semaine 2 : Audio Ancrage", "pdf": "assets/Audio_Ancrage.mp3"}, 
+            {"titre": "Echelle d'anxiété", "pdf": "assets/Echelle_d'anxiété.pdf"},
+            {"titre": "Echelle de dépression", "pdf": "Echelle_de_dépression.pdf"},
+            {"titre": "Echelle des autres émotions négatives", "pdf": "Echelle_des_autres_émotions_négatives.pdf"},
+            {"titre": "Echelle des émotions positives", "pdf": "Echelle_des_émotions_positives.pdf"},
+            {"titre": "Fiche des progrès", "pdf": "MODAF05_Fiche_des_Progrès.pdf"}
         ]
     },
 
@@ -223,7 +238,12 @@ PROTOCOLE_BARLOW = {
 
         "taches_domicile": [
             {"titre": "Fiche Flexibilité Cognitive", "pdf": "assets/MOD4.20_Fiche_Pratiquer_la_flexibilité_cognitive.pdf"},
-            {"titre": "Pleine Conscience (Suite)", "pdf": "assets/MOD3_Fiche_Pleine_Conscience_des_émotions.pdf"}
+            {"titre": "Pleine Conscience (Suite)", "pdf": "assets/MOD3_Fiche_Pleine_Conscience_des_émotions.pdf"}, 
+            {"titre": "Echelle d'anxiété", "pdf": "assets/Echelle_d'anxiété.pdf"},
+            {"titre": "Echelle de dépression", "pdf": "Echelle_de_dépression.pdf"},
+            {"titre": "Echelle des autres émotions négatives", "pdf": "Echelle_des_autres_émotions_négatives.pdf"},
+            {"titre": "Echelle des émotions positives", "pdf": "Echelle_des_émotions_positives.pdf"},
+            {"titre": "Fiche des progrès", "pdf": "MODAF05_Fiche_des_Progrès.pdf"}
         ]
     },
 
@@ -270,7 +290,12 @@ PROTOCOLE_BARLOW = {
 
         "taches_domicile": [
             {"titre": "Liste des comportements émotionnels", "pdf": "assets/MOD5.10_Fiche_Liste_des_comportements_émotionnels.pdf"},
-            {"titre": "Contrer les comportements", "pdf": "assets/MOD5.50_Fiche_Contrer_les_comportements_émotionnels.pdf"}
+            {"titre": "Contrer les comportements", "pdf": "assets/MOD5.50_Fiche_Contrer_les_comportements_émotionnels.pdf"}, 
+            {"titre": "Echelle d'anxiété", "pdf": "assets/Echelle_d'anxiété.pdf"},
+            {"titre": "Echelle de dépression", "pdf": "Echelle_de_dépression.pdf"},
+            {"titre": "Echelle des autres émotions négatives", "pdf": "Echelle_des_autres_émotions_négatives.pdf"},
+            {"titre": "Echelle des émotions positives", "pdf": "Echelle_des_émotions_positives.pdf"},
+            {"titre": "Fiche des progrès", "pdf": "MODAF05_Fiche_des_Progrès.pdf"}
         ]
     },
 
@@ -297,7 +322,12 @@ PROTOCOLE_BARLOW = {
         ],
 
         "taches_domicile": [
-            {"titre": "Exercices activer sensations physiques", "pdf": "assets/MOD06_Fiche_Exercices_pour_activer_les_sensations_physiques.pdf"}
+            {"titre": "Exercices activer sensations physiques", "pdf": "assets/MOD06_Fiche_Exercices_pour_activer_les_sensations_physiques.pdf"},
+            {"titre": "Echelle d'anxiété", "pdf": "assets/Echelle_d'anxiété.pdf"},
+            {"titre": "Echelle de dépression", "pdf": "Echelle_de_dépression.pdf"},
+            {"titre": "Echelle des autres émotions négatives", "pdf": "Echelle_des_autres_émotions_négatives.pdf"},
+            {"titre": "Echelle des émotions positives", "pdf": "Echelle_des_émotions_positives.pdf"},
+            {"titre": "Fiche des progrès", "pdf": "MODAF05_Fiche_des_Progrès.pdf"}
         ]
     },
 
@@ -342,7 +372,12 @@ PROTOCOLE_BARLOW = {
         ],
 
         "taches_domicile": [
-            {"titre": "Enregistrement Pratique Exposition", "pdf": "assets/MOD07.2_Fiche_Enregistrement_de_la_Pratique_d'Exposition_Émotionnelle.pdf"}
+            {"titre": "Enregistrement Pratique Exposition", "pdf": "assets/MOD07.2_Fiche_Enregistrement_de_la_Pratique_d'Exposition_Émotionnelle.pdf"}, 
+            {"titre": "Echelle d'anxiété", "pdf": "assets/Echelle_d'anxiété.pdf"},
+            {"titre": "Echelle de dépression", "pdf": "Echelle_de_dépression.pdf"},
+            {"titre": "Echelle des autres émotions négatives", "pdf": "Echelle_des_autres_émotions_négatives.pdf"},
+            {"titre": "Echelle des émotions positives", "pdf": "Echelle_des_émotions_positives.pdf"},
+            {"titre": "Fiche des progrès", "pdf": "MODAF05_Fiche_des_Progrès.pdf"}
         ]
     },
 
