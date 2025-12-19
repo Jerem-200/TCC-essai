@@ -92,17 +92,7 @@ for code_mod, data in PROTOCOLE_BARLOW.items():
                         if j not in exclus_ici:
                             a_faire = True
                             # Affichage simple sans case à cocher
-                            st.markdown(f"👉 **{dev['titre']}**")
-                            
-                            # Bouton de téléchargement si PDF
-                            if dev.get('pdf') and os.path.exists(dev['pdf']):
-                                with open(dev['pdf'], "rb") as f:
-                                    st.download_button(
-                                        f"📥 Télécharger le support", 
-                                        f, 
-                                        file_name=os.path.basename(dev['pdf']), 
-                                        key=f"dl_dev_{code_mod}_{j}"
-                                    )
+                            st.markdown(f" **{dev['titre']}**")
                 
                 if not a_faire:
                     st.success("🎉 Aucun devoir spécifique pour la prochaine fois.")
