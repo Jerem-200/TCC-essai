@@ -87,11 +87,6 @@ with st.expander("📊 **Mon Espace de Suivi (Questionnaires & Courbes)**", expa
         
         with c_q1:
             choix_q = st.selectbox("1️⃣ Choisir le questionnaire :", list(QUESTIONS_HEBDO.keys()))
-            
-            # Optionnel : Lier à un module pour l'historique
-            # On ne propose que les modules débloqués
-            liste_mods = [f"{k} : {v['titre']}" for k, v in PROTOCOLE_BARLOW.items() if k in modules_debloques]
-            mod_concerne = st.selectbox("2️⃣ Module concerné (Optionnel) :", ["Aucun / Général"] + liste_mods)
         
         with c_q2:
             if choix_q:
