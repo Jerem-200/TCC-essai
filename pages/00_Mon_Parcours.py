@@ -33,7 +33,7 @@ current_user = st.session_state.user_id
 
 # --- FONCTIONS UTILITAIRES (CACHE) ---
 def charger_historique_complet(uid):
-    """Charge tout l'historique pour l'onglet Suivi et Historique Exercices"""
+    """Charge tout l'historique et prépare la colonne 'Type' pour les graphiques"""
     try:
         raw = load_data("Reponses_Hebdo")
         if raw:
@@ -41,8 +41,25 @@ def charger_historique_complet(uid):
             df = df[df["Patient"] == uid].copy()
             if not df.empty:
                 df["Date"] = pd.to_datetime(df["Date"])
+                
+                # --- CORRECTION ICI : ON CRÉE LA COLONNE 'Type' ---
+                # On force le score en numérique
+                df["Score_Global"] = pd.to_numeric(df["Score_Global"], errors='coerce')
+
+                def nettoyer_nom(x):
+                    s = str(x)
+                    # Si c'est lié à un module "module1 - Anxiété", on garde "Anxiété"
+                    if " - " in s: 
+                        s = s.split(" - ")[1]
+                    # On retire les parenthèses de détails "Anxiété (Colère)" -> "Anxiété"
+                    return s.split(" (")[0]
+                
+                df["Type"] = df["Questionnaire"].apply(nettoyer_nom)
+                # --------------------------------------------------
+                
                 return df
-    except: pass
+    except Exception as e:
+        print(f"Erreur chargement histo: {e}")
     return pd.DataFrame()
 
 # Import helpers progression
@@ -60,9 +77,8 @@ df_history = charger_historique_complet(current_user)
 st.title(f"Espace Patient - {current_user}")
 
 # =========================================================
-# LA GRANDE NAVIGATION (ORDRE MODIFIÉ)
+# LA GRANDE NAVIGATION
 # =========================================================
-# Ma Progression est maintenant en PREMIER
 tab_parcours, tab_outils, tab_sante = st.tabs([
     "🗺️ Ma Progression",
     "🛠️ Mes Outils & Exercices", 
@@ -70,27 +86,18 @@ tab_parcours, tab_outils, tab_sante = st.tabs([
 ])
 
 # =========================================================
-# 1. MA PROGRESSION (RETOUR À L'ANCIEN DESIGN)
+# 1. MA PROGRESSION
 # =========================================================
 with tab_parcours:
     st.markdown("### 📍 Mon cheminement")
     
-    # On boucle sur tous les modules du protocole
     for code_mod, data in PROTOCOLE_BARLOW.items():
-        
-        # On affiche si débloqué
         if code_mod in modules_debloques:
-            
             with st.expander(f"✅ {data['titre']}", expanded=False):
-                
-                # Sous-onglets internes au module
                 t_seance, t_doc = st.tabs(["📖 Résumé Séance", "📂 Documents"])
                 
-                # --- A. RÉSUMÉ SÉANCE (AVEC COLONNES) ---
                 with t_seance:
                     st.info(f"**Objectifs :** {data['objectifs']}")
-                    
-                    # Les 2 colonnes que vous aimiez bien
                     col_step, col_home = st.columns(2)
                     
                     with col_step:
@@ -98,34 +105,27 @@ with tab_parcours:
                         if data['etapes_seance']:
                             for etape in data['etapes_seance']:
                                 st.markdown(f"- **{etape['titre']}**")
-                                if etape.get('details'):
-                                    st.caption(f"_{etape.get('details')}_")
-                        else:
-                            st.caption("Introduction / Pas d'étapes listées.")
+                                if etape.get('details'): st.caption(f"_{etape.get('details')}_")
+                        else: st.caption("Pas d'étapes listées.")
                     
                     with col_home:
                         st.markdown("#### 🏠 Travail à la maison")
                         exclus = devoirs_exclus.get(code_mod, [])
                         a_faire = False
-                        
                         if data['taches_domicile']:
                             for j, dev in enumerate(data['taches_domicile']):
                                 if j not in exclus:
                                     a_faire = True
                                     st.markdown(f"👉 **{dev['titre']}**")
-                                    # Bouton téléchargement immédiat
                                     if dev.get('pdf') and os.path.exists(dev['pdf']):
                                         with open(dev['pdf'], "rb") as f:
                                             st.download_button("📥 Support", f, file_name=os.path.basename(dev['pdf']), key=f"d_home_{code_mod}_{j}")
-                        
-                        if not a_faire:
-                            st.success("🎉 Rien de spécial pour la prochaine fois.")
+                        if not a_faire: st.success("🎉 Rien de spécial.")
                         else:
                             st.write("")
                             with st.expander("📸 Envoyer une photo"):
                                 st.camera_input("Photo", key=f"cam_{code_mod}")
 
-                # --- B. DOCUMENTS ---
                 with t_doc:
                     st.write("Tous les fichiers du module :")
                     if data.get('pdfs_module'):
@@ -133,27 +133,19 @@ with tab_parcours:
                             if os.path.exists(p):
                                 with open(p, "rb") as f:
                                     st.download_button(f"📥 {os.path.basename(p)}", f, file_name=os.path.basename(p), key=f"da_{code_mod}_{os.path.basename(p)}")
-                    else:
-                        st.caption("Aucun document.")
-
+                    else: st.caption("Aucun document.")
         else:
-            # Module verrouillé
             with st.container():
                 st.markdown(f"🔒 **{data['titre']}** _(Verrouillé)_")
                 st.divider()
 
 
 # =========================================================
-# 2. MES OUTILS (EXERCICES DYNAMIQUES)
+# 2. MES OUTILS
 # =========================================================
 with tab_outils:
-    
-    # A. SÉLECTEUR D'EXERCICE
-    # On cherche tous les exercices disponibles DANS LES MODULES DÉBLOQUÉS
     liste_exos_dispos = []
-    
     for m in modules_debloques:
-        # On vérifie si le module existe dans la config ET s'il a une liste 'exercices'
         if m in PROTOCOLE_BARLOW and "exercices" in PROTOCOLE_BARLOW[m]:
             for exo in PROTOCOLE_BARLOW[m]["exercices"]:
                 liste_exos_dispos.append({
@@ -166,13 +158,11 @@ with tab_outils:
     
     with col_menu:
         st.subheader("Choix de l'outil")
-        
         if not liste_exos_dispos:
             st.warning("⚠️ Aucun exercice trouvé.")
-            st.caption("Les exercices apparaîtront ici quand vous débloquerez les modules correspondants (ex: Module 1).")
+            st.caption("Débloquez les modules pour voir les exercices.")
             exo_choisi = None
         else:
-            # Création des labels pour le selectbox
             options_map = {f"{x['mod_code']} - {x['exo_data']['titre']}": x for x in liste_exos_dispos}
             choix_cle = st.radio("Exercices disponibles :", list(options_map.keys()))
             exo_choisi = options_map[choix_cle]
@@ -183,23 +173,15 @@ with tab_outils:
             st.markdown(f"### {exo_data['titre']}")
             st.info(exo_data['description'])
             
-            # --- LOGIQUE DYNAMIQUE : FICHE OBJECTIFS ---
             if exo_data["type"] == "fiche_objectifs_traitement":
-                
-                # 1. Initialisation session
                 if "temp_objectives" not in st.session_state:
                     st.session_state.temp_objectives = []
                 
-                # 2. Formulaire d'ajout
                 with st.container(border=True):
                     st.markdown("#### ➕ Ajouter un nouvel objectif")
-                    
                     c_in1, c_in2 = st.columns(2)
-                    with c_in1:
-                        new_pb = st.text_area("Problème lié :", height=70, placeholder="Ex: Anxiété sociale")
-                    with c_in2:
-                        new_obj = st.text_area("Objectif concret :", height=70, placeholder="Ex: Parler à un collègue")
-                    
+                    with c_in1: new_pb = st.text_area("Problème lié :", height=70, placeholder="Ex: Anxiété sociale")
+                    with c_in2: new_obj = st.text_area("Objectif concret :", height=70, placeholder="Ex: Parler à un collègue")
                     new_steps = st.text_area("Étapes (une par ligne) :", height=70, placeholder="1. Dire bonjour\n2. Poser une question...")
                     
                     if st.button("Ajouter à la liste"):
@@ -210,10 +192,8 @@ with tab_outils:
                                 "etapes": new_steps.split('\n')
                             })
                             st.rerun()
-                        else:
-                            st.error("L'objectif est vide.")
+                        else: st.error("L'objectif est vide.")
 
-                # 3. Affichage liste
                 st.markdown("#### 📋 Votre liste :")
                 if st.session_state.temp_objectives:
                     for i, item in enumerate(st.session_state.temp_objectives):
@@ -234,16 +214,12 @@ with tab_outils:
                             st.session_state.temp_objectives = [] 
                             time.sleep(1)
                             st.rerun()
-                else:
-                    st.caption("Liste vide.")
+                else: st.caption("Liste vide.")
 
-    # --- HISTORIQUE EXERCICES ---
     st.divider()
     with st.expander("📜 Historique de mes exercices réalisés", expanded=False):
-        if not df_history.empty:
-            # On filtre pour ne garder que ce qui contient "Exercice"
+        if not df_history.empty and "Questionnaire" in df_history.columns:
             df_exos = df_history[df_history["Questionnaire"].str.contains("Exercice", na=False)].copy()
-            
             if not df_exos.empty:
                 for idx, row in df_exos.iterrows():
                     c_d, c_n, c_a = st.columns([1, 3, 1])
@@ -253,7 +229,6 @@ with tab_outils:
                         if st.button("Supprimer", key=f"del_h_{idx}"):
                             supprimer_reponse(current_user, row["Date"], row["Questionnaire"])
                             st.rerun()
-                    
                     with st.expander("Voir le détail"):
                         try:
                             d = json.loads(row["Details_Json"])
@@ -266,10 +241,11 @@ with tab_outils:
                             else: st.json(d)
                         except: st.write("Erreur lecture.")
             else: st.info("Aucun exercice sauvegardé.")
+        else: st.info("Historique vide.")
 
 
 # =========================================================
-# 3. MON SUIVI DE SANTÉ (QUESTIONNAIRES)
+# 3. MON SUIVI DE SANTÉ
 # =========================================================
 with tab_sante:
     c1, c2 = st.columns([1, 2])
@@ -301,7 +277,6 @@ with tab_sante:
                             score += val
                     elif config['type'] == "qcm_oasis":
                         for item in config['questions']:
-                            # On gère l'affichage dynamique si émotion spécifiée
                             lbl = item['label']
                             res = st.radio(lbl, item['options'])
                             try: score += int(res.split("=")[0])
@@ -320,17 +295,26 @@ with tab_sante:
     
     st.divider()
     st.subheader("📈 Mes Courbes")
-    if not df_history.empty:
+    
+    if not df_history.empty and "Type" in df_history.columns:
         # On exclut les exercices de l'affichage graphique
-        types_graph = [t for t in df_history["Type"].unique() if "Exercice" not in t]
-        sel_graph = st.multiselect("Afficher :", types_graph, default=types_graph[:2] if types_graph else None)
+        types_graph = [t for t in df_history["Type"].unique() if "Exercice" not in str(t)]
         
-        if sel_graph:
-            sub_df = df_history[df_history["Type"].isin(sel_graph)]
-            chart = alt.Chart(sub_df).mark_line(point=True).encode(
-                x=alt.X('Date', axis=alt.Axis(format='%d/%m')), 
-                y='Score_Global', 
-                color='Type', 
-                tooltip=['Date', 'Score_Global']
-            ).interactive()
-            st.altair_chart(chart, use_container_width=True)
+        if types_graph:
+            sel_graph = st.multiselect("Afficher :", types_graph, default=types_graph[:2])
+            
+            if sel_graph:
+                sub_df = df_history[df_history["Type"].isin(sel_graph)]
+                chart = alt.Chart(sub_df).mark_line(point=True).encode(
+                    x=alt.X('Date', axis=alt.Axis(format='%d/%m')), 
+                    y='Score_Global', 
+                    color='Type', 
+                    tooltip=['Date', 'Score_Global']
+                ).interactive()
+                st.altair_chart(chart, use_container_width=True)
+            else:
+                st.info("Sélectionnez une courbe ci-dessus.")
+        else:
+            st.info("Aucune donnée chiffrée (questionnaires) disponible.")
+    else:
+        st.info("Historique vide. Remplissez un questionnaire pour voir vos progrès !")
