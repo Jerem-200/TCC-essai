@@ -144,7 +144,10 @@ with tab_parcours:
 # 2. MES OUTILS
 # =========================================================
 with tab_outils:
+    
+    # Recherche des exercices disponibles
     liste_exos_dispos = []
+    
     for m in modules_debloques:
         if m in PROTOCOLE_BARLOW and "exercices" in PROTOCOLE_BARLOW[m]:
             for exo in PROTOCOLE_BARLOW[m]["exercices"]:
@@ -158,9 +161,10 @@ with tab_outils:
     
     with col_menu:
         st.subheader("Choix de l'outil")
+        
         if not liste_exos_dispos:
             st.warning("⚠️ Aucun exercice trouvé.")
-            st.caption("Débloquez les modules pour voir les exercices.")
+            st.info("💡 Astuce : Les exercices apparaissent ici une fois que votre thérapeute a débloqué le module correspondant.")
             exo_choisi = None
         else:
             options_map = {f"{x['mod_code']} - {x['exo_data']['titre']}": x for x in liste_exos_dispos}
@@ -173,49 +177,98 @@ with tab_outils:
             st.markdown(f"### {exo_data['titre']}")
             st.info(exo_data['description'])
             
+            # --- FICHE OBJECTIFS (Refaite selon votre demande) ---
             if exo_data["type"] == "fiche_objectifs_traitement":
-                if "temp_objectives" not in st.session_state:
-                    st.session_state.temp_objectives = []
                 
-                with st.container(border=True):
-                    st.markdown("#### ➕ Ajouter un nouvel objectif")
-                    c_in1, c_in2 = st.columns(2)
-                    with c_in1: new_pb = st.text_area("Problème lié :", height=70, placeholder="Ex: Anxiété sociale")
-                    with c_in2: new_obj = st.text_area("Objectif concret :", height=70, placeholder="Ex: Parler à un collègue")
-                    new_steps = st.text_area("Étapes (une par ligne) :", height=70, placeholder="1. Dire bonjour\n2. Poser une question...")
-                    
-                    if st.button("Ajouter à la liste"):
-                        if new_obj:
-                            st.session_state.temp_objectives.append({
-                                "probleme": new_pb,
-                                "objectif": new_obj,
-                                "etapes": new_steps.split('\n')
-                            })
-                            st.rerun()
-                        else: st.error("L'objectif est vide.")
+                # 1. Initialisation des variables temporaires en session
+                if "temp_main_pb" not in st.session_state:
+                    st.session_state.temp_main_pb = ""
+                if "temp_objectives_list" not in st.session_state:
+                    st.session_state.temp_objectives_list = []
+                
+                # 2. Le Problème Principal (Persistant)
+                st.markdown("#### 1️⃣ Le Problème Principal")
+                st.caption("Décrivez ici la difficulté majeure (émotionnelle ou situationnelle) que vous souhaitez traiter.")
+                
+                # On utilise on_change pour sauvegarder le texte sans recharger toute la page visuellement trop fort
+                def update_pb():
+                    st.session_state.temp_main_pb = st.session_state.widget_main_pb
+                
+                st.text_area(
+                    "Votre problème principal :", 
+                    value=st.session_state.temp_main_pb, 
+                    height=80, 
+                    key="widget_main_pb",
+                    on_change=update_pb
+                )
 
-                st.markdown("#### 📋 Votre liste :")
-                if st.session_state.temp_objectives:
-                    for i, item in enumerate(st.session_state.temp_objectives):
-                        with st.expander(f"{i+1}. {item['objectif']}", expanded=True):
-                            st.write(f"**Pb:** {item['probleme']}")
+                st.divider()
+
+                # 3. Ajout des Objectifs (Dans un FORMULAIRE pour éviter le rechargement à chaque lettre)
+                st.markdown("#### 2️⃣ Ajouter des Objectifs liés")
+                st.caption("Pour ce problème, quels sont vos objectifs concrets ?")
+
+                with st.form("form_add_obj", clear_on_submit=True):
+                    c_obj, c_step = st.columns(2)
+                    with c_obj:
+                        new_obj_txt = st.text_input("Nouvel Objectif :", placeholder="Ex: Aller au cinéma")
+                    with c_step:
+                        new_steps_txt = st.text_area("Étapes (une par ligne) :", height=100, placeholder="1. Choisir le film\n2. Acheter le billet...")
+                    
+                    submitted = st.form_submit_button("➕ Ajouter cet objectif")
+                    
+                    if submitted:
+                        if new_obj_txt:
+                            st.session_state.temp_objectives_list.append({
+                                "objectif": new_obj_txt,
+                                "etapes": [s.strip() for s in new_steps_txt.split('\n') if s.strip()]
+                            })
+                            st.rerun() # Rechargement unique ici pour afficher le nouvel élément
+                        else:
+                            st.error("L'objectif ne peut pas être vide.")
+
+                # 4. Affichage de la liste construite
+                if st.session_state.temp_objectives_list:
+                    st.markdown("##### 📋 Liste des objectifs à enregistrer :")
+                    for i, item in enumerate(st.session_state.temp_objectives_list):
+                        with st.expander(f"🎯 Objectif {i+1} : {item['objectif']}", expanded=False):
+                            st.write("**Étapes :**")
                             for s in item['etapes']:
-                                if s.strip(): st.write(f"- {s}")
-                            if st.button("Supprimer", key=f"del_tmp_{i}"):
-                                st.session_state.temp_objectives.pop(i)
+                                st.markdown(f"- {s}")
+                            
+                            # Bouton suppression
+                            if st.button("Supprimer", key=f"del_lst_{i}"):
+                                st.session_state.temp_objectives_list.pop(i)
                                 st.rerun()
                     
                     st.divider()
-                    if st.button("💾 Sauvegarder l'exercice", type="primary"):
-                        payload = {"type_exercice": "Objectifs Traitement", "contenu": st.session_state.temp_objectives}
-                        nom_save = f"Exercice - {exo_data['titre']}"
-                        if sauvegarder_reponse_hebdo(current_user, nom_save, "N/A", payload):
-                            st.success("Sauvegardé !")
-                            st.session_state.temp_objectives = [] 
-                            time.sleep(1)
-                            st.rerun()
-                else: st.caption("Liste vide.")
+                    
+                    # 5. SAUVEGARDE FINALE (CLOUD)
+                    # C'est ici que ça part dans Google Sheets
+                    if st.button("💾 Sauvegarder définitivement cet exercice", type="primary"):
+                        if not st.session_state.temp_main_pb:
+                            st.error("Veuillez définir le problème principal avant de sauvegarder.")
+                        else:
+                            # Structure des données envoyées au Cloud
+                            payload = {
+                                "type_exercice": "Objectifs Traitement",
+                                "probleme_principal": st.session_state.temp_main_pb,
+                                "liste_objectifs": st.session_state.temp_objectives_list
+                            }
+                            
+                            nom_save = f"Exercice - {exo_data['titre']}"
+                            
+                            if sauvegarder_reponse_hebdo(current_user, nom_save, "N/A", payload):
+                                st.success("✅ Exercice sauvegardé dans le cloud !")
+                                # On vide la mémoire
+                                st.session_state.temp_main_pb = ""
+                                st.session_state.temp_objectives_list = []
+                                time.sleep(1)
+                                st.rerun()
+                else:
+                    st.info("Aucun objectif ajouté pour l'instant.")
 
+    # --- HISTORIQUE EXERCICES (LECTURE DU CLOUD) ---
     st.divider()
     with st.expander("📜 Historique de mes exercices réalisés", expanded=False):
         if not df_history.empty and "Questionnaire" in df_history.columns:
@@ -232,12 +285,21 @@ with tab_outils:
                     with st.expander("Voir le détail"):
                         try:
                             d = json.loads(row["Details_Json"])
-                            if "contenu" in d:
+                            
+                            # Affichage spécifique pour ce nouveau format
+                            if "probleme_principal" in d:
+                                st.info(f"**Problème :** {d['probleme_principal']}")
+                                if "liste_objectifs" in d:
+                                    for it in d["liste_objectifs"]:
+                                        st.markdown(f"**🎯 {it['objectif']}**")
+                                        for s in it.get('etapes', []): st.write(f"- {s}")
+                                        st.write("---")
+                            # Ancien format (rétro-compatibilité)
+                            elif "contenu" in d:
                                 for it in d["contenu"]:
                                     st.markdown(f"**🎯 {it['objectif']}**")
-                                    st.caption(f"Pb: {it['probleme']}")
+                                    st.caption(f"Pb: {it.get('probleme', '')}")
                                     for s in it.get('etapes', []): st.write(f"- {s}")
-                                    st.write("---")
                             else: st.json(d)
                         except: st.write("Erreur lecture.")
             else: st.info("Aucun exercice sauvegardé.")
