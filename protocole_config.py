@@ -379,6 +379,15 @@ PROTOCOLE_BARLOW = {
             {"titre": "Fiche Balance motivationnelle", "pdf": "assets/MOD1.20_Fiche_balance_motivationnelle.pdf"}
         ],
 
+        "exercices": [
+            {
+                "id": "fiche_arc",
+                "titre": "🌈 Fiche : Suivre mon ARC émotionnel",
+                "type": "fiche_arc_emotionnel", # Nouveau type technique
+                "description": "Analysez vos expériences émotionnelles : Antécédents (Déclencheurs) -> Réponses -> Conséquences."
+            }
+        ],
+
         "etapes_seance": [
             {"titre": "Psychoéducation - La nature des émotions", "details": "A venir", "pdfs": []},
             {"titre": "Le modèle à trois composants des expériences émotionnelles", "details": "A venir", "pdfs": []},

@@ -143,6 +143,9 @@ with tab_parcours:
 # =========================================================
 # 2. MES OUTILS
 # =========================================================
+# =========================================================
+# 2. MES OUTILS (EXERCICES DYNAMIQUES)
+# =========================================================
 with tab_outils:
     
     # Recherche des exercices disponibles
@@ -177,134 +180,184 @@ with tab_outils:
             st.markdown(f"### {exo_data['titre']}")
             st.info(exo_data['description'])
             
-            # --- FICHE OBJECTIFS (Refaite selon votre demande) ---
+            # ---------------------------------------------------------
+            # TYPE 1 : FICHE OBJECTIFS (Module 1)
+            # ---------------------------------------------------------
             if exo_data["type"] == "fiche_objectifs_traitement":
+                if "temp_main_pb" not in st.session_state: st.session_state.temp_main_pb = ""
+                if "temp_objectives_list" not in st.session_state: st.session_state.temp_objectives_list = []
                 
-                # 1. Initialisation des variables temporaires en session
-                if "temp_main_pb" not in st.session_state:
-                    st.session_state.temp_main_pb = ""
-                if "temp_objectives_list" not in st.session_state:
-                    st.session_state.temp_objectives_list = []
-                
-                # 2. Le Problème Principal (Persistant)
                 st.markdown("#### 1️⃣ Le Problème Principal")
-                st.caption("Décrivez ici la difficulté majeure (émotionnelle ou situationnelle) que vous souhaitez traiter.")
-                
-                # On utilise on_change pour sauvegarder le texte sans recharger toute la page visuellement trop fort
-                def update_pb():
-                    st.session_state.temp_main_pb = st.session_state.widget_main_pb
-                
-                st.text_area(
-                    "Votre problème principal :", 
-                    value=st.session_state.temp_main_pb, 
-                    height=80, 
-                    key="widget_main_pb",
-                    on_change=update_pb
-                )
+                def update_pb(): st.session_state.temp_main_pb = st.session_state.widget_main_pb
+                st.text_area("Votre problème principal :", value=st.session_state.temp_main_pb, height=70, key="widget_main_pb", on_change=update_pb)
 
                 st.divider()
-
-                # 3. Ajout des Objectifs (Dans un FORMULAIRE pour éviter le rechargement à chaque lettre)
-                st.markdown("#### 2️⃣ Ajouter des Objectifs liés")
-                st.caption("Pour ce problème, quels sont vos objectifs concrets ?")
-
+                st.markdown("#### 2️⃣ Ajouter des Objectifs")
                 with st.form("form_add_obj", clear_on_submit=True):
                     c_obj, c_step = st.columns(2)
-                    with c_obj:
-                        new_obj_txt = st.text_input("Nouvel Objectif :", placeholder="Ex: Aller au cinéma")
-                    with c_step:
-                        new_steps_txt = st.text_area("Étapes (une par ligne) :", height=100, placeholder="1. Choisir le film\n2. Acheter le billet...")
-                    
-                    submitted = st.form_submit_button("➕ Ajouter cet objectif")
-                    
-                    if submitted:
+                    with c_obj: new_obj_txt = st.text_input("Nouvel Objectif :")
+                    with c_step: new_steps_txt = st.text_area("Étapes (une par ligne) :", height=80)
+                    if st.form_submit_button("➕ Ajouter"):
                         if new_obj_txt:
-                            st.session_state.temp_objectives_list.append({
-                                "objectif": new_obj_txt,
-                                "etapes": [s.strip() for s in new_steps_txt.split('\n') if s.strip()]
-                            })
-                            st.rerun() # Rechargement unique ici pour afficher le nouvel élément
-                        else:
-                            st.error("L'objectif ne peut pas être vide.")
-
-                # 4. Affichage de la liste construite
+                            st.session_state.temp_objectives_list.append({"objectif": new_obj_txt, "etapes": [s.strip() for s in new_steps_txt.split('\n') if s.strip()]})
+                            st.rerun()
+                
                 if st.session_state.temp_objectives_list:
-                    st.markdown("##### 📋 Liste des objectifs à enregistrer :")
+                    st.markdown("##### 📋 Liste à enregistrer :")
                     for i, item in enumerate(st.session_state.temp_objectives_list):
-                        with st.expander(f"🎯 Objectif {i+1} : {item['objectif']}", expanded=False):
-                            st.write("**Étapes :**")
-                            for s in item['etapes']:
-                                st.markdown(f"- {s}")
-                            
-                            # Bouton suppression
-                            if st.button("Supprimer", key=f"del_lst_{i}"):
+                        with st.expander(f"🎯 {item['objectif']}", expanded=False):
+                            for s in item['etapes']: st.write(f"- {s}")
+                            if st.button("Supprimer", key=f"del_obj_{i}"):
                                 st.session_state.temp_objectives_list.pop(i)
                                 st.rerun()
                     
                     st.divider()
-                    
-                    # 5. SAUVEGARDE FINALE (CLOUD)
-                    # C'est ici que ça part dans Google Sheets
-                    if st.button("💾 Sauvegarder définitivement cet exercice", type="primary"):
-                        if not st.session_state.temp_main_pb:
-                            st.error("Veuillez définir le problème principal avant de sauvegarder.")
+                    if st.button("💾 Sauvegarder définitivement", type="primary"):
+                        if not st.session_state.temp_main_pb: st.error("Définissez le problème principal.")
                         else:
-                            # Structure des données envoyées au Cloud
                             payload = {
                                 "type_exercice": "Objectifs Traitement",
                                 "probleme_principal": st.session_state.temp_main_pb,
                                 "liste_objectifs": st.session_state.temp_objectives_list
                             }
+                            if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
+                                st.success("✅ Sauvegardé !"); st.session_state.temp_main_pb = ""; st.session_state.temp_objectives_list = []; time.sleep(1); st.rerun()
+
+            # ---------------------------------------------------------
+            # TYPE 2 : FICHE ARC ÉMOTIONNEL (Module 2) - NOUVEAU !
+            # ---------------------------------------------------------
+            elif exo_data["type"] == "fiche_arc_emotionnel":
+                
+                # Initialisation liste temporaire
+                if "temp_arc_list" not in st.session_state:
+                    st.session_state.temp_arc_list = []
+
+                st.markdown("#### ➕ Ajouter une situation")
+                st.caption("Décrivez une expérience récente. (Remplissez et cliquez sur 'Ajouter')")
+
+                with st.form("form_add_arc", clear_on_submit=True):
+                    
+                    # 1. ANTÉCÉDENTS
+                    st.markdown("**🅰️ Antécédents (Le Déclencheur)**")
+                    col_a1, col_a2 = st.columns([1, 2])
+                    with col_a1: 
+                        date_evt = st.text_input("Date/Heure :", placeholder="Lundi matin...")
+                    with col_a2: 
+                        antecedent = st.text_area("Qu'est-ce qui a déclenché l'émotion ?", height=70, placeholder="Situation, événement, pensée...")
+                    
+                    st.divider()
+                    
+                    # 2. RÉPONSES (3 Composantes)
+                    st.markdown("**⚡ Réponses (L'expérience émotionnelle)**")
+                    c_r1, c_r2, c_r3 = st.columns(3)
+                    with c_r1: pensees = st.text_area("💭 Pensées", height=100, placeholder="Ce que je me suis dit...")
+                    with c_r2: sensations = st.text_area("💓 Sensations", height=100, placeholder="Coeur qui bat, chaleur...")
+                    with c_r3: comportements = st.text_area("🏃 Comportements", height=100, placeholder="Ce que j'ai fait (ou évité)...")
+
+                    st.divider()
+
+                    # 3. CONSÉQUENCES
+                    st.markdown("**🏁 Conséquences**")
+                    c_c1, c_c2 = st.columns(2)
+                    with c_c1: c_court = st.text_area("Court terme (Avantages ?)", height=70, placeholder="Soulagement immédiat ?")
+                    with c_c2: c_long = st.text_area("Long terme (Inconvénients ?)", height=70, placeholder="Augmentation anxiété future ?")
+
+                    if st.form_submit_button("Ajouter cette situation à ma fiche"):
+                        if antecedent:
+                            entree = {
+                                "date": date_evt,
+                                "antecedent": antecedent,
+                                "pensees": pensees,
+                                "sensations": sensations,
+                                "comportements": comportements,
+                                "c_court": c_court,
+                                "c_long": c_long
+                            }
+                            st.session_state.temp_arc_list.append(entree)
+                            st.rerun()
+                        else:
+                            st.error("L'antécédent est obligatoire pour comprendre la situation.")
+
+                # AFFICHAGE DE LA LISTE EN COURS
+                if st.session_state.temp_arc_list:
+                    st.markdown("##### 📋 Situations à enregistrer :")
+                    for i, arc in enumerate(st.session_state.temp_arc_list):
+                        with st.expander(f"Situation {i+1} : {arc['date']} - {arc['antecedent'][:40]}...", expanded=False):
+                            c1, c2, c3 = st.columns(3)
+                            with c1: st.info(f"**Antécédent:**\n{arc['antecedent']}")
+                            with c2: st.warning(f"**Réponses:**\n💭 {arc['pensees']}\n💓 {arc['sensations']}\n🏃 {arc['comportements']}")
+                            with c3: st.error(f"**Conséquences:**\nCT: {arc['c_court']}\nLT: {arc['c_long']}")
                             
-                            nom_save = f"Exercice - {exo_data['titre']}"
-                            
-                            if sauvegarder_reponse_hebdo(current_user, nom_save, "N/A", payload):
-                                st.success("✅ Exercice sauvegardé dans le cloud !")
-                                # On vide la mémoire
-                                st.session_state.temp_main_pb = ""
-                                st.session_state.temp_objectives_list = []
-                                time.sleep(1)
+                            if st.button("Supprimer", key=f"del_arc_{i}"):
+                                st.session_state.temp_arc_list.pop(i)
                                 st.rerun()
-                else:
-                    st.info("Aucun objectif ajouté pour l'instant.")
+                    
+                    st.divider()
+                    if st.button("💾 Sauvegarder définitivement cette fiche ARC", type="primary"):
+                        payload = {
+                            "type_exercice": "ARC Emotionnel",
+                            "liste_arc": st.session_state.temp_arc_list
+                        }
+                        if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
+                            st.success("✅ Fiche ARC sauvegardée dans le cloud !")
+                            st.session_state.temp_arc_list = []
+                            time.sleep(1)
+                            st.rerun()
 
     # --- HISTORIQUE EXERCICES (LECTURE DU CLOUD) ---
     st.divider()
     with st.expander("📜 Historique de mes exercices réalisés", expanded=False):
         if not df_history.empty and "Questionnaire" in df_history.columns:
+            # Filtre pour ne garder que les exercices
             df_exos = df_history[df_history["Questionnaire"].str.contains("Exercice", na=False)].copy()
             if not df_exos.empty:
                 for idx, row in df_exos.iterrows():
                     c_d, c_n, c_a = st.columns([1, 3, 1])
-                    with c_d: st.write(row["Date"].strftime("%d/%m"))
+                    with c_d: st.write(row["Date"].strftime("%d/%m/%Y"))
                     with c_n: st.write(f"**{row['Questionnaire']}**")
                     with c_a:
                         if st.button("Supprimer", key=f"del_h_{idx}"):
                             supprimer_reponse(current_user, row["Date"], row["Questionnaire"])
                             st.rerun()
+                    
                     with st.expander("Voir le détail"):
                         try:
                             d = json.loads(row["Details_Json"])
                             
-                            # Affichage spécifique pour ce nouveau format
-                            if "probleme_principal" in d:
+                            # A. Format ARC Emotionnel
+                            if "liste_arc" in d:
+                                for arc in d["liste_arc"]:
+                                    st.markdown(f"**📅 {arc['date']}**")
+                                    # Affichage en colonnes pour la lecture
+                                    k1, k2, k3 = st.columns(3)
+                                    with k1: 
+                                        st.caption("ANTÉCÉDENT")
+                                        st.write(arc['antecedent'])
+                                    with k2: 
+                                        st.caption("RÉPONSES")
+                                        st.write(f"💭 {arc['pensees']}")
+                                        st.write(f"💓 {arc['sensations']}")
+                                        st.write(f"🏃 {arc['comportements']}")
+                                    with k3:
+                                        st.caption("CONSÉQUENCES")
+                                        st.write(f"CT: {arc['c_court']}")
+                                        st.write(f"LT: {arc['c_long']}")
+                                    st.divider()
+
+                            # B. Format Objectifs
+                            elif "probleme_principal" in d:
                                 st.info(f"**Problème :** {d['probleme_principal']}")
                                 if "liste_objectifs" in d:
                                     for it in d["liste_objectifs"]:
                                         st.markdown(f"**🎯 {it['objectif']}**")
                                         for s in it.get('etapes', []): st.write(f"- {s}")
                                         st.write("---")
-                            # Ancien format (rétro-compatibilité)
-                            elif "contenu" in d:
-                                for it in d["contenu"]:
-                                    st.markdown(f"**🎯 {it['objectif']}**")
-                                    st.caption(f"Pb: {it.get('probleme', '')}")
-                                    for s in it.get('etapes', []): st.write(f"- {s}")
+                            
+                            # C. Format Brut (Fallback)
                             else: st.json(d)
                         except: st.write("Erreur lecture.")
             else: st.info("Aucun exercice sauvegardé.")
         else: st.info("Historique vide.")
-
 
 # =========================================================
 # 3. MON SUIVI DE SANTÉ
