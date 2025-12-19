@@ -33,7 +33,7 @@ PROTOCOLE_BARLOW = {
                     "assets/MODAF10_Exemple_de_Fiche_de_conceptualisation_thérapeute.pdf"
                 ]
             },
-            {"titre": "Description de la justification du Protocole Unifié", "pdfs": []},
+            {"titre": "Description de la justification du Protocole Unifié", "details": "A venir", "pdfs": []},
             {
                 "titre": "Émotions fréquentes, tendues et indésirables", 
                 "details": "A venir",
@@ -44,11 +44,11 @@ PROTOCOLE_BARLOW = {
                 "details": "A venir",
                 "pdfs": []
             },
-            {"titre": "Efforts pour éviter, fuir ou contrôler les émotions", "pdfs": []},
-            {"titre": "Résumé des caractéristiques des troubles émotionnels", "pdfs": []},
-            {"titre": "Objectifs du programme", "pdfs": []},
+            {"titre": "Efforts pour éviter, fuir ou contrôler les émotions", "details": "A venir", "pdfs": []},
+            {"titre": "Résumé des caractéristiques des troubles émotionnels", "details": "A venir", "pdfs": []},
+            {"titre": "Objectifs du programme", "details": "A venir","pdfs": []},
             {
-                "titre": "Présenter le format général de traitement (Échelles)", 
+                "titre": "Présenter le format général de traitement (Échelles)", "details": "A venir",
                 "pdfs": [
                     "assets/Echelle_d'anxiété.pdf",
                     "assets/Echelle_de_dépression.pdf",
@@ -78,14 +78,14 @@ PROTOCOLE_BARLOW = {
 
         "etapes_seance": [
             {
-                "titre": "Motivation : Clarifier les problèmes et fixer objectifs", 
+                "titre": "Motivation : Clarifier les problèmes et fixer objectifs", "details": "A venir",
                 "pdfs": [
                     "assets/MOD1.10_Fiche_Objectifs_du_traitement.pdf",
                     "assets/Mod1.11_Fiche_Objectifs_du_traitement_EXEMPLE.pdf"
                 ]
             },
             {
-                "titre": "Motivation : Balance décisionnelle", 
+                "titre": "Motivation : Balance décisionnelle", "details": "A venir",
                 "pdfs": ["assets/MOD1.20_Fiche_balance_motivationnelle.pdf"]
             }
         ],
@@ -113,17 +113,18 @@ PROTOCOLE_BARLOW = {
         ],
 
         "etapes_seance": [
-            {"titre": "Psychoéducation - La nature des émotions", "pdfs": []},
-            {"titre": "Le modèle à trois composants des expériences émotionnelles", "pdfs": []},
+            {"titre": "Psychoéducation - La nature des émotions", "details": "A venir", "pdfs": []},
+            {"titre": "Le modèle à trois composants des expériences émotionnelles", "details": "A venir", "pdfs": []},
             {
                 "titre": "Utilisation du modèle à trois composants", 
+                "details": "A venir",
                 "pdfs": ["assets/MOD2.1 Fiche_Modèle_à_trois_composantes_de_l'Emotion.pdf"]
             },
             {
-                "titre": "L'ARC des émotions (Reconnaître et suivre)", 
+                "titre": "L'ARC des émotions (Reconnaître et suivre)", "details": "A venir",
                 "pdfs": ["assets/MOD2.2_Fiche_suivre_mon_ARC_émotionnel.pdf"]
             },
-            {"titre": "Comprendre les émotions et les comportements", "pdfs": []}
+            {"titre": "Comprendre les émotions et les comportements", "details": "A venir", "pdfs": []}
         ],
 
         "taches_domicile": [
@@ -152,24 +153,24 @@ PROTOCOLE_BARLOW = {
         ],
 
         "etapes_seance": [
-            {"titre": "Introduction à la pleine conscience des émotions", "pdfs": []},
-            {"titre": "Conscience des émotions sans jugement", "pdfs": []},
-            {"titre": "Conscience des émotions centrée sur le présent", "pdfs": []},
+            {"titre": "Introduction à la pleine conscience des émotions", "details": "A venir", "pdfs": []},
+            {"titre": "Conscience des émotions sans jugement", "details": "A venir","pdfs": []},
+            {"titre": "Conscience des émotions centrée sur le présent", "details": "A venir","pdfs": []},
             {
-                "titre": "Pratiquer la pleine conscience", 
+                "titre": "Pratiquer la pleine conscience", "details": "A venir",
                 "pdfs": ["assets/MOD_3_Script_Méditation_d'initiation.pdf"]
             },
             {
-                "titre": "Méditation consciente des émotions", 
+                "titre": "Méditation consciente des émotions", "details": "A venir",
                 "pdfs": [
                     "assets/MOD3_Fiche_Pleine_Conscience_des_émotions.pdf",
                     "assets/MOD3_Exemple_Fiche_Pleine_Conscience_des_émotions.pdf",
                     "assets/Audio_Méditation.mp3"
                 ]
             },
-            {"titre": "Induction d'humeur consciente", "pdfs": []},
+            {"titre": "Induction d'humeur consciente", "details": "A venir","pdfs": []},
             {
-                "titre": "Ancrage au présent", 
+                "titre": "Ancrage au présent", "details": "A venir",
                 "pdfs": [
                     "assets/MOD_3_Script_Méditation_Ancrage.pdf",
                     "assets/Audio_Ancrage.mp3"
@@ -203,16 +204,16 @@ PROTOCOLE_BARLOW = {
         ],
 
         "etapes_seance": [
-            {"titre": "Introduction à la flexibilité cognitive", "pdfs": []},
-            {"titre": "L'importance des pensées", "pdfs": []},
-            {"titre": "Notion de Schémas de pensées automatiques", "pdfs": []},
+            {"titre": "Introduction à la flexibilité cognitive", "details": "A venir","pdfs": []},
+            {"titre": "L'importance des pensées", "details": "A venir","pdfs": []},
+            {"titre": "Notion de Schémas de pensées automatiques", "details": "A venir","pdfs": []},
             {
-                "titre": "Exercice d'image ambiguë", 
+                "titre": "Exercice d'image ambiguë", "details": "A venir",
                 "pdfs": ["assets/MOD4.1_Fiche_Exercice_Image_ambiguë.pdf"]
             },
-            {"titre": "Pièges à penser", "pdfs": []},
+            {"titre": "Pièges à penser", "details": "A venir","pdfs": []},
             {
-                "titre": "Pratiquer la flexibilité cognitive", 
+                "titre": "Pratiquer la flexibilité cognitive", "details": "A venir",
                 "pdfs": [
                     "assets/MOD4.20_Fiche_Pratiquer_la_flexibilité_cognitive.pdf",
                     "assets/MOD4.21_Exemple_Fiche_Pratiquer_la_flexibilité_cognitive.pdf"
@@ -246,18 +247,18 @@ PROTOCOLE_BARLOW = {
 
         "etapes_seance": [
             {
-                "titre": "Discussion sur les comportements émotionnels", 
+                "titre": "Discussion sur les comportements émotionnels", "details": "A venir",
                 "pdfs": ["assets/MOD5.11_Exemple_Fiche_Liste_des_comportements_émotionnels.pdf"]
             },
-            {"titre": "Discussion sur la nature adaptative du comportement", "pdfs": []},
+            {"titre": "Discussion sur la nature adaptative du comportement", "details": "A venir","pdfs": []},
             {
-                "titre": "Examen des différents types de comportement", 
+                "titre": "Examen des différents types de comportement", "details": "A venir",
                 "pdfs": ["assets/MOD5.10_Fiche_Liste_des_comportements_émotionnels.pdf"]
             },
-            {"titre": "Rôle des comportements dans le maintien des troubles", "pdfs": []},
-            {"titre": "Démonstration d'évitement des émotions", "pdfs": []},
+            {"titre": "Rôle des comportements dans le maintien des troubles", "details": "A venir","pdfs": []},
+            {"titre": "Démonstration d'évitement des émotions", "details": "A venir","pdfs": []},
             {
-                "titre": "Briser le cycle (Actions alternatives)", 
+                "titre": "Briser le cycle (Actions alternatives)", "details": "A venir",
                 "pdfs": [
                     "assets/MOD5.50_Fiche_Contrer_les_comportements_émotionnels.pdf",
                     "assets/MOD5.51_Exemple_Fiche_Contrer_les_comportements_émotionnels.pdf",
@@ -288,11 +289,11 @@ PROTOCOLE_BARLOW = {
         ],
 
         "etapes_seance": [
-            {"titre": "Sensations physiques et réponse émotionnelle", "pdfs": []},
-            {"titre": "Évitement des sensations physiques", "pdfs": []},
-            {"titre": "Exercices d'induction des symptômes", "pdfs": []},
-            {"titre": "Expositions répétées", "pdfs": []},
-            {"titre": "Exposition intéroceptive : procédure", "pdfs": []}
+            {"titre": "Sensations physiques et réponse émotionnelle", "details": "A venir","pdfs": []},
+            {"titre": "Évitement des sensations physiques", "details": "A venir","pdfs": []},
+            {"titre": "Exercices d'induction des symptômes", "details": "A venir", "pdfs": []},
+            {"titre": "Expositions répétées", "details": "A venir", "pdfs": []},
+            {"titre": "Exposition intéroceptive : procédure", "details": "A venir", "pdfs": []}
         ],
 
         "taches_domicile": [
@@ -318,26 +319,26 @@ PROTOCOLE_BARLOW = {
         ],
 
         "etapes_seance": [
-            {"titre": "Expositions aux émotions", "pdfs": []},
+            {"titre": "Expositions aux émotions", "details": "A venir","pdfs": []},
             {
-                "titre": "Introduction aux expositions en séance", 
+                "titre": "Introduction aux expositions en séance", "details": "A venir",
                 "pdfs": [
                     "assets/MOD07.01_Fiche_Hiérarchie_d'exposition_aux_émotions.pdf",
                     "assets/MOD07.01_Exemple_Fiche_Hiérarchie_d'exposition_aux_émotions.pdf"
                 ]
             },
-            {"titre": "Expositions basées sur la situation", "pdfs": []},
-            {"titre": "Expositions d'émotions imaginaires", "pdfs": []},
-            {"titre": "Sensation physique / Emotion Expositions", "pdfs": []},
-            {"titre": "Mener des expositions en séance", "pdfs": []},
+            {"titre": "Expositions basées sur la situation", "details": "A venir","pdfs": []},
+            {"titre": "Expositions d'émotions imaginaires", "details": "A venir", "pdfs": []},
+            {"titre": "Sensation physique / Emotion Expositions", "details": "A venir", "pdfs": []},
+            {"titre": "Mener des expositions en séance", "details": "A venir", "pdfs": []},
             {
-                "titre": "Une fois l'exposition terminée... (Debrief)", 
+                "titre": "Une fois l'exposition terminée... (Debrief)", "details": "A venir",
                 "pdfs": [
                     "assets/MOD07.2_Fiche_Enregistrement_de_la_Pratique_d'Exposition_Émotionnelle.pdf",
                     "assets/MOD07.2_Exemple_Fiche_Enregistrement_de_la_Pratique_d'Exposition_Émotionnelle.pdf"
                 ]
             },
-            {"titre": "Transférer dans le contexte réel", "pdfs": []}
+            {"titre": "Transférer dans le contexte réel", "details": "A venir", "pdfs": []}
         ],
 
         "taches_domicile": [
@@ -374,15 +375,15 @@ PROTOCOLE_BARLOW = {
         ],
 
         "etapes_seance": [
-            {"titre": "Revue des compétences acquises", "pdfs": []},
+            {"titre": "Revue des compétences acquises", "details": "A venir","pdfs": []},
             {
-                "titre": "Évaluation des progrès", 
+                "titre": "Évaluation des progrès", "details": "A venir",
                 "pdfs": ["assets/MOD8.1_Fiche_Evaluation_des_Progrès.pdf"]
             },
-            {"titre": "Anticiper les difficultés futures", "pdfs": []},
-            {"titre": "Poursuite de la pratique", "pdfs": []},
+            {"titre": "Anticiper les difficultés futures", "details": "A venir","pdfs": []},
+            {"titre": "Poursuite de la pratique", "details": "A venir","pdfs": []},
             {
-                "titre": "Établissement d'objectifs à long terme", 
+                "titre": "Établissement d'objectifs à long terme", "details": "A venir",
                 "pdfs": ["assets/MOD8.2_Fiche_Plan_pour_maintenir_et_continuer_à_progresser.pdf"]
             },
             {"titre": "Fin du traitement", "pdfs": []}
