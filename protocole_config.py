@@ -195,20 +195,66 @@ QUESTIONS_HEBDO = {
         ]
     },
 
-    "Émotions Positives": {
-        "titre": "🌞 Émotions Positives",
-        "description": "Joie, Enthousiasme, Fierté, etc. (0 = Nulle, 8 = Extrême).",
-        "type": "scale_0_8",
-        "questions": ["À quel point avez-vous ressenti de la joie ou du plaisir cette semaine ?"]
-    },
-    "Fiche de Progrès": {
-        "titre": "📈 Fiche des Progrès (Tâches à domicile)",
-        "description": "Notez ici vos réussites et difficultés concernant les exercices.",
-        "type": "text",
+"Émotions Positives": {
+        "titre": "🌞 Émotions Positives (ModAF - Facultatif)",
+        "description": "Pour chaque élément, sélectionnez la réponse qui décrit le mieux votre expérience au cours de la semaine écoulée concernant les émotions positives (bonheur, excitation, joie, etc.).",
+        "type": "qcm_oasis",
         "questions": [
-            "Quelles tâches avez-vous accomplies cette semaine ?",
-            "Quelles difficultés avez-vous rencontrées ?",
-            "Qu'avez-vous appris ?"
+            {
+                "id": "freq_pos",
+                "label": "1. Au cours de la dernière semaine, à quelle fréquence avez-vous ressenti des émotions positives ?",
+                "options": [
+                    "0 = Aucune émotion positive au cours de la dernière semaine.",
+                    "1 = Émotions positives peu fréquentes. Ressentir des émotions positives à quelques reprises.",
+                    "2 = Émotions positives occasionnelles. Ressentir des émotions positives la plupart du temps.",
+                    "3 = Émotions positives fréquentes. A ressenti des émotions positives la plupart du temps.",
+                    "4 = Émotions positives constantes. Ressentir des émotions positives tout le temps."
+                ]
+            },
+            {
+                "id": "intensite_pos",
+                "label": "2. Au cours de la dernière semaine, lorsque vous avez ressenti des émotions positives, quelle était leur intensité ?",
+                "options": [
+                    "0 = Peu ou Aucune : Les émotions positives étaient absentes ou à peine perceptibles.",
+                    "1 = Léger : Les émotions positives étaient à un niveau bas.",
+                    "2 = Bon : Les émotions positives étaient parfois fortes.",
+                    "3 = Excellent : Les émotions positives étaient fortes la plupart du temps.",
+                    "4 = Excellent : Les émotions positives étaient fortes la plupart du temps."
+                ]
+            },
+            {
+                "id": "interet_pos",
+                "label": "3. À quelle fréquence vous êtes-vous engagé ou avez-vous maintenu votre intérêt pour des activités grâce à des émotions positives ?",
+                "options": [
+                    "0 = Aucune : J'ai eu de la difficulté à m'engager ou à m'intéresser à des activités... en raison de très peu d'émotions positives.",
+                    "1 = Peu fréquent : J'ai participé ou maintenu, à quelques reprises, mon intérêt pour des activités grâce à des émotions positives.",
+                    "2 = Occasionnel : Je me suis engagé ou j'ai maintenu de temps en temps mon intérêt pour des activités en raison d'émotions positives.",
+                    "3 = Fréquent : Je m'engage fréquemment ou maintiens mon intérêt pour des activités en raison d'émotions positives.",
+                    "4 = Tout le temps : Les émotions positives m'aident à m'engager ou à maintenir mon intérêt pour presque toutes mes activités."
+                ]
+            },
+            {
+                "id": "capacite_pos",
+                "label": "4. Dans quelle mesure vos émotions positives ont-elles amélioré votre capacité à faire les choses (travail, école, maison) ?",
+                "options": [
+                    "0 = Aucun : Aucune amélioration au travail/à la maison/à l'école grâce aux émotions positives.",
+                    "1 = Léger : Mes émotions positives ont amélioré certains aspects du travail/de la maison/de l'école.",
+                    "2 = Bien : Mes émotions positives augmentent définitivement le plaisir dans mes tâches.",
+                    "3 = Excellent : Mes émotions positives ont vraiment changé ma capacité à faire avancer les choses pour le mieux.",
+                    "4 = Excellent : Mes émotions positives ont amélioré ma qualité de vie de la meilleure façon possible."
+                ]
+            },
+            {
+                "id": "social_pos",
+                "label": "5. Dans quelle mesure les émotions positives ont-elles amélioré votre vie sociale et vos relations ?",
+                "options": [
+                    "0 = Aucun : Mes émotions positives n'ont pas affecté mes relations.",
+                    "1 = Léger : Mes émotions positives améliorent légèrement mes relations.",
+                    "2 = Bon : J'ai ressenti une certaine amélioration dans ma vie sociale grâce à des émotions positives.",
+                    "3 = Excellent : Mes amitiés et autres relations se sont beaucoup améliorées grâce à mes émotions positives.",
+                    "4 = Excellent : Mes émotions positives ont complètement amélioré mes activités sociales et mes relations."
+                ]
+            }
         ]
     }
 }
