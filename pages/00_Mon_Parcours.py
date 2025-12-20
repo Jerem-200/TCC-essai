@@ -219,7 +219,7 @@ with tab_outils:
                                 "probleme_principal": st.session_state.temp_main_pb,
                                 "liste_objectifs": st.session_state.temp_objectives_list
                             }
-                            if sauvegarder_reponse_hebdo(...):
+                            if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
                                 # 1. On vide les variables d'abord
                                 st.session_state.temp_main_pb = ""
                                 st.session_state.temp_objectives_list = []
