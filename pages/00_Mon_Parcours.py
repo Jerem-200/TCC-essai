@@ -913,7 +913,7 @@ with tab_historique:
 
         st.divider()
 
-        # --- B. JOURNAL DES EXERCICES ---
+# --- B. JOURNAL DES EXERCICES ---
         st.markdown("#### 🛠️ Journal des Exercices (Détails)")
         
         # On filtre pour ne garder QUE les exercices
@@ -925,10 +925,15 @@ with tab_historique:
                 
                 with st.expander(f"🗓️ {row['Date'].strftime('%d/%m')} - {row['Questionnaire']}"):
                     
-                    # Bouton de suppression aligné
-                    col_del, col_content = st.columns([1, 6])
+                    # Création de deux colonnes : 
+                    # Col 1 (Petite) : Pour le bouton supprimer
+                    # Col 2 (Grande) : Pour afficher le contenu de l'exercice
+                    col_del, col_content = st.columns([1, 5])
+                    
                     with col_del:
-                        if st.button("Supprimer", key=f"hist_del_{idx}"):
+                        st.write("") # Petit espace pour aligner le bouton verticalement
+                        # Bouton rouge (type="primary") pour la suppression
+                        if st.button("🗑️ Supprimer", key=f"hist_del_{idx}", type="primary"):
                             supprimer_reponse(current_user, row["Date"], row["Questionnaire"])
                             st.rerun()
                     
@@ -936,7 +941,7 @@ with tab_historique:
                         try:
                             d = json.loads(row["Details_Json"])
                             
-                            # LOGIQUE D'AFFICHAGE SELON LE TYPE D'EXERCICE
+                            # --- AFFICHAGE SELON LE TYPE D'EXERCICE ---
                             
                             # 1. Objectifs
                             if "probleme_principal" in d:
@@ -1000,21 +1005,12 @@ with tab_historique:
                                     st.write(f"Emotions : {d['debrief']['emotions']}")
                                     st.write(d['debrief']['appris_capa'])
 
-                            # 9. Bilan Progrès
-                            elif "pleine_conscience" in d and "progres" in d["pleine_conscience"]:
-                                st.success("🏆 Bilan des progrès enregistré")
-                                st.write(f"**PC:** {d['pleine_conscience']['progres']}")
-                                st.write(f"**Flex:** {d['flexibilite']['progres']}")
-                                st.write(f"**Sens:** {d['sensations']['progres']}")
-                                st.write(f"**Comp:** {d['comportements']['progres']}")
+                            # 9. Bilan / Plan (Types simples)
+                            elif "pleine_conscience" in d: 
+                                st.success("Bilan/Plan enregistré")
+                                st.json(d)
 
-                            # 10. Plan Maintien
-                            elif "pleine_conscience" in d and "engagement" in d["pleine_conscience"]:
-                                st.success("📅 Plan de maintien enregistré")
-                                st.write(f"**Engagement PC:** {d['pleine_conscience']['engagement']}")
-                                st.write(f"**Engagement Flex:** {d['flexibilite']['engagement']}")
-
-                            # Fallback
+                            # Fallback (Autres types)
                             else:
                                 st.json(d)
 
