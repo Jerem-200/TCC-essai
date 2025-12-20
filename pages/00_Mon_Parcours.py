@@ -320,24 +320,76 @@ with tab_outils:
                         st.session_state.temp_mindfulness_list.append(entree)
                         st.rerun()
 
+            # ---------------------------------------------------------
+            # TYPE 4 : FLEXIBILITÉ COGNITIVE (Module 4) - NOUVEAU !
+            # ---------------------------------------------------------
+            elif exo_data["type"] == "fiche_flexibilite_cognitive":
+                
+                if "temp_flex_list" not in st.session_state:
+                    st.session_state.temp_flex_list = []
+
+                # Aide à la réflexion (Les questions de la fiche)
+                with st.expander("💡 Aide : Questions pour évaluer ma pensée"):
+                    st.markdown("""
+                    * 🤔 Suis-je certain que cela va m'arriver ?
+                    * 📊 Quelle est la probabilité la plus réaliste ?
+                    * 🔍 Quelles sont les explications alternatives ?
+                    * 🎭 Est-ce que ma pensée est guidée par l'émotion du moment ?
+                    * 🛠️ Si c'était vrai, comment je pourrais gérer ça ?
+                    """)
+
+                st.markdown("#### ➕ Analyser une pensée")
+                with st.form("form_add_flex", clear_on_submit=True):
+                    
+                    col_f1, col_f2 = st.columns(2)
+                    with col_f1:
+                        declencheur = st.text_area("Déclencheur (Situation) :", height=80, placeholder="Ex: Mon patron ne m'a pas dit bonjour.")
+                    with col_f2:
+                        pensee = st.text_area("Pensée Automatique :", height=80, placeholder="Ex: Il va me virer.")
+                    
+                    st.divider()
+                    
+                    col_f3, col_f4 = st.columns(2)
+                    with col_f3:
+                        piege = st.text_input("Pensée piège ? (Optionnel)", placeholder="Ex: Catastrophisme, Lecture de pensée...")
+                        croyance = st.slider("A quel point j'y crois ? (0-100%)", 0, 100, 80)
+                    with col_f4:
+                        alternative = st.text_area("✨ Autres interprétations / Pensée alternative :", height=100, placeholder="Peut-être qu'il est juste préoccupé...")
+
+                    if st.form_submit_button("Ajouter cette analyse"):
+                        if pensee:
+                            st.session_state.temp_flex_list.append({
+                                "declencheur": declencheur,
+                                "pensee": pensee,
+                                "piege": piege,
+                                "croyance": croyance,
+                                "alternative": alternative
+                            })
+                            st.rerun()
+                        else:
+                            st.error("La pensée est obligatoire.")
+
                 # AFFICHAGE LISTE
-                if st.session_state.temp_mindfulness_list:
-                    st.markdown("##### 📋 Pratiques à enregistrer :")
-                    for i, item in enumerate(st.session_state.temp_mindfulness_list):
-                        with st.expander(f"{item['date']} - {item['type_exo']}", expanded=False):
-                            st.write(f"💭 {item['pensees']} | 💓 {item['sensations']}")
-                            st.caption(f"Scores: Non-jugement {item['score_jugement']}/10 | Ancrage {item['score_ancrage']}/10")
-                            if st.button("Supprimer", key=f"del_mind_{i}"):
-                                st.session_state.temp_mindfulness_list.pop(i); st.rerun()
+                if st.session_state.temp_flex_list:
+                    st.markdown("##### 📋 Analyses à enregistrer :")
+                    for i, item in enumerate(st.session_state.temp_flex_list):
+                        with st.expander(f"Pensée : {item['pensee'][:40]}...", expanded=False):
+                            st.write(f"**Déclencheur:** {item['declencheur']}")
+                            st.write(f"**Alternative:** {item['alternative']}")
+                            st.caption(f"Croyance: {item['croyance']}% | Piège: {item['piege']}")
+                            
+                            if st.button("Supprimer", key=f"del_flex_{i}"):
+                                st.session_state.temp_flex_list.pop(i)
+                                st.rerun()
 
                     st.divider()
-                    if st.button("💾 Sauvegarder la fiche Pleine Conscience", type="primary"):
+                    if st.button("💾 Sauvegarder Flexibilité", type="primary"):
                         payload = {
-                            "type_exercice": "Pleine Conscience",
-                            "liste_pratiques": st.session_state.temp_mindfulness_list
+                            "type_exercice": "Flexibilité Cognitive",
+                            "liste_flexibilite": st.session_state.temp_flex_list
                         }
                         if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
-                            st.success("✅ Fiche sauvegardée !"); st.session_state.temp_mindfulness_list = []; time.sleep(1); st.rerun()
+                            st.success("✅ Fiche sauvegardée !"); st.session_state.temp_flex_list = []; time.sleep(1); st.rerun()
 
 
     # --- HISTORIQUE EXERCICES ---
@@ -348,7 +400,7 @@ with tab_outils:
             if not df_exos.empty:
                 for idx, row in df_exos.iterrows():
                     c_d, c_n, c_a = st.columns([1, 3, 1])
-                    with c_d: st.write(row["Date"].strftime("%d/%m"))
+                    with c_d: st.write(row["Date"].strftime("%d/%m/%Y"))
                     with c_n: st.write(f"**{row['Questionnaire']}**")
                     with c_a:
                         if st.button("Supprimer", key=f"del_h_{idx}"):
@@ -359,50 +411,45 @@ with tab_outils:
                         try:
                             d = json.loads(row["Details_Json"])
                             
-                            # A. PLEINE CONSCIENCE (NOUVEAU)
-                            if "liste_pratiques" in d:
-                                for p in d["liste_pratiques"]:
-                                    st.markdown(f"🧘 **{p['date']} - {p['type_exo']}**")
-                                    col_obs, col_scr = st.columns([2, 1])
-                                    with col_obs:
-                                        st.caption("OBSERVATIONS")
-                                        if p['pensees']: st.write(f"💭 Pensées : {p['pensees']}")
-                                        if p['sensations']: st.write(f"💓 Sensations : {p['sensations']}")
-                                        if p['comportements']: st.write(f"🏃 Actions : {p['comportements']}")
-                                    with col_scr:
-                                        st.caption("SCORES")
-                                        st.metric("Non-jugement", f"{p['score_jugement']}/10")
-                                        st.metric("Ancrage", f"{p['score_ancrage']}/10")
+                            # A. FLEXIBILITÉ COGNITIVE (NOUVEAU)
+                            if "liste_flexibilite" in d:
+                                for item in d["liste_flexibilite"]:
+                                    st.info(f"**Situation :** {item['declencheur']}")
+                                    c1, c2 = st.columns(2)
+                                    with c1:
+                                        st.write(f"🔴 **Pensée :** {item['pensee']}")
+                                        st.caption(f"Croyance : {item['croyance']}%")
+                                    with c2:
+                                        st.write(f"🟢 **Alternative :** {item['alternative']}")
+                                        if item['piege']: st.caption(f"Piège : {item['piege']}")
                                     st.divider()
 
-                            # B. ARC Emotionnel
+                            # B. PLEINE CONSCIENCE
+                            elif "liste_pratiques" in d:
+                                for p in d["liste_pratiques"]:
+                                    st.markdown(f"🧘 **{p['date']} - {p['type_exo']}**")
+                                    st.caption(f"💭 {p['pensees']} | 💓 {p['sensations']}")
+                                    st.divider()
+
+                            # C. ARC Emotionnel
                             elif "liste_arc" in d:
                                 for arc in d["liste_arc"]:
                                     st.markdown(f"**📅 {arc['date']}**")
                                     k1, k2, k3 = st.columns(3)
-                                    with k1: 
-                                        st.caption("ANTÉCÉDENT")
-                                        st.write(arc['antecedent'])
-                                    with k2: 
-                                        st.caption("RÉPONSES")
-                                        st.write(f"💭 {arc['pensees']}")
-                                        st.write(f"💓 {arc['sensations']}")
-                                    with k3:
-                                        st.caption("CONSÉQUENCES")
-                                        st.write(f"CT: {arc['c_court']}")
+                                    with k1: st.write(f"**Antécédent:** {arc['antecedent']}")
+                                    with k2: st.write(f"**Réponses:** {arc['pensees']}")
+                                    with k3: st.write(f"**Csq:** {arc['c_court']}")
                                     st.divider()
 
-                            # C. Objectifs
+                            # D. Objectifs
                             elif "probleme_principal" in d:
                                 st.info(f"**Problème :** {d['probleme_principal']}")
                                 if "liste_objectifs" in d:
                                     for it in d["liste_objectifs"]:
                                         st.markdown(f"**🎯 {it['objectif']}**")
                                         for s in it.get('etapes', []): st.write(f"- {s}")
-                                        st.write("---")
-                            
                             else: st.json(d)
-                        except: st.write("Erreur lecture détail.")
+                        except: st.write("Erreur lecture.")
             else: st.info("Aucun exercice sauvegardé.")
         else: st.info("Historique vide.")
 

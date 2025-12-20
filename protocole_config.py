@@ -498,6 +498,15 @@ PROTOCOLE_BARLOW = {
             {"titre": "Fiche Pleine Conscience", "pdf": "assets/MOD3_Fiche_Pleine_Conscience_des_émotions.pdf"}
         ],
 
+        "exercices": [
+            {
+                "id": "fiche_flexibilite",
+                "titre": "🧠 Fiche : Flexibilité Cognitive",
+                "type": "fiche_flexibilite_cognitive", # Nouveau type
+                "description": "Identifiez vos pensées pièges et trouvez des interprétations alternatives plus réalistes."
+            }
+        ],
+
         "etapes_seance": [
             {"titre": "Introduction à la flexibilité cognitive", "details": "A venir","pdfs": []},
             {"titre": "L'importance des pensées", "details": "A venir","pdfs": []},
