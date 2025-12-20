@@ -340,15 +340,15 @@ with tab_outils:
                         st.session_state.temp_mindfulness_list.append(entree)
                         st.rerun()
 
-            # ---------------------------------------------------------
-            # TYPE 4 : FLEXIBILITÉ COGNITIVE (Module 4) - NOUVEAU !
+# ---------------------------------------------------------
+            # TYPE 4 : FLEXIBILITÉ COGNITIVE (Module 4)
             # ---------------------------------------------------------
             elif exo_data["type"] == "fiche_flexibilite_cognitive":
                 
                 if "temp_flex_list" not in st.session_state:
                     st.session_state.temp_flex_list = []
 
-                # Aide à la réflexion (Les questions de la fiche)
+                # Aide à la réflexion (Checklist de l'image)
                 with st.expander("💡 Aide : Questions pour évaluer ma pensée"):
                     st.markdown("""
                     * 🤔 Suis-je certain que cela va m'arriver ?
@@ -361,19 +361,22 @@ with tab_outils:
                 st.markdown("#### ➕ Analyser une pensée")
                 with st.form("form_add_flex", clear_on_submit=True):
                     
-                    col_f1, col_f2 = st.columns(2)
-                    with col_f1:
+                    # Ligne 1 : Déclencheur et Pensée
+                    c1, c2 = st.columns(2)
+                    with c1: 
                         declencheur = st.text_area("Déclencheur (Situation) :", height=80, placeholder="Ex: Mon patron ne m'a pas dit bonjour.")
-                    with col_f2:
+                    with c2: 
                         pensee = st.text_area("Pensée Automatique :", height=80, placeholder="Ex: Il va me virer.")
                     
                     st.divider()
                     
-                    col_f3, col_f4 = st.columns(2)
-                    with col_f3:
+                    # Ligne 2 : Piège et Alternative
+                    c3, c4 = st.columns(2)
+                    with c3: 
                         piege = st.text_input("Pensée piège ? (Optionnel)", placeholder="Ex: Catastrophisme, Lecture de pensée...")
+                        # On ajoute le slider de croyance souvent utilisé en TCC
                         croyance = st.slider("A quel point j'y crois ? (0-100%)", 0, 100, 80)
-                    with col_f4:
+                    with c4: 
                         alternative = st.text_area("✨ Autres interprétations / Pensée alternative :", height=100, placeholder="Peut-être qu'il est juste préoccupé...")
 
                     if st.form_submit_button("Ajouter cette analyse"):
@@ -388,6 +391,31 @@ with tab_outils:
                             st.rerun()
                         else:
                             st.error("La pensée est obligatoire.")
+
+                # Affichage
+                if st.session_state.temp_flex_list:
+                    st.markdown("##### 📋 Analyses à enregistrer :")
+                    for i, item in enumerate(st.session_state.temp_flex_list):
+                        with st.expander(f"Pensée : {item['pensee'][:40]}...", expanded=False):
+                            st.write(f"**Déclencheur:** {item['declencheur']}")
+                            st.write(f"**Alternative:** {item['alternative']}")
+                            st.caption(f"Croyance: {item['croyance']}% | Piège: {item['piege']}")
+                            
+                            if st.button("Supprimer", key=f"del_flex_{i}"):
+                                st.session_state.temp_flex_list.pop(i)
+                                st.rerun()
+
+                    st.divider()
+                    if st.button("💾 Sauvegarder Flexibilité", type="primary"):
+                        payload = {
+                            "type_exercice": "Flexibilité Cognitive",
+                            "liste_flexibilite": st.session_state.temp_flex_list
+                        }
+                        if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
+                            st.toast("✅ Fiche sauvegardée !", icon="🎉")
+                            st.session_state.temp_flex_list = []
+                            time.sleep(0.5)
+                            st.rerun()
 
 # ---------------------------------------------------------
             # TYPE 5 : CONTRER COMPORTEMENTS (Module 5) - NOUVEAU !
