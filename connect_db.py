@@ -5,15 +5,22 @@ from datetime import datetime
 import mysql.connector
 import json
 
-# --- FONCTION DE CONNEXION ---
+# =========================================================
+# 1. CONNEXION OPTIMISÉE (CACHE)
+# =========================================================
+
+# Le décorateur @st.cache_resource garde la connexion en mémoire !
+# Elle ne se relance pas à chaque clic.
+@st.cache_resource(ttl=3600) 
 def get_client():
     try:
+        # Gestion des secrets (supporte les deux formats courants)
         if "gcp_service_account" in st.secrets:
             key_dict = st.secrets["gcp_service_account"]
         elif "service_account_info" in st.secrets:
-            import json
             key_dict = json.loads(st.secrets["service_account_info"], strict=False)
         else:
+            st.error("Secrets Google non trouvés.")
             return None
 
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -21,11 +28,15 @@ def get_client():
         client = gspread.authorize(creds)
         return client
     except Exception as e:
-        st.error(f"Erreur connexion : {e}")
+        st.error(f"Erreur connexion Google : {e}")
         return None
 
-# --- SAUVEGARDE DES DONNÉES (Beck, BDI, etc.) ---
+# =========================================================
+# 2. FONCTIONS DE LECTURE / ECRITURE
+# =========================================================
+
 def save_data(nom_onglet, donnees_liste):
+    """Ajoute une ligne à la fin de l'onglet spécifié."""
     client = get_client()
     if not client: return False
     
@@ -34,6 +45,7 @@ def save_data(nom_onglet, donnees_liste):
         try:
             worksheet = sheet.worksheet(nom_onglet)
         except:
+            # Création de l'onglet s'il n'existe pas
             worksheet = sheet.add_worksheet(title=nom_onglet, rows=100, cols=20)
         
         worksheet.append_row(donnees_liste)
@@ -41,6 +53,18 @@ def save_data(nom_onglet, donnees_liste):
     except Exception as e:
         st.error(f"Erreur sauvegarde : {e}")
         return False
+
+def load_data(nom_onglet):
+    """Récupère toutes les données d'un onglet."""
+    client = get_client()
+    if not client: return []
+    
+    try:
+        sheet = client.open("TCC_Base_Donnees")
+        ws = sheet.worksheet(nom_onglet)
+        return ws.get_all_records()
+    except:
+        return []
 
 # --- GESTION UTILISATEURS (NOUVEAU) ---
 
@@ -137,20 +161,6 @@ def delete_data_flexible(nom_onglet, criteres_dict):
         st.error(f"Erreur suppression GSheet : {e}")
         return False
 
-# --- CHARGEMENT DES DONNÉES ---
-def load_data(nom_onglet):
-    """Récupère toutes les données d'un onglet sous forme de liste de dictionnaires"""
-    client = get_client()
-    if not client: return []
-    
-    try:
-        sheet = client.open("TCC_Base_Donnees")
-        ws = sheet.worksheet(nom_onglet)
-        return ws.get_all_records() # Retourne une liste de dicts
-    except:
-        return [] # Retourne une liste vide si l'onglet n'existe pas ou erreur
-    
-
 def sauvegarder_reponse_hebdo(patient_id, nom_questionnaire, score_global, details_dict):
     """Enregistre une réponse à un questionnaire hebdo."""
     try:
@@ -165,8 +175,7 @@ def sauvegarder_reponse_hebdo(patient_id, nom_questionnaire, score_global, detai
     except Exception as e:
         st.error(f"Erreur sauvegarde hebdo : {e}")
         return False
-    
-# Dans connect_db.py
+
 
 def supprimer_reponse(patient_id, timestamp, type_exo):
     """Supprime une entrée spécifique de l'historique."""
