@@ -694,6 +694,56 @@ with tab_outils:
                             st.success("✅ Bilan enregistré ! Félicitations pour votre parcours !"); time.sleep(1); st.rerun()
 
 
+# ---------------------------------------------------------
+            # TYPE 10 : PLAN DE MAINTIEN (Module 8) - NOUVEAU !
+            # ---------------------------------------------------------
+            elif exo_data["type"] == "fiche_plan_maintien":
+                
+                st.markdown("#### 📅 Mon plan pour continuer")
+                st.caption("Remplissez ce plan pour définir comment vous utiliserez vos compétences à l'avenir.")
+
+                with st.form("form_plan_maintien"):
+                    
+                    # On utilise des Tabs pour ne pas avoir une page kilométrique
+                    tab_pc, tab_flex, tab_sens, tab_comp = st.tabs(["🧘 Pleine Conscience", "🧠 Flexibilité", "🌪️ Sensations", "🛡️ Comportements"])
+                    
+                    with tab_pc:
+                        st.info("Pleine conscience émotionnelle")
+                        pc_1 = st.text_area("Comment cela aidera vos objectifs long terme ?", height=100, key="pc_1")
+                        pc_2 = st.text_area("Plan de pratique spécifique ?", height=100, key="pc_2")
+                        pc_3 = st.text_area("Comment s'engager à le respecter ?", height=100, key="pc_3")
+
+                    with tab_flex:
+                        st.info("Flexibilité cognitive")
+                        flex_1 = st.text_area("Comment cela aidera vos objectifs long terme ?", height=100, key="fx_1")
+                        flex_2 = st.text_area("Plan de pratique spécifique ?", height=100, key="fx_2")
+                        flex_3 = st.text_area("Comment s'engager à le respecter ?", height=100, key="fx_3")
+
+                    with tab_sens:
+                        st.info("Confrontation aux sensations physiques")
+                        sens_1 = st.text_area("Comment cela aidera vos objectifs long terme ?", height=100, key="sn_1")
+                        sens_2 = st.text_area("Plan de pratique spécifique ?", height=100, key="sn_2")
+                        sens_3 = st.text_area("Comment s'engager à le respecter ?", height=100, key="sn_3")
+
+                    with tab_comp:
+                        st.info("Contrer les comportements émotionnels")
+                        comp_1 = st.text_area("Comment cela aidera vos objectifs long terme ?", height=100, key="cp_1")
+                        comp_2 = st.text_area("Plan de pratique spécifique ?", height=100, key="cp_2")
+                        comp_3 = st.text_area("Comment s'engager à le respecter ?", height=100, key="cp_3")
+
+                    if st.form_submit_button("💾 Sauvegarder mon plan", type="primary"):
+                        payload = {
+                            "type_exercice": "Plan Maintien",
+                            "date": datetime.now().strftime("%d/%m/%Y"),
+                            "pleine_conscience": {"aide": pc_1, "plan": pc_2, "engagement": pc_3},
+                            "flexibilite": {"aide": flex_1, "plan": flex_2, "engagement": flex_3},
+                            "sensations": {"aide": sens_1, "plan": sens_2, "engagement": sens_3},
+                            "comportements": {"aide": comp_1, "plan": comp_2, "engagement": comp_3}
+                        }
+                        if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
+                            st.success("✅ Plan enregistré !"); time.sleep(1); st.rerun()
+
+
     # --- HISTORIQUE EXERCICES ---
     st.divider()
     with st.expander("📜 Historique de mes exercices réalisés", expanded=False):
@@ -713,84 +763,83 @@ with tab_outils:
                         try:
                             d = json.loads(row["Details_Json"])
                             
-                            # A. BILAN PROGRÈS (NOUVEAU)
-                            if "pleine_conscience" in d and "flexibilite" in d:
-                                st.success("🏆 BILAN DES PROGRÈS")
+                            # A. PLAN MAINTIEN (NOUVEAU)
+                            if "pleine_conscience" in d and "engagement" in d["pleine_conscience"]:
+                                st.success("📅 PLAN DE MAINTIEN")
+                                tabs_res = st.tabs(["🧘 PC", "🧠 Flex", "🌪️ Sens", "🛡️ Comp"])
+                                with tabs_res[0]:
+                                    st.write(f"**Objectifs:** {d['pleine_conscience']['aide']}")
+                                    st.write(f"**Plan:** {d['pleine_conscience']['plan']}")
+                                    st.write(f"**Engagement:** {d['pleine_conscience']['engagement']}")
+                                with tabs_res[1]:
+                                    st.write(f"**Objectifs:** {d['flexibilite']['aide']}")
+                                    st.write(f"**Plan:** {d['flexibilite']['plan']}")
+                                    st.write(f"**Engagement:** {d['flexibilite']['engagement']}")
+                                with tabs_res[2]:
+                                    st.write(f"**Objectifs:** {d['sensations']['aide']}")
+                                    st.write(f"**Plan:** {d['sensations']['plan']}")
+                                    st.write(f"**Engagement:** {d['sensations']['engagement']}")
+                                with tabs_res[3]:
+                                    st.write(f"**Objectifs:** {d['comportements']['aide']}")
+                                    st.write(f"**Plan:** {d['comportements']['plan']}")
+                                    st.write(f"**Engagement:** {d['comportements']['engagement']}")
+
+                            # B. BILAN PROGRÈS
+                            elif "pleine_conscience" in d and "progres" in d["pleine_conscience"]:
+                                st.success("🏆 BILAN PROGRÈS")
                                 c1, c2 = st.columns(2)
                                 with c1:
-                                    st.write("**🧘 Pleine Conscience**")
-                                    st.caption(d["pleine_conscience"]["progres"])
-                                    st.write("**🧠 Flexibilité**")
-                                    st.caption(d["flexibilite"]["progres"])
+                                    st.write("**🧘 Pleine Conscience**"); st.caption(d["pleine_conscience"]["progres"])
+                                    st.write("**🧠 Flexibilité**"); st.caption(d["flexibilite"]["progres"])
                                 with c2:
-                                    st.write("**🌪️ Sensations**")
-                                    st.caption(d["sensations"]["progres"])
-                                    st.write("**🛡️ Comportements**")
-                                    st.caption(d["comportements"]["progres"])
+                                    st.write("**🌪️ Sensations**"); st.caption(d["sensations"]["progres"])
+                                    st.write("**🛡️ Comportements**"); st.caption(d["comportements"]["progres"])
 
-                            # B. ENREGISTREMENT EXPO
+                            # C. ENREGISTREMENT EXPO
                             elif "activite" in d and "preparation" in d:
                                 st.info(f"📅 **{d.get('date', '')}** : {d['activite']}")
                                 c_p, c_d = st.columns(2)
                                 with c_p:
-                                    st.caption("AVANT")
-                                    st.write(f"🔴 {d['preparation']['pens_auto']}")
-                                    st.write(f"🟢 {d['preparation']['pens_alt']}")
+                                    st.caption("AVANT"); st.write(f"🔴 {d['preparation']['pens_auto']}"); st.write(f"🟢 {d['preparation']['pens_alt']}")
                                 with c_d:
-                                    st.caption("APRÈS")
-                                    scores = d['debrief']['scores']
-                                    st.write(f"📊 PC: {scores['pc']} | Flex: {scores['flex']} | Act: {scores['action']}")
+                                    st.caption("APRÈS"); scores = d['debrief']['scores']; st.write(f"📊 PC: {scores['pc']} | Flex: {scores['flex']} | Act: {scores['action']}")
 
-                            # C. HIÉRARCHIE
+                            # D. HIÉRARCHIE
                             elif "liste_hierarchie" in d:
-                                st.write("### 📈 Hiérarchie")
-                                data_disp = []
-                                for h in d["liste_hierarchie"]:
-                                    data_disp.append({"Rang": h["rang"], "Situation": h["situation"], "Evit": h['score_evit'], "Détresse": h['score_detr']})
+                                st.write("### 📈 Hiérarchie"); data_disp = []
+                                for h in d["liste_hierarchie"]: data_disp.append({"Rang": h["rang"], "Situation": h["situation"], "Evit": h['score_evit'], "Détresse": h['score_detr']})
                                 st.dataframe(pd.DataFrame(data_disp), use_container_width=True, hide_index=True)
 
-                            # D. SENSATIONS
+                            # E. SENSATIONS
                             elif "liste_tests" in d:
                                 for t in d["liste_tests"]:
-                                    st.markdown(f"🌪️ **{t['exercice']}**")
-                                    st.write(f"Malaise: **{t['score_malaise']}/10** | Ressemblance: **{t['score_resemblance']}/10**")
-                                    st.divider()
+                                    st.markdown(f"🌪️ **{t['exercice']}**"); st.write(f"Malaise: **{t['score_malaise']}/10** | Ressemblance: **{t['score_resemblance']}/10**"); st.divider()
 
-                            # E. CONTRER COMPORTEMENTS
+                            # F. CONTRER COMPORTEMENTS
                             elif "liste_comportements" in d:
                                 for item in d["liste_comportements"]:
-                                    st.markdown(f"📍 **{item['situation']}**")
-                                    st.write(f"🔴 {item['comp_habituel']} -> 🟢 {item['comp_alternatif']}")
-                                    st.divider()
+                                    st.markdown(f"📍 **{item['situation']}**"); st.write(f"🔴 {item['comp_habituel']} -> 🟢 {item['comp_alternatif']}"); st.divider()
 
-                            # F. FLEXIBILITÉ
+                            # G. FLEXIBILITÉ
                             elif "liste_flexibilite" in d:
                                 for item in d["liste_flexibilite"]:
-                                    st.info(f"**Situation :** {item['declencheur']}")
-                                    st.write(f"🔴 {item['pensee']} -> 🟢 {item['alternative']}")
-                                    st.divider()
+                                    st.info(f"**Situation :** {item['declencheur']}"); st.write(f"🔴 {item['pensee']} -> 🟢 {item['alternative']}"); st.divider()
 
-                            # G. PLEINE CONSCIENCE
+                            # H. PLEINE CONSCIENCE
                             elif "liste_pratiques" in d:
                                 for p in d["liste_pratiques"]:
-                                    st.markdown(f"🧘 **{p['date']} - {p['type_exo']}**")
-                                    st.caption(f"💭 {p['pensees']} | 💓 {p['sensations']}")
-                                    st.divider()
+                                    st.markdown(f"🧘 **{p['date']} - {p['type_exo']}**"); st.caption(f"💭 {p['pensees']} | 💓 {p['sensations']}"); st.divider()
 
-                            # H. ARC
+                            # I. ARC
                             elif "liste_arc" in d:
                                 for arc in d["liste_arc"]:
-                                    st.markdown(f"**📅 {arc['date']}**")
-                                    st.write(f"**Antécédent:** {arc['antecedent']}")
-                                    st.write(f"**Réponses:** {arc['pensees']}")
-                                    st.divider()
+                                    st.markdown(f"**📅 {arc['date']}**"); st.write(f"**Antécédent:** {arc['antecedent']}"); st.write(f"**Réponses:** {arc['pensees']}"); st.divider()
 
-                            # I. Objectifs
+                            # J. Objectifs
                             elif "probleme_principal" in d:
                                 st.info(f"**Problème :** {d['probleme_principal']}")
                                 if "liste_objectifs" in d:
-                                    for it in d["liste_objectifs"]:
-                                        st.markdown(f"**🎯 {it['objectif']}**")
+                                    for it in d["liste_objectifs"]: st.markdown(f"**🎯 {it['objectif']}**")
                             else: st.json(d)
                         except: st.write("Erreur lecture.")
             else: st.info("Aucun exercice sauvegardé.")

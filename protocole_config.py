@@ -738,6 +738,13 @@ PROTOCOLE_BARLOW = {
                 "titre": "🏆 Fiche : Évaluation des progrès",
                 "type": "fiche_evaluation_progres", # Nouveau type
                 "description": "Faites le bilan de vos compétences (Pleine conscience, Flexibilité...) et identifiez vos axes de progrès."
+            },
+
+            {
+                "id": "fiche_plan_maintien",
+                "titre": "📅 Fiche : Plan de maintien",
+                "type": "fiche_plan_maintien", # Nouveau type
+                "description": "Définissez votre plan d'action concret pour continuer à pratiquer après le programme."
             }
         ],
 
