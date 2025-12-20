@@ -422,31 +422,79 @@ with tab_outils:
                         else:
                             st.error("La situation et le comportement habituel sont obligatoires.")
 
-                # AFFICHAGE LISTE
-                if st.session_state.temp_behavior_list:
-                    st.markdown("##### 📋 Comportements à travailler :")
-                    for i, item in enumerate(st.session_state.temp_behavior_list):
-                        with st.expander(f"Situation : {item['situation'][:40]}...", expanded=False):
-                            c1, c2 = st.columns(2)
-                            with c1:
-                                st.error(f"🔴 **Habitude :** {item['comp_habituel']}")
-                                st.caption(f"Emotion : {item['emotion']}")
-                            with c2:
-                                st.success(f"🟢 **Alternative :** {item['comp_alternatif']}")
-                                st.caption(f"LT : {item['cons_long']}")
+            # ---------------------------------------------------------
+            # TYPE 6 : SENSATIONS PHYSIQUES (Module 6) - NOUVEAU !
+            # ---------------------------------------------------------
+            elif exo_data["type"] == "fiche_sensations_physiques":
+                
+                if "temp_sensations_list" not in st.session_state:
+                    st.session_state.temp_sensations_list = []
+
+                st.markdown("#### 🌪️ Tester une induction")
+                st.caption("Faites l'exercice (ex: Tourner sur soi-même 60s) puis notez ce que vous ressentez.")
+
+                with st.form("form_add_sensation", clear_on_submit=True):
+                    
+                    # Choix de l'exercice
+                    type_induction = st.selectbox("Procédure :", [
+                        "Hyperventilation (60 sec)",
+                        "Respirer à travers une paille fine (60 sec)",
+                        "Tourner sur soi-même debout (60 sec)",
+                        "Courir sur place (60 sec)",
+                        "Autre"
+                    ])
+                    
+                    if type_induction == "Autre":
+                        type_induction = st.text_input("Précisez l'exercice :")
+
+                    # Symptômes
+                    symptomes = st.text_area("Symptômes ressentis :", height=80, placeholder="Ex: Tête qui tourne, chaleur, coeur rapide...")
+                    
+                    st.divider()
+                    
+                    # Scores
+                    c_sc1, c_sc2 = st.columns(2)
+                    with c_sc1:
+                        score_malaise = st.slider("Malaise / Difficulté (0-10)", 0, 10, 0, help="0 = Pas de malaise, 10 = Malaise extrême")
+                    with c_sc2:
+                        score_resemblance = st.slider("Ressemblance avec mes émotions (0-10)", 0, 10, 0, help="0 = Rien à voir, 10 = Exactement comme mes crises")
+
+                    if st.form_submit_button("Ajouter ce test"):
+                        st.session_state.temp_sensations_list.append({
+                            "exercice": type_induction,
+                            "symptomes": symptomes,
+                            "score_malaise": score_malaise,
+                            "score_resemblance": score_resemblance
+                        })
+                        st.rerun()
+
+                # Liste des tests
+                if st.session_state.temp_sensations_list:
+                    st.markdown("##### 📋 Tests réalisés :")
+                    
+                    # Petite note pédagogique si score élevé
+                    high_scores = [t for t in st.session_state.temp_sensations_list if t['score_malaise'] >= 5 and t['score_resemblance'] >= 5]
+                    if high_scores:
+                        st.info(f"💡 Vous avez identifié {len(high_scores)} exercice(s) pertinent(s) (Score > 5). Ce sont de bons candidats pour l'exposition !")
+
+                    for i, item in enumerate(st.session_state.temp_sensations_list):
+                        with st.expander(f"🌪️ {item['exercice']}", expanded=False):
+                            st.write(f"**Symptômes :** {item['symptomes']}")
+                            st.metric("Malaise", f"{item['score_malaise']}/10")
+                            st.metric("Ressemblance", f"{item['score_resemblance']}/10")
                             
-                            if st.button("Supprimer", key=f"del_beh_{i}"):
-                                st.session_state.temp_behavior_list.pop(i)
+                            if st.button("Supprimer", key=f"del_sens_{i}"):
+                                st.session_state.temp_sensations_list.pop(i)
                                 st.rerun()
 
                     st.divider()
-                    if st.button("💾 Sauvegarder cette fiche", type="primary"):
+                    if st.button("💾 Sauvegarder mes tests", type="primary"):
                         payload = {
-                            "type_exercice": "Contrer Comportements",
-                            "liste_comportements": st.session_state.temp_behavior_list
+                            "type_exercice": "Sensations Physiques",
+                            "liste_tests": st.session_state.temp_sensations_list
                         }
                         if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
-                            st.success("✅ Fiche sauvegardée !"); st.session_state.temp_behavior_list = []; time.sleep(1); st.rerun()
+                            st.success("✅ Tests sauvegardés !"); st.session_state.temp_sensations_list = []; time.sleep(1); st.rerun()
 
 
     # --- HISTORIQUE EXERCICES ---
@@ -468,51 +516,49 @@ with tab_outils:
                         try:
                             d = json.loads(row["Details_Json"])
                             
-                            # A. CONTRER COMPORTEMENTS (NOUVEAU)
-                            if "liste_comportements" in d:
-                                for item in d["liste_comportements"]:
-                                    st.markdown(f"📍 **Situation :** {item['situation']}")
-                                    c1, c2, c3 = st.columns([1, 1, 1])
-                                    with c1: st.info(f"😨 **Emotion :** {item['emotion']}")
-                                    with c2: st.error(f"🔴 **Habitude :**\n{item['comp_habituel']}")
-                                    with c3: st.success(f"🟢 **Alternative :**\n{item['comp_alternatif']}")
-                                    
-                                    st.caption(f"🏁 **Conséquences :** CT: {item['cons_court']} | LT: {item['cons_long']}")
+                            # A. SENSATIONS PHYSIQUES (NOUVEAU)
+                            if "liste_tests" in d:
+                                for t in d["liste_tests"]:
+                                    st.markdown(f"🌪️ **{t['exercice']}**")
+                                    st.caption(f"Symptômes : {t['symptomes']}")
+                                    st.write(f"Malaise: **{t['score_malaise']}/10** | Ressemblance: **{t['score_resemblance']}/10**")
                                     st.divider()
 
-                            # B. FLEXIBILITÉ
+                            # B. CONTRER COMPORTEMENTS
+                            elif "liste_comportements" in d:
+                                for item in d["liste_comportements"]:
+                                    st.markdown(f"📍 **{item['situation']}**")
+                                    st.write(f"🔴 {item['comp_habituel']} -> 🟢 {item['comp_alternatif']}")
+                                    st.divider()
+
+                            # C. FLEXIBILITÉ
                             elif "liste_flexibilite" in d:
                                 for item in d["liste_flexibilite"]:
                                     st.info(f"**Situation :** {item['declencheur']}")
-                                    c1, c2 = st.columns(2)
-                                    with c1: st.write(f"🔴 **Pensée :** {item['pensee']}"); st.caption(f"Croyance : {item['croyance']}%")
-                                    with c2: st.write(f"🟢 **Alternative :** {item['alternative']}")
+                                    st.write(f"🔴 {item['pensee']} -> 🟢 {item['alternative']}")
                                     st.divider()
 
-                            # C. PLEINE CONSCIENCE
+                            # D. PLEINE CONSCIENCE
                             elif "liste_pratiques" in d:
                                 for p in d["liste_pratiques"]:
                                     st.markdown(f"🧘 **{p['date']} - {p['type_exo']}**")
                                     st.caption(f"💭 {p['pensees']} | 💓 {p['sensations']}")
                                     st.divider()
 
-                            # D. ARC Emotionnel
+                            # E. ARC
                             elif "liste_arc" in d:
                                 for arc in d["liste_arc"]:
                                     st.markdown(f"**📅 {arc['date']}**")
-                                    k1, k2, k3 = st.columns(3)
-                                    with k1: st.write(f"**Antécédent:** {arc['antecedent']}")
-                                    with k2: st.write(f"**Réponses:** {arc['pensees']}")
-                                    with k3: st.write(f"**Csq:** {arc['c_court']}")
+                                    st.write(f"**Antécédent:** {arc['antecedent']}")
+                                    st.write(f"**Réponses:** {arc['pensees']}")
                                     st.divider()
 
-                            # E. Objectifs
+                            # F. Objectifs
                             elif "probleme_principal" in d:
                                 st.info(f"**Problème :** {d['probleme_principal']}")
                                 if "liste_objectifs" in d:
                                     for it in d["liste_objectifs"]:
                                         st.markdown(f"**🎯 {it['objectif']}**")
-                                        for s in it.get('etapes', []): st.write(f"- {s}")
                             else: st.json(d)
                         except: st.write("Erreur lecture.")
             else: st.info("Aucun exercice sauvegardé.")

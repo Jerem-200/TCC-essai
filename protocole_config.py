@@ -611,6 +611,15 @@ PROTOCOLE_BARLOW = {
             {"titre": "Contrer les comportements", "pdf": "assets/MOD5.50_Fiche_Contrer_les_comportements_émotionnels.pdf"}
         ],
 
+        "exercices": [
+            {
+                "id": "fiche_sensations",
+                "titre": "🌪️ Fiche : Activer les sensations physiques",
+                "type": "fiche_sensations_physiques", 
+                "description": "Réalisez les exercices d'induction (Hyperventilation, Tourner...) et notez vos réactions."
+            }
+        ],
+
         "etapes_seance": [
             {"titre": "Sensations physiques et réponse émotionnelle", "details": "A venir","pdfs": []},
             {"titre": "Évitement des sensations physiques", "details": "A venir","pdfs": []},
