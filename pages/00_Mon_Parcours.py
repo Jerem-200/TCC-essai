@@ -648,6 +648,52 @@ with tab_outils:
                             st.error("Veuillez décrire l'exercice d'exposition.")
 
 
+# ---------------------------------------------------------
+            # TYPE 9 : ÉVALUATION DES PROGRÈS (Module 8) - NOUVEAU !
+            # ---------------------------------------------------------
+            elif exo_data["type"] == "fiche_evaluation_progres":
+                
+                st.markdown("#### 🏆 Bilan de fin de module")
+                st.caption("Faites le point sur chaque compétence apprise.")
+
+                with st.form("form_bilan_progres"):
+                    
+                    # 1. Pleine Conscience
+                    st.markdown("##### 🧘 1. Pleine Conscience Émotionnelle")
+                    pc_progres = st.text_area("Quelles améliorations spécifiques ?", height=80, key="pc_p")
+                    pc_futur = st.text_area("Pistes d'amélioration continue ?", height=80, key="pc_f")
+                    st.divider()
+
+                    # 2. Flexibilité Cognitive
+                    st.markdown("##### 🧠 2. Flexibilité Cognitive")
+                    flex_progres = st.text_area("Quelles améliorations spécifiques ?", height=80, key="flex_p")
+                    flex_futur = st.text_area("Pistes d'amélioration continue ?", height=80, key="flex_f")
+                    st.divider()
+
+                    # 3. Sensations Physiques
+                    st.markdown("##### 🌪️ 3. Confronter les sensations physiques")
+                    sens_progres = st.text_area("Quelles améliorations spécifiques ?", height=80, key="sens_p")
+                    sens_futur = st.text_area("Pistes d'amélioration continue ?", height=80, key="sens_f")
+                    st.divider()
+
+                    # 4. Comportements
+                    st.markdown("##### 🛡️ 4. Contrer l'évitement émotionnel")
+                    comp_progres = st.text_area("Quelles améliorations spécifiques ?", height=80, key="comp_p")
+                    comp_futur = st.text_area("Pistes d'amélioration continue ?", height=80, key="comp_f")
+
+                    if st.form_submit_button("💾 Enregistrer mon bilan", type="primary"):
+                        payload = {
+                            "type_exercice": "Evaluation Progres",
+                            "date": datetime.now().strftime("%d/%m/%Y"),
+                            "pleine_conscience": {"progres": pc_progres, "futur": pc_futur},
+                            "flexibilite": {"progres": flex_progres, "futur": flex_futur},
+                            "sensations": {"progres": sens_progres, "futur": sens_futur},
+                            "comportements": {"progres": comp_progres, "futur": comp_futur}
+                        }
+                        if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
+                            st.success("✅ Bilan enregistré ! Félicitations pour votre parcours !"); time.sleep(1); st.rerun()
+
+
     # --- HISTORIQUE EXERCICES ---
     st.divider()
     with st.expander("📜 Historique de mes exercices réalisés", expanded=False):
@@ -667,69 +713,71 @@ with tab_outils:
                         try:
                             d = json.loads(row["Details_Json"])
                             
-                            # A. ENREGISTREMENT EXPO (NOUVEAU)
-                            if "activite" in d and "preparation" in d:
+                            # A. BILAN PROGRÈS (NOUVEAU)
+                            if "pleine_conscience" in d and "flexibilite" in d:
+                                st.success("🏆 BILAN DES PROGRÈS")
+                                c1, c2 = st.columns(2)
+                                with c1:
+                                    st.write("**🧘 Pleine Conscience**")
+                                    st.caption(d["pleine_conscience"]["progres"])
+                                    st.write("**🧠 Flexibilité**")
+                                    st.caption(d["flexibilite"]["progres"])
+                                with c2:
+                                    st.write("**🌪️ Sensations**")
+                                    st.caption(d["sensations"]["progres"])
+                                    st.write("**🛡️ Comportements**")
+                                    st.caption(d["comportements"]["progres"])
+
+                            # B. ENREGISTREMENT EXPO
+                            elif "activite" in d and "preparation" in d:
                                 st.info(f"📅 **{d.get('date', '')}** : {d['activite']}")
-                                
-                                c_prep, c_deb = st.columns(2)
-                                with c_prep:
-                                    st.markdown("**AVANT**")
-                                    st.caption("Pensées Auto / Alt")
+                                c_p, c_d = st.columns(2)
+                                with c_p:
+                                    st.caption("AVANT")
                                     st.write(f"🔴 {d['preparation']['pens_auto']}")
                                     st.write(f"🟢 {d['preparation']['pens_alt']}")
-                                    st.caption("Comportements Emo / Alt")
-                                    st.write(f"🔴 {d['preparation']['comp_emo']}")
-                                    st.write(f"🟢 {d['preparation']['comp_alt']}")
-                                
-                                with c_deb:
-                                    st.markdown("**APRÈS**")
-                                    st.write(f"Emotions : {d['debrief']['emotions']}")
-                                    st.caption("Scores (PC / Flex / Action)")
+                                with c_d:
+                                    st.caption("APRÈS")
                                     scores = d['debrief']['scores']
-                                    st.write(f"📊 {scores['pc']}/10 | {scores['flex']}/10 | {scores['action']}/10")
-                                    st.caption("Apprentissage")
-                                    st.write(d['debrief']['appris_capa'])
+                                    st.write(f"📊 PC: {scores['pc']} | Flex: {scores['flex']} | Act: {scores['action']}")
 
-                            # B. HIÉRARCHIE
+                            # C. HIÉRARCHIE
                             elif "liste_hierarchie" in d:
-                                st.write("### 📈 Hiérarchie sauvegardée")
+                                st.write("### 📈 Hiérarchie")
                                 data_disp = []
                                 for h in d["liste_hierarchie"]:
-                                    data_disp.append({
-                                        "Rang": h["rang"], "Situation": h["situation"],
-                                        "Evit": h['score_evit'], "Détresse": h['score_detr']
-                                    })
+                                    data_disp.append({"Rang": h["rang"], "Situation": h["situation"], "Evit": h['score_evit'], "Détresse": h['score_detr']})
                                 st.dataframe(pd.DataFrame(data_disp), use_container_width=True, hide_index=True)
 
-                            # C. SENSATIONS
+                            # D. SENSATIONS
                             elif "liste_tests" in d:
                                 for t in d["liste_tests"]:
                                     st.markdown(f"🌪️ **{t['exercice']}**")
                                     st.write(f"Malaise: **{t['score_malaise']}/10** | Ressemblance: **{t['score_resemblance']}/10**")
                                     st.divider()
 
-                            # D. CONTRER COMPORTEMENTS
+                            # E. CONTRER COMPORTEMENTS
                             elif "liste_comportements" in d:
                                 for item in d["liste_comportements"]:
                                     st.markdown(f"📍 **{item['situation']}**")
                                     st.write(f"🔴 {item['comp_habituel']} -> 🟢 {item['comp_alternatif']}")
                                     st.divider()
 
-                            # E. FLEXIBILITÉ
+                            # F. FLEXIBILITÉ
                             elif "liste_flexibilite" in d:
                                 for item in d["liste_flexibilite"]:
                                     st.info(f"**Situation :** {item['declencheur']}")
                                     st.write(f"🔴 {item['pensee']} -> 🟢 {item['alternative']}")
                                     st.divider()
 
-                            # F. PLEINE CONSCIENCE
+                            # G. PLEINE CONSCIENCE
                             elif "liste_pratiques" in d:
                                 for p in d["liste_pratiques"]:
                                     st.markdown(f"🧘 **{p['date']} - {p['type_exo']}**")
                                     st.caption(f"💭 {p['pensees']} | 💓 {p['sensations']}")
                                     st.divider()
 
-                            # G. ARC
+                            # H. ARC
                             elif "liste_arc" in d:
                                 for arc in d["liste_arc"]:
                                     st.markdown(f"**📅 {arc['date']}**")
@@ -737,7 +785,7 @@ with tab_outils:
                                     st.write(f"**Réponses:** {arc['pensees']}")
                                     st.divider()
 
-                            # H. Objectifs
+                            # I. Objectifs
                             elif "probleme_principal" in d:
                                 st.info(f"**Problème :** {d['probleme_principal']}")
                                 if "liste_objectifs" in d:

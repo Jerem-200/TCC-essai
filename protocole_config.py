@@ -732,6 +732,15 @@ PROTOCOLE_BARLOW = {
             {"titre": "Fiche Progrès", "pdf": "assets/MODAF05_Fiche_des_Progrès.pdf"}
         ],
 
+        "exercices": [
+            {
+                "id": "fiche_evaluation_progres",
+                "titre": "🏆 Fiche : Évaluation des progrès",
+                "type": "fiche_evaluation_progres", # Nouveau type
+                "description": "Faites le bilan de vos compétences (Pleine conscience, Flexibilité...) et identifiez vos axes de progrès."
+            }
+        ],
+
         "etapes_seance": [
             {"titre": "Revue des compétences acquises", "details": "A venir","pdfs": []},
             {
