@@ -567,6 +567,87 @@ with tab_outils:
                             st.success("✅ Hiérarchie sauvegardée !"); st.session_state.temp_hierarchy_list = []; time.sleep(1); st.rerun()
 
 
+# ---------------------------------------------------------
+            # TYPE 8 : ENREGISTREMENT EXPOSITION (Module 7) - NOUVEAU !
+            # ---------------------------------------------------------
+            elif exo_data["type"] == "fiche_enregistrement_exposition":
+                
+                st.markdown("#### 🎬 Nouvelle séance d'exposition")
+                
+                with st.form("form_expo_session"):
+                    
+                    # --- PARTIE 1 : PRÉPARATION ---
+                    with st.expander("1. Préparation avant l'exposition", expanded=True):
+                        col_e1, col_e2 = st.columns([1, 3])
+                        with col_e1: 
+                            date_exp = st.text_input("Date :", value=datetime.now().strftime("%d/%m/%Y"))
+                        with col_e2:
+                            activite = st.text_area("Exercice d'exposition (Description) :", height=70, placeholder="Ex: Aller au centre commercial pendant 30 min.")
+                        
+                        st.divider()
+                        
+                        c_p1, c_p2 = st.columns(2)
+                        with c_p1:
+                            pens_auto = st.text_area("🔴 Pensées automatiques négatives :", height=100, placeholder="Ex: Je vais m'évanouir.")
+                            comp_emo = st.text_area("🔴 Comportements émotionnels (à éviter) :", height=100, placeholder="Ex: S'asseoir, appeler un ami, partir vite.")
+                        with c_p2:
+                            pens_alt = st.text_area("🟢 Pensées alternatives (Flexibles) :", height=100, placeholder="Ex: C'est désagréable mais pas dangereux.")
+                            comp_alt = st.text_area("🟢 Comportements alternatifs (à faire) :", height=100, placeholder="Ex: Rester debout, respirer calmement.")
+                        
+                        st.markdown("**🧘 Intention Pleine Conscience :**")
+                        st.caption("Souvenez-vous d'adopter une attitude non jugeante et de rester ancré dans le présent.")
+
+                    # --- PARTIE 2 : DÉBRIEFING ---
+                    with st.expander("2. Débriefing après l'exposition", expanded=True):
+                        
+                        emotions_felt = st.text_input("Quelles émotions avez-vous ressenties ?")
+                        
+                        st.markdown("**Décomposez votre expérience :**")
+                        c_d1, c_d2, c_d3 = st.columns(3)
+                        with c_d1: d_pensees = st.text_area("Pensées pendant l'expo :", height=80)
+                        with c_d2: d_sensations = st.text_area("Sensations physiques :", height=80)
+                        with c_d3: d_comport = st.text_area("Comportements :", height=80)
+                        
+                        st.divider()
+                        st.markdown("**Scores d'évaluation (0 - 10) :**")
+                        s1, s2, s3 = st.columns(3)
+                        with s1: sc_pc = st.slider("Pleine Conscience (Ressentir émotions)", 0, 10, 5)
+                        with s2: sc_flex = st.slider("Flexibilité Cognitive (Pensées)", 0, 10, 5)
+                        with s3: sc_act = st.slider("Contrer comportements (Adopter alternatives)", 0, 10, 5)
+                        
+                        st.divider()
+                        st.markdown("**Apprentissages :**")
+                        appris_tache = st.text_area("Qu'avez-vous appris sur la tâche/situation ?", height=70)
+                        appris_capa = st.text_area("Qu'avez-vous appris sur votre capacité à faire face ?", height=70)
+                        next_time = st.text_area("Que ferez-vous différemment la prochaine fois ?", height=70)
+
+                    submitted = st.form_submit_button("💾 Enregistrer cette séance d'exposition", type="primary")
+                    
+                    if submitted:
+                        if activite:
+                            payload = {
+                                "type_exercice": "Enregistrement Exposition",
+                                "date": date_exp,
+                                "activite": activite,
+                                "preparation": {
+                                    "pens_auto": pens_auto, "pens_alt": pens_alt,
+                                    "comp_emo": comp_emo, "comp_alt": comp_alt
+                                },
+                                "debrief": {
+                                    "emotions": emotions_felt,
+                                    "pensees": d_pensees, "sensations": d_sensations, "comportements": d_comport,
+                                    "scores": {"pc": sc_pc, "flex": sc_flex, "action": sc_act},
+                                    "appris_tache": appris_tache, "appris_capa": appris_capa, "next_time": next_time
+                                }
+                            }
+                            if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
+                                st.success("✅ Séance enregistrée avec succès !")
+                                time.sleep(1)
+                                st.rerun()
+                        else:
+                            st.error("Veuillez décrire l'exercice d'exposition.")
+
+
     # --- HISTORIQUE EXERCICES ---
     st.divider()
     with st.expander("📜 Historique de mes exercices réalisés", expanded=False):
@@ -586,49 +667,69 @@ with tab_outils:
                         try:
                             d = json.loads(row["Details_Json"])
                             
-                            # A. HIÉRARCHIE (NOUVEAU)
-                            if "liste_hierarchie" in d:
+                            # A. ENREGISTREMENT EXPO (NOUVEAU)
+                            if "activite" in d and "preparation" in d:
+                                st.info(f"📅 **{d.get('date', '')}** : {d['activite']}")
+                                
+                                c_prep, c_deb = st.columns(2)
+                                with c_prep:
+                                    st.markdown("**AVANT**")
+                                    st.caption("Pensées Auto / Alt")
+                                    st.write(f"🔴 {d['preparation']['pens_auto']}")
+                                    st.write(f"🟢 {d['preparation']['pens_alt']}")
+                                    st.caption("Comportements Emo / Alt")
+                                    st.write(f"🔴 {d['preparation']['comp_emo']}")
+                                    st.write(f"🟢 {d['preparation']['comp_alt']}")
+                                
+                                with c_deb:
+                                    st.markdown("**APRÈS**")
+                                    st.write(f"Emotions : {d['debrief']['emotions']}")
+                                    st.caption("Scores (PC / Flex / Action)")
+                                    scores = d['debrief']['scores']
+                                    st.write(f"📊 {scores['pc']}/10 | {scores['flex']}/10 | {scores['action']}/10")
+                                    st.caption("Apprentissage")
+                                    st.write(d['debrief']['appris_capa'])
+
+                            # B. HIÉRARCHIE
+                            elif "liste_hierarchie" in d:
                                 st.write("### 📈 Hiérarchie sauvegardée")
-                                # On crée un petit tableau propre
                                 data_disp = []
                                 for h in d["liste_hierarchie"]:
                                     data_disp.append({
-                                        "Rang": h["rang"],
-                                        "Situation": h["situation"],
-                                        "Évitement": f"{h['score_evit']}/10",
-                                        "Détresse": f"{h['score_detr']}/10"
+                                        "Rang": h["rang"], "Situation": h["situation"],
+                                        "Evit": h['score_evit'], "Détresse": h['score_detr']
                                     })
                                 st.dataframe(pd.DataFrame(data_disp), use_container_width=True, hide_index=True)
 
-                            # B. SENSATIONS
+                            # C. SENSATIONS
                             elif "liste_tests" in d:
                                 for t in d["liste_tests"]:
                                     st.markdown(f"🌪️ **{t['exercice']}**")
                                     st.write(f"Malaise: **{t['score_malaise']}/10** | Ressemblance: **{t['score_resemblance']}/10**")
                                     st.divider()
 
-                            # C. CONTRER COMPORTEMENTS
+                            # D. CONTRER COMPORTEMENTS
                             elif "liste_comportements" in d:
                                 for item in d["liste_comportements"]:
                                     st.markdown(f"📍 **{item['situation']}**")
                                     st.write(f"🔴 {item['comp_habituel']} -> 🟢 {item['comp_alternatif']}")
                                     st.divider()
 
-                            # D. FLEXIBILITÉ
+                            # E. FLEXIBILITÉ
                             elif "liste_flexibilite" in d:
                                 for item in d["liste_flexibilite"]:
                                     st.info(f"**Situation :** {item['declencheur']}")
                                     st.write(f"🔴 {item['pensee']} -> 🟢 {item['alternative']}")
                                     st.divider()
 
-                            # E. PLEINE CONSCIENCE
+                            # F. PLEINE CONSCIENCE
                             elif "liste_pratiques" in d:
                                 for p in d["liste_pratiques"]:
                                     st.markdown(f"🧘 **{p['date']} - {p['type_exo']}**")
                                     st.caption(f"💭 {p['pensees']} | 💓 {p['sensations']}")
                                     st.divider()
 
-                            # F. ARC
+                            # G. ARC
                             elif "liste_arc" in d:
                                 for arc in d["liste_arc"]:
                                     st.markdown(f"**📅 {arc['date']}**")
@@ -636,7 +737,7 @@ with tab_outils:
                                     st.write(f"**Réponses:** {arc['pensees']}")
                                     st.divider()
 
-                            # G. Objectifs
+                            # H. Objectifs
                             elif "probleme_principal" in d:
                                 st.info(f"**Problème :** {d['probleme_principal']}")
                                 if "liste_objectifs" in d:

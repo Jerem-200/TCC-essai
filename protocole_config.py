@@ -661,6 +661,13 @@ PROTOCOLE_BARLOW = {
                 "titre": "📈 Fiche : Hiérarchie d'exposition",
                 "type": "fiche_hierarchie_exposition", 
                 "description": "Listez les situations que vous évitez et classez-les par ordre de difficulté (1 = La pire)."
+            },
+
+            {
+                "id": "fiche_pratique_expo",
+                "titre": "🎬 Fiche : Enregistrement d'Exposition",
+                "type": "fiche_enregistrement_exposition", 
+                "description": "Préparez votre exposition (Pensées, Comportements) et faites le bilan après l'exercice."
             }
         ],
 
