@@ -414,11 +414,10 @@ with tab_outils:
                         if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
                             st.toast("✅ Fiche sauvegardée !", icon="🎉")
                             st.session_state.temp_flex_list = []
-                            time.sleep(0.5)
                             st.rerun()
 
 # ---------------------------------------------------------
-            # TYPE 5 : CONTRER COMPORTEMENTS (Module 5) - NOUVEAU !
+            # TYPE 5 : CONTRER COMPORTEMENTS (Module 5)
             # ---------------------------------------------------------
             elif exo_data["type"] == "fiche_contrer_comportements":
                 
@@ -470,8 +469,37 @@ with tab_outils:
                         else:
                             st.error("La situation et le comportement habituel sont obligatoires.")
 
-            # ---------------------------------------------------------
-            # TYPE 6 : SENSATIONS PHYSIQUES (Module 6) - NOUVEAU !
+                # Affichage
+                if st.session_state.temp_behavior_list:
+                    st.markdown("##### 📋 Comportements à travailler :")
+                    for i, item in enumerate(st.session_state.temp_behavior_list):
+                        with st.expander(f"Situation : {item['situation'][:40]}...", expanded=False):
+                            c1, c2 = st.columns(2)
+                            with c1:
+                                st.error(f"🔴 **Habitude :** {item['comp_habituel']}")
+                                st.caption(f"Emotion : {item['emotion']}")
+                            with c2:
+                                st.success(f"🟢 **Alternative :** {item['comp_alternatif']}")
+                                st.caption(f"LT : {item['cons_long']}")
+                            
+                            if st.button("Supprimer", key=f"del_beh_{i}"):
+                                st.session_state.temp_behavior_list.pop(i)
+                                st.rerun()
+
+                    st.divider()
+                    if st.button("💾 Sauvegarder cette fiche", type="primary"):
+                        payload = {
+                            "type_exercice": "Contrer Comportements",
+                            "liste_comportements": st.session_state.temp_behavior_list
+                        }
+                        if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
+                            st.toast("✅ Fiche sauvegardée !", icon="🎉")
+                            st.session_state.temp_behavior_list = []
+                            st.rerun()
+
+
+# ---------------------------------------------------------
+            # TYPE 6 : SENSATIONS PHYSIQUES (Module 6)
             # ---------------------------------------------------------
             elif exo_data["type"] == "fiche_sensations_physiques":
                 
@@ -520,7 +548,7 @@ with tab_outils:
                 if st.session_state.temp_sensations_list:
                     st.markdown("##### 📋 Tests réalisés :")
                     
-                    # Petite note pédagogique si score élevé
+                    # Note pédagogique
                     high_scores = [t for t in st.session_state.temp_sensations_list if t['score_malaise'] >= 5 and t['score_resemblance'] >= 5]
                     if high_scores:
                         st.info(f"💡 Vous avez identifié {len(high_scores)} exercice(s) pertinent(s) (Score > 5). Ce sont de bons candidats pour l'exposition !")
@@ -542,11 +570,12 @@ with tab_outils:
                             "liste_tests": st.session_state.temp_sensations_list
                         }
                         if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
-                            st.success("✅ Tests sauvegardés !"); st.session_state.temp_sensations_list = []; time.sleep(1); st.rerun()
-
+                            st.toast("✅ Tests sauvegardés !", icon="🎉")
+                            st.session_state.temp_sensations_list = []
+                            st.rerun()
 
 # ---------------------------------------------------------
-            # TYPE 7 : HIÉRARCHIE D'EXPOSITION (Module 7) - NOUVEAU !
+            # TYPE 7 : HIÉRARCHIE D'EXPOSITION (Module 7)
             # ---------------------------------------------------------
             elif exo_data["type"] == "fiche_hierarchie_exposition":
                 
@@ -588,7 +617,7 @@ with tab_outils:
                         else:
                             st.error("La description est obligatoire.")
 
-                # AFFICHAGE LISTE TRIÉE
+                # Affichage
                 if st.session_state.temp_hierarchy_list:
                     st.markdown("##### 📋 Ma Hiérarchie (Du pire au moins pire) :")
                     for i, item in enumerate(st.session_state.temp_hierarchy_list):
@@ -612,11 +641,12 @@ with tab_outils:
                             "liste_hierarchie": st.session_state.temp_hierarchy_list
                         }
                         if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
-                            st.success("✅ Hiérarchie sauvegardée !"); st.session_state.temp_hierarchy_list = []; time.sleep(1); st.rerun()
-
+                            st.toast("✅ Hiérarchie sauvegardée !", icon="🎉")
+                            st.session_state.temp_hierarchy_list = []
+                            st.rerun()
 
 # ---------------------------------------------------------
-            # TYPE 8 : ENREGISTREMENT EXPOSITION (Module 7) - NOUVEAU !
+            # TYPE 8 : ENREGISTREMENT EXPOSITION (Module 7)
             # ---------------------------------------------------------
             elif exo_data["type"] == "fiche_enregistrement_exposition":
                 
@@ -689,15 +719,14 @@ with tab_outils:
                                 }
                             }
                             if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
-                                st.success("✅ Séance enregistrée avec succès !")
-                                time.sleep(1)
+                                st.toast("✅ Séance enregistrée !", icon="🎉")
                                 st.rerun()
                         else:
                             st.error("Veuillez décrire l'exercice d'exposition.")
 
 
 # ---------------------------------------------------------
-            # TYPE 9 : ÉVALUATION DES PROGRÈS (Module 8) - NOUVEAU !
+            # TYPE 9 : ÉVALUATION DES PROGRÈS (Module 8)
             # ---------------------------------------------------------
             elif exo_data["type"] == "fiche_evaluation_progres":
                 
@@ -739,11 +768,11 @@ with tab_outils:
                             "comportements": {"progres": comp_progres, "futur": comp_futur}
                         }
                         if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
-                            st.success("✅ Bilan enregistré ! Félicitations pour votre parcours !"); time.sleep(1); st.rerun()
-
+                            st.toast("✅ Bilan enregistré !", icon="🎉")
+                            st.rerun()
 
 # ---------------------------------------------------------
-            # TYPE 10 : PLAN DE MAINTIEN (Module 8) - NOUVEAU !
+            # TYPE 10 : PLAN DE MAINTIEN (Module 8)
             # ---------------------------------------------------------
             elif exo_data["type"] == "fiche_plan_maintien":
                 
@@ -789,8 +818,8 @@ with tab_outils:
                             "comportements": {"aide": comp_1, "plan": comp_2, "engagement": comp_3}
                         }
                         if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
-                            st.success("✅ Plan enregistré !"); time.sleep(1); st.rerun()
-
+                            st.toast("✅ Plan enregistré !", icon="🎉")
+                            st.rerun()
 
     # --- HISTORIQUE EXERCICES ---
     st.divider()
