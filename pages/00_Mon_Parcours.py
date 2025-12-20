@@ -369,27 +369,84 @@ with tab_outils:
                         else:
                             st.error("La pensée est obligatoire.")
 
+# ---------------------------------------------------------
+            # TYPE 5 : CONTRER COMPORTEMENTS (Module 5) - NOUVEAU !
+            # ---------------------------------------------------------
+            elif exo_data["type"] == "fiche_contrer_comportements":
+                
+                if "temp_behavior_list" not in st.session_state:
+                    st.session_state.temp_behavior_list = []
+
+                st.markdown("#### ➕ Analyser un comportement")
+                st.caption("Identifiez un comportement à changer et trouvez une alternative.")
+
+                with st.form("form_add_behavior", clear_on_submit=True):
+                    
+                    # Colonnes 1 & 2 : Situation et Emotion
+                    col_b1, col_b2 = st.columns(2)
+                    with col_b1:
+                        situation = st.text_area("Situation / Déclencheur :", height=80, placeholder="Ex: On me critique.")
+                    with col_b2:
+                        emotion = st.text_input("Emotion(s) ressentie(s) :", placeholder="Ex: Colère, Honte")
+                    
+                    st.divider()
+                    
+                    # Colonnes 3 & 4 : Comportements
+                    col_b3, col_b4 = st.columns(2)
+                    with col_b3:
+                        comp_habituel = st.text_area("🔴 Comportement Emotionnel (Habituel) :", height=80, placeholder="Ex: Je crie et je pars.")
+                    with col_b4:
+                        comp_alternatif = st.text_area("🟢 Comportement Alternatif (Action Opposée) :", height=80, placeholder="Ex: Je reste calme et j'écoute.")
+
+                    st.divider()
+                    
+                    # Colonnes 5 : Conséquences de l'alternatif
+                    st.markdown("**🏁 Conséquences du comportement alternatif**")
+                    col_b5, col_b6 = st.columns(2)
+                    with col_b5:
+                        cons_court = st.text_area("Court terme :", height=60, placeholder="C'est difficile, je tremble.")
+                    with col_b6:
+                        cons_long = st.text_area("Long terme :", height=60, placeholder="Je suis fier, relation préservée.")
+
+                    if st.form_submit_button("Ajouter à ma liste"):
+                        if situation and comp_habituel:
+                            st.session_state.temp_behavior_list.append({
+                                "situation": situation,
+                                "emotion": emotion,
+                                "comp_habituel": comp_habituel,
+                                "comp_alternatif": comp_alternatif,
+                                "cons_court": cons_court,
+                                "cons_long": cons_long
+                            })
+                            st.rerun()
+                        else:
+                            st.error("La situation et le comportement habituel sont obligatoires.")
+
                 # AFFICHAGE LISTE
-                if st.session_state.temp_flex_list:
-                    st.markdown("##### 📋 Analyses à enregistrer :")
-                    for i, item in enumerate(st.session_state.temp_flex_list):
-                        with st.expander(f"Pensée : {item['pensee'][:40]}...", expanded=False):
-                            st.write(f"**Déclencheur:** {item['declencheur']}")
-                            st.write(f"**Alternative:** {item['alternative']}")
-                            st.caption(f"Croyance: {item['croyance']}% | Piège: {item['piege']}")
+                if st.session_state.temp_behavior_list:
+                    st.markdown("##### 📋 Comportements à travailler :")
+                    for i, item in enumerate(st.session_state.temp_behavior_list):
+                        with st.expander(f"Situation : {item['situation'][:40]}...", expanded=False):
+                            c1, c2 = st.columns(2)
+                            with c1:
+                                st.error(f"🔴 **Habitude :** {item['comp_habituel']}")
+                                st.caption(f"Emotion : {item['emotion']}")
+                            with c2:
+                                st.success(f"🟢 **Alternative :** {item['comp_alternatif']}")
+                                st.caption(f"LT : {item['cons_long']}")
                             
-                            if st.button("Supprimer", key=f"del_flex_{i}"):
-                                st.session_state.temp_flex_list.pop(i)
+                            if st.button("Supprimer", key=f"del_beh_{i}"):
+                                st.session_state.temp_behavior_list.pop(i)
                                 st.rerun()
 
                     st.divider()
-                    if st.button("💾 Sauvegarder Flexibilité", type="primary"):
+                    if st.button("💾 Sauvegarder cette fiche", type="primary"):
                         payload = {
-                            "type_exercice": "Flexibilité Cognitive",
-                            "liste_flexibilite": st.session_state.temp_flex_list
+                            "type_exercice": "Contrer Comportements",
+                            "liste_comportements": st.session_state.temp_behavior_list
                         }
                         if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
-                            st.success("✅ Fiche sauvegardée !"); st.session_state.temp_flex_list = []; time.sleep(1); st.rerun()
+                            st.success("✅ Fiche sauvegardée !"); st.session_state.temp_behavior_list = []; time.sleep(1); st.rerun()
 
 
     # --- HISTORIQUE EXERCICES ---
@@ -411,27 +468,35 @@ with tab_outils:
                         try:
                             d = json.loads(row["Details_Json"])
                             
-                            # A. FLEXIBILITÉ COGNITIVE (NOUVEAU)
-                            if "liste_flexibilite" in d:
+                            # A. CONTRER COMPORTEMENTS (NOUVEAU)
+                            if "liste_comportements" in d:
+                                for item in d["liste_comportements"]:
+                                    st.markdown(f"📍 **Situation :** {item['situation']}")
+                                    c1, c2, c3 = st.columns([1, 1, 1])
+                                    with c1: st.info(f"😨 **Emotion :** {item['emotion']}")
+                                    with c2: st.error(f"🔴 **Habitude :**\n{item['comp_habituel']}")
+                                    with c3: st.success(f"🟢 **Alternative :**\n{item['comp_alternatif']}")
+                                    
+                                    st.caption(f"🏁 **Conséquences :** CT: {item['cons_court']} | LT: {item['cons_long']}")
+                                    st.divider()
+
+                            # B. FLEXIBILITÉ
+                            elif "liste_flexibilite" in d:
                                 for item in d["liste_flexibilite"]:
                                     st.info(f"**Situation :** {item['declencheur']}")
                                     c1, c2 = st.columns(2)
-                                    with c1:
-                                        st.write(f"🔴 **Pensée :** {item['pensee']}")
-                                        st.caption(f"Croyance : {item['croyance']}%")
-                                    with c2:
-                                        st.write(f"🟢 **Alternative :** {item['alternative']}")
-                                        if item['piege']: st.caption(f"Piège : {item['piege']}")
+                                    with c1: st.write(f"🔴 **Pensée :** {item['pensee']}"); st.caption(f"Croyance : {item['croyance']}%")
+                                    with c2: st.write(f"🟢 **Alternative :** {item['alternative']}")
                                     st.divider()
 
-                            # B. PLEINE CONSCIENCE
+                            # C. PLEINE CONSCIENCE
                             elif "liste_pratiques" in d:
                                 for p in d["liste_pratiques"]:
                                     st.markdown(f"🧘 **{p['date']} - {p['type_exo']}**")
                                     st.caption(f"💭 {p['pensees']} | 💓 {p['sensations']}")
                                     st.divider()
 
-                            # C. ARC Emotionnel
+                            # D. ARC Emotionnel
                             elif "liste_arc" in d:
                                 for arc in d["liste_arc"]:
                                     st.markdown(f"**📅 {arc['date']}**")
@@ -441,7 +506,7 @@ with tab_outils:
                                     with k3: st.write(f"**Csq:** {arc['c_court']}")
                                     st.divider()
 
-                            # D. Objectifs
+                            # E. Objectifs
                             elif "probleme_principal" in d:
                                 st.info(f"**Problème :** {d['probleme_principal']}")
                                 if "liste_objectifs" in d:

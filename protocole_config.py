@@ -554,6 +554,15 @@ PROTOCOLE_BARLOW = {
             {"titre": "Fiche Flexibilité Cognitive", "pdf": "assets/MOD4.20_Fiche_Pratiquer_la_flexibilité_cognitive.pdf"}
         ],
 
+        "exercices": [
+            {
+                "id": "fiche_contrer_comportements",
+                "titre": "🛡️ Fiche : Contrer les comportements",
+                "type": "fiche_contrer_comportements", 
+                "description": "Identifiez vos comportements émotionnels habituels et planifiez des actions alternatives (Actions opposées)."
+            }
+        ],
+
         "etapes_seance": [
             {
                 "titre": "Discussion sur les comportements émotionnels", "details": "A venir",
