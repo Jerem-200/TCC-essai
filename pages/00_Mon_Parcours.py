@@ -497,6 +497,76 @@ with tab_outils:
                             st.success("✅ Tests sauvegardés !"); st.session_state.temp_sensations_list = []; time.sleep(1); st.rerun()
 
 
+# ---------------------------------------------------------
+            # TYPE 7 : HIÉRARCHIE D'EXPOSITION (Module 7) - NOUVEAU !
+            # ---------------------------------------------------------
+            elif exo_data["type"] == "fiche_hierarchie_exposition":
+                
+                if "temp_hierarchy_list" not in st.session_state:
+                    st.session_state.temp_hierarchy_list = []
+
+                st.markdown("#### 📈 Construire ma hiérarchie")
+                st.caption("Ajoutez des situations et classez-les de la plus difficile (1) à la moins difficile.")
+
+                with st.form("form_add_hierarchy", clear_on_submit=True):
+                    
+                    # Ligne 1 : Rang et Description
+                    col_h1, col_h2 = st.columns([1, 3])
+                    with col_h1:
+                        rang = st.number_input("Rang (1 = Le pire)", min_value=1, value=1)
+                    with col_h2:
+                        situation = st.text_area("Description de la situation anxiogène :", height=80)
+                    
+                    st.divider()
+                    
+                    # Ligne 2 : Scores
+                    col_h3, col_h4 = st.columns(2)
+                    with col_h3:
+                        score_evit = st.slider("Score d'Évitement (0-10)", 0, 10, 5)
+                    with col_h4:
+                        score_detr = st.slider("Score de Détresse (0-10)", 0, 10, 5)
+
+                    if st.form_submit_button("Ajouter à la liste"):
+                        if situation:
+                            st.session_state.temp_hierarchy_list.append({
+                                "rang": rang,
+                                "situation": situation,
+                                "score_evit": score_evit,
+                                "score_detr": score_detr
+                            })
+                            # On trie automatiquement la liste par rang (croissant)
+                            st.session_state.temp_hierarchy_list.sort(key=lambda x: x["rang"])
+                            st.rerun()
+                        else:
+                            st.error("La description est obligatoire.")
+
+                # AFFICHAGE LISTE TRIÉE
+                if st.session_state.temp_hierarchy_list:
+                    st.markdown("##### 📋 Ma Hiérarchie (Du pire au moins pire) :")
+                    for i, item in enumerate(st.session_state.temp_hierarchy_list):
+                        # Couleur conditionnelle selon le rang pour un effet visuel
+                        icon = "🔴" if item['rang'] == 1 else "🟠" if item['rang'] <= 3 else "🟡"
+                        
+                        with st.expander(f"{icon} Rang {item['rang']} : {item['situation'][:40]}...", expanded=False):
+                            st.write(f"**Situation :** {item['situation']}")
+                            c1, c2 = st.columns(2)
+                            with c1: st.metric("Évitement", f"{item['score_evit']}/10")
+                            with c2: st.metric("Détresse", f"{item['score_detr']}/10")
+                            
+                            if st.button("Supprimer", key=f"del_hier_{i}"):
+                                st.session_state.temp_hierarchy_list.pop(i)
+                                st.rerun()
+
+                    st.divider()
+                    if st.button("💾 Sauvegarder ma hiérarchie", type="primary"):
+                        payload = {
+                            "type_exercice": "Hiérarchie Exposition",
+                            "liste_hierarchie": st.session_state.temp_hierarchy_list
+                        }
+                        if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
+                            st.success("✅ Hiérarchie sauvegardée !"); st.session_state.temp_hierarchy_list = []; time.sleep(1); st.rerun()
+
+
     # --- HISTORIQUE EXERCICES ---
     st.divider()
     with st.expander("📜 Historique de mes exercices réalisés", expanded=False):
@@ -516,36 +586,49 @@ with tab_outils:
                         try:
                             d = json.loads(row["Details_Json"])
                             
-                            # A. SENSATIONS PHYSIQUES (NOUVEAU)
-                            if "liste_tests" in d:
+                            # A. HIÉRARCHIE (NOUVEAU)
+                            if "liste_hierarchie" in d:
+                                st.write("### 📈 Hiérarchie sauvegardée")
+                                # On crée un petit tableau propre
+                                data_disp = []
+                                for h in d["liste_hierarchie"]:
+                                    data_disp.append({
+                                        "Rang": h["rang"],
+                                        "Situation": h["situation"],
+                                        "Évitement": f"{h['score_evit']}/10",
+                                        "Détresse": f"{h['score_detr']}/10"
+                                    })
+                                st.dataframe(pd.DataFrame(data_disp), use_container_width=True, hide_index=True)
+
+                            # B. SENSATIONS
+                            elif "liste_tests" in d:
                                 for t in d["liste_tests"]:
                                     st.markdown(f"🌪️ **{t['exercice']}**")
-                                    st.caption(f"Symptômes : {t['symptomes']}")
                                     st.write(f"Malaise: **{t['score_malaise']}/10** | Ressemblance: **{t['score_resemblance']}/10**")
                                     st.divider()
 
-                            # B. CONTRER COMPORTEMENTS
+                            # C. CONTRER COMPORTEMENTS
                             elif "liste_comportements" in d:
                                 for item in d["liste_comportements"]:
                                     st.markdown(f"📍 **{item['situation']}**")
                                     st.write(f"🔴 {item['comp_habituel']} -> 🟢 {item['comp_alternatif']}")
                                     st.divider()
 
-                            # C. FLEXIBILITÉ
+                            # D. FLEXIBILITÉ
                             elif "liste_flexibilite" in d:
                                 for item in d["liste_flexibilite"]:
                                     st.info(f"**Situation :** {item['declencheur']}")
                                     st.write(f"🔴 {item['pensee']} -> 🟢 {item['alternative']}")
                                     st.divider()
 
-                            # D. PLEINE CONSCIENCE
+                            # E. PLEINE CONSCIENCE
                             elif "liste_pratiques" in d:
                                 for p in d["liste_pratiques"]:
                                     st.markdown(f"🧘 **{p['date']} - {p['type_exo']}**")
                                     st.caption(f"💭 {p['pensees']} | 💓 {p['sensations']}")
                                     st.divider()
 
-                            # E. ARC
+                            # F. ARC
                             elif "liste_arc" in d:
                                 for arc in d["liste_arc"]:
                                     st.markdown(f"**📅 {arc['date']}**")
@@ -553,7 +636,7 @@ with tab_outils:
                                     st.write(f"**Réponses:** {arc['pensees']}")
                                     st.divider()
 
-                            # F. Objectifs
+                            # G. Objectifs
                             elif "probleme_principal" in d:
                                 st.info(f"**Problème :** {d['probleme_principal']}")
                                 if "liste_objectifs" in d:

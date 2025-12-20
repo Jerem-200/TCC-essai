@@ -655,6 +655,15 @@ PROTOCOLE_BARLOW = {
             {"titre": "Exercices sensations physiques", "pdf": "assets/MOD06_Fiche_Exercices_pour_activer_les_sensations_physiques.pdf"}
         ],
 
+        "exercices": [
+            {
+                "id": "fiche_hierarchie",
+                "titre": "📈 Fiche : Hiérarchie d'exposition",
+                "type": "fiche_hierarchie_exposition", 
+                "description": "Listez les situations que vous évitez et classez-les par ordre de difficulté (1 = La pire)."
+            }
+        ],
+
         "etapes_seance": [
             {"titre": "Expositions aux émotions", "details": "A venir","pdfs": []},
             {
