@@ -218,9 +218,16 @@ with tab_outils:
                                 "probleme_principal": st.session_state.temp_main_pb,
                                 "liste_objectifs": st.session_state.temp_objectives_list
                             }
-                            if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
-                                st.success("✅ Sauvegardé !"); st.session_state.temp_main_pb = ""; st.session_state.temp_objectives_list = []; time.sleep(1); st.rerun()
-
+                            if sauvegarder_reponse_hebdo(...):
+                                # 1. On vide les variables d'abord
+                                st.session_state.temp_main_pb = ""
+                                st.session_state.temp_objectives_list = []
+                                
+                                # 2. On lance la notification (qui survivra au rerun)
+                                st.toast("✅ Exercice sauvegardé avec succès !", icon='🎉')
+                                
+                                # 3. On recharge immédiatement sans attendre
+                                st.rerun()
             # ---------------------------------------------------------
             # TYPE 2 : FICHE ARC ÉMOTIONNEL (Module 2)
             # ---------------------------------------------------------
@@ -264,10 +271,20 @@ with tab_outils:
                                 st.session_state.temp_arc_list.pop(i); st.rerun()
                     
                     if st.button("💾 Sauvegarder ARC", type="primary"):
-                        payload = {"type_exercice": "ARC Emotionnel", "liste_arc": st.session_state.temp_arc_list}
+                        payload = {
+                            "type_exercice": "ARC Emotionnel", 
+                            "liste_arc": st.session_state.temp_arc_list
+                        }
+                        
                         if sauvegarder_reponse_hebdo(current_user, f"Exercice - {exo_data['titre']}", "N/A", payload):
-                            st.success("✅ Sauvegardé !"); st.session_state.temp_arc_list = []; time.sleep(1); st.rerun()
-
+                            # 1. On vide la liste d'abord
+                            st.session_state.temp_arc_list = []
+                            
+                            # 2. On affiche le Toast (qui reste affiché même après le rerun)
+                            st.toast("✅ Fiche ARC sauvegardée avec succès !", icon='🎉')
+                            
+                            # 3. On recharge immédiatement (plus de time.sleep)
+                            st.rerun()
             # ---------------------------------------------------------
             # TYPE 3 : PLEINE CONSCIENCE (Module 3) - NOUVEAU !
             # ---------------------------------------------------------
