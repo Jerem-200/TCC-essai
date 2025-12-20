@@ -155,6 +155,9 @@ with tab_outils:
                     "mod_titre": PROTOCOLE_BARLOW[m]["titre"],
                     "exo_data": exo
                 })
+
+    # On trie par le code du module (module0, module1, module2...) pour garantir l'ordre
+    liste_exos_dispos.sort(key=lambda x: x['mod_code'])
     
     col_menu, col_work = st.columns([1, 2])
     
