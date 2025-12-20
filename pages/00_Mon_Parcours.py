@@ -871,157 +871,116 @@ with tab_bilan:
                             time.sleep(1)
                             st.rerun()
     
-# =========================================================
-# 4. MON HISTORIQUE (NOUVEL ONGLET CENTRALISÉ)
-# =========================================================
-with tab_historique:
-    st.subheader("📜 Historique Complet")
-    
-    if not df_history.empty:
-        
-        # --- A. GRAPHIQUES & TABLEAUX (Scores) ---
-        st.markdown("#### 📈 Évolution des Scores (Questionnaires)")
-        
-        # On filtre pour ne garder que les questionnaires (on exclut les exercices)
-        df_charts = df_history[~df_history["Questionnaire"].str.contains("Exercice", na=False)]
-        
-        if not df_charts.empty:
-            # Sélecteur de courbes
-            types_dispos = df_charts["Type"].unique().tolist()
-            choix_types = st.multiselect("Afficher les courbes de :", types_dispos, default=types_dispos[:2] if len(types_dispos)>0 else None)
+# --- HISTORIQUE EXERCICES (MODIFIABLE) ---
+    st.divider()
+    with st.expander("📜 Historique de mes exercices réalisés", expanded=True):
+        if not df_history.empty and "Questionnaire" in df_history.columns:
+            # On ne garde que les lignes qui concernent les exercices
+            df_exos = df_history[df_history["Questionnaire"].str.contains("Exercice", na=False)].copy()
             
-            if choix_types:
-                # Graphique Altair
-                df_viz = df_charts[df_charts["Type"].isin(choix_types)]
-                chart = alt.Chart(df_viz).mark_line(point=True).encode(
-                    x=alt.X('Date', axis=alt.Axis(format='%d/%m')),
-                    y='Score_Global',
-                    color='Type',
-                    tooltip=['Date', 'Type', 'Score_Global']
-                ).properties(height=300).interactive()
-                st.altair_chart(chart, use_container_width=True)
-            
-            # Tableau de données
-            with st.expander("📊 Voir le tableau détaillé des scores", expanded=False):
-                st.dataframe(
-                    df_charts[["Date", "Questionnaire", "Score_Global"]].sort_values("Date", ascending=False),
-                    use_container_width=True,
-                    hide_index=True
-                )
-        else:
-            st.info("Aucun questionnaire rempli pour le moment.")
+            if not df_exos.empty:
+                # On trie par date décroissante pour voir les derniers en premier
+                df_exos = df_exos.sort_values(by="Date", ascending=False)
 
-        st.divider()
-
-        # --- B. JOURNAL DES EXERCICES ---
-        st.markdown("#### 🛠️ Journal des Exercices (Détails)")
-        
-        # On filtre pour ne garder QUE les exercices
-        df_exos = df_history[df_history["Questionnaire"].str.contains("Exercice", na=False)].copy()
-        
-        if not df_exos.empty:
-            # Boucle d'affichage inversée (plus récent en haut)
-            for idx, row in df_exos.sort_values("Date", ascending=False).iterrows():
-                
-                with st.expander(f"🗓️ {row['Date'].strftime('%d/%m')} - {row['Questionnaire']}"):
+                for idx, row in df_exos.iterrows():
+                    # Mise en page : Date | Titre | Actions (Modif/Suppr)
+                    c_date, c_titre, c_actions = st.columns([1, 3, 2])
                     
-                    # Bouton de suppression aligné
-                    col_del, col_content = st.columns([1, 6])
-                    with col_del:
-                        if st.button("Supprimer", key=f"hist_del_{idx}"):
+                    with c_date: 
+                        st.caption(row["Date"].strftime("%d/%m/%Y %H:%M"))
+                    
+                    with c_titre: 
+                        st.write(f"**{row['Questionnaire']}**")
+                    
+                    with c_actions:
+                        # --- BOUTON MODIFIER ---
+                        if st.button("✏️ Modifier", key=f"edit_{idx}"):
+                            try:
+                                d = json.loads(row["Details_Json"])
+                                deleted = False
+                                
+                                # 1. ARC EMOTIONNEL
+                                if "liste_arc" in d:
+                                    st.session_state.temp_arc_list = d["liste_arc"]
+                                    st.toast("⚡ Données ARC rechargées dans le formulaire !", icon="🔄")
+                                    deleted = True
+                                
+                                # 2. OBJECTIFS TRAITEMENT
+                                elif "probleme_principal" in d:
+                                    st.session_state.temp_main_pb = d["probleme_principal"]
+                                    st.session_state.temp_objectives_list = d.get("liste_objectifs", [])
+                                    st.toast("🎯 Objectifs rechargés !", icon="🔄")
+                                    deleted = True
+                                
+                                # 3. PLEINE CONSCIENCE
+                                elif "liste_pratiques" in d:
+                                    st.session_state.temp_mindfulness_list = d["liste_pratiques"]
+                                    st.toast("🧘 Pratiques rechargées !", icon="🔄")
+                                    deleted = True
+
+                                # 4. FLEXIBILITÉ COGNITIVE
+                                elif "liste_flexibilite" in d:
+                                    st.session_state.temp_flex_list = d["liste_flexibilite"]
+                                    st.toast("🧠 Pensées rechargées !", icon="🔄")
+                                    deleted = True
+                                
+                                # 5. CONTRER COMPORTEMENTS
+                                elif "liste_comportements" in d:
+                                    st.session_state.temp_behavior_list = d["liste_comportements"]
+                                    st.toast("🏃 Comportements rechargés !", icon="🔄")
+                                    deleted = True
+                                
+                                # 6. SENSATIONS PHYSIQUES
+                                elif "liste_tests" in d:
+                                    st.session_state.temp_sensations_list = d["liste_tests"]
+                                    st.toast("🌪️ Tests rechargés !", icon="🔄")
+                                    deleted = True
+                                
+                                if deleted:
+                                    # On supprime l'ancienne version pour éviter les doublons lors de la resauvegarde
+                                    supprimer_reponse(current_user, row["Date"], row["Questionnaire"])
+                                    time.sleep(1)
+                                    st.rerun()
+                                else:
+                                    st.error("Format de données inconnu.")
+                                    
+                            except Exception as e:
+                                st.error(f"Erreur chargement : {e}")
+
+                        # --- BOUTON SUPPRIMER ---
+                        st.write(" ") # Petit espace
+                        if st.button("🗑️ Supprimer", key=f"del_h_{idx}"):
                             supprimer_reponse(current_user, row["Date"], row["Questionnaire"])
                             st.rerun()
                     
-                    with col_content:
+                    # --- DÉTAIL DÉPLIABLE ---
+                    with st.expander("Voir le contenu sauvegardé"):
                         try:
                             d = json.loads(row["Details_Json"])
                             
-                            # LOGIQUE D'AFFICHAGE SELON LE TYPE D'EXERCICE
-                            
-                            # 1. Objectifs
-                            if "probleme_principal" in d:
-                                st.info(f"**Problème :** {d['probleme_principal']}")
-                                for o in d.get('liste_objectifs', []):
-                                    st.write(f"🎯 **{o['objectif']}**")
-                                    if 'etapes' in o and o['etapes']: st.caption(f"Étapes : {', '.join(o['etapes'])}")
-
-                            # 2. ARC Emotionnel
-                            elif "liste_arc" in d:
-                                for a in d['liste_arc']:
-                                    st.markdown(f"⚡ **{a['antecedent']}**")
-                                    st.caption(f"💭 {a['pensees']} | 💓 {a['sensations']} | 🏃 {a['comportements']}")
-                                    st.write(f"🏁 Csq: {a['c_court']}")
-                                    st.divider()
-
-                            # 3. Pleine Conscience
-                            elif "liste_pratiques" in d:
-                                for p in d['liste_pratiques']:
-                                    st.markdown(f"🧘 **{p['type_exo']}**")
-                                    st.write(f"💭 {p['pensees']} | 💓 {p['sensations']}")
-                                    st.caption(f"Scores : Non-jugement {p['score_jugement']}/10 | Ancrage {p['score_ancrage']}/10")
-                                    st.divider()
-
-                            # 4. Flexibilité
-                            elif "liste_flexibilite" in d:
-                                for f in d['liste_flexibilite']:
-                                    st.write(f"Situation : {f['declencheur']}")
-                                    st.write(f"🔴 {f['pensee']}  ➡️  🟢 **{f['alternative']}**")
-                                    st.divider()
-
-                            # 5. Contrer Comportements
-                            elif "liste_comportements" in d:
-                                for c in d['liste_comportements']:
-                                    st.write(f"Situation : {c['situation']}")
-                                    st.write(f"🔴 {c['comp_habituel']}  ➡️  🟢 **{c['comp_alternatif']}**")
-                                    st.divider()
-
-                            # 6. Sensations Physiques
-                            elif "liste_tests" in d:
-                                for t in d['liste_tests']:
-                                    st.markdown(f"🌪️ **{t['exercice']}**")
-                                    st.write(f"Symptômes : {t['symptomes']}")
-                                    st.caption(f"Malaise: {t['score_malaise']}/10 | Ressemblance: {t['score_resemblance']}/10")
-                                    st.divider()
-
-                            # 7. Hiérarchie
-                            elif "liste_hierarchie" in d:
-                                st.table(pd.DataFrame(d['liste_hierarchie'])[['rang', 'situation', 'score_evit', 'score_detr']])
-
-                            # 8. Enregistrement Exposition
-                            elif "activite" in d:
-                                st.write(f"🎬 **Expo : {d['activite']}**")
-                                c_av, c_ap = st.columns(2)
-                                with c_av:
-                                    st.caption("AVANT")
-                                    st.write(f"🔴 {d['preparation']['pens_auto']}")
-                                    st.write(f"🟢 {d['preparation']['pens_alt']}")
-                                with c_ap:
-                                    st.caption("APRÈS")
-                                    st.write(f"Emotions : {d['debrief']['emotions']}")
-                                    st.write(d['debrief']['appris_capa'])
-
-                            # 9. Bilan Progrès
-                            elif "pleine_conscience" in d and "progres" in d["pleine_conscience"]:
-                                st.success("🏆 Bilan des progrès enregistré")
-                                st.write(f"**PC:** {d['pleine_conscience']['progres']}")
-                                st.write(f"**Flex:** {d['flexibilite']['progres']}")
-                                st.write(f"**Sens:** {d['sensations']['progres']}")
-                                st.write(f"**Comp:** {d['comportements']['progres']}")
-
-                            # 10. Plan Maintien
-                            elif "pleine_conscience" in d and "engagement" in d["pleine_conscience"]:
-                                st.success("📅 Plan de maintien enregistré")
-                                st.write(f"**Engagement PC:** {d['pleine_conscience']['engagement']}")
-                                st.write(f"**Engagement Flex:** {d['flexibilite']['engagement']}")
-
-                            # Fallback
+                            # Affichage conditionnel selon le type (comme avant)
+                            if "liste_tests" in d: # Sensations
+                                for t in d["liste_tests"]:
+                                    st.info(f"🌪️ {t['exercice']} (Malaise: {t['score_malaise']}/10)")
+                                    st.caption(f"Symptômes : {t['symptomes']}")
+                            elif "liste_arc" in d: # ARC
+                                for arc in d["liste_arc"]:
+                                    st.info(f"📅 {arc['date']} - {arc['antecedent']}")
+                                    st.write(f"💭 {arc['pensees']}")
+                            elif "liste_objectifs" in d: # Objectifs
+                                st.write(f"Problème: {d.get('probleme_principal', '')}")
+                                for o in d["liste_objectifs"]: st.success(f"🎯 {o['objectif']}")
+                            elif "liste_pratiques" in d: # Mindfulness
+                                for p in d["liste_pratiques"]: st.info(f"🧘 {p['type_exo']} ({p['date']})")
+                            elif "liste_flexibilite" in d: # Flexibilité
+                                for f in d["liste_flexibilite"]: st.warning(f"Pensée: {f['pensee']} -> Alt: {f['alternative']}")
+                            elif "liste_comportements" in d: # Comportements
+                                for b in d["liste_comportements"]: st.error(f"Habitude: {b['comp_habituel']} -> Alt: {b['comp_alternatif']}")
                             else:
                                 st.json(d)
-
-                        except Exception as e:
-                            st.error(f"Erreur lecture : {e}")
+                        except: st.write("Erreur de lecture des détails.")
+                    st.divider()
+            else:
+                st.info("Aucun exercice sauvegardé pour le moment.")
         else:
-            st.info("Aucun exercice réalisé pour le moment.")
-
-    else:
-        st.info("Votre historique est vide. Commencez par remplir un bilan ou un exercice !")
+            st.info("Votre historique est vide.")
