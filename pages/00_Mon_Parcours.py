@@ -925,58 +925,18 @@ with tab_historique:
                 
                 with st.expander(f"🗓️ {row['Date'].strftime('%d/%m')} - {row['Questionnaire']}"):
                     
-                    # On crée 2 colonnes : une pour les boutons (Actions), une pour le contenu
-                    col_actions, col_content = st.columns([1, 3])
-                    
-                    # --- COLONNE 1 : BOUTONS ACTIONS ---
-                    with col_actions:
-                        # 1. BOUTON MODIFIER
-                        if st.button("✏️ Modifier", key=f"edit_{idx}"):
-                            try:
-                                d = json.loads(row["Details_Json"])
-                                loaded = False
-                                
-                                # Logique de rechargement selon le type
-                                if "liste_arc" in d:
-                                    st.session_state.temp_arc_list = d["liste_arc"]
-                                    loaded = True
-                                elif "probleme_principal" in d:
-                                    st.session_state.temp_main_pb = d["probleme_principal"]
-                                    st.session_state.temp_objectives_list = d.get("liste_objectifs", [])
-                                    loaded = True
-                                elif "liste_pratiques" in d:
-                                    st.session_state.temp_mindfulness_list = d["liste_pratiques"]
-                                    loaded = True
-                                elif "liste_flexibilite" in d:
-                                    st.session_state.temp_flex_list = d["liste_flexibilite"]
-                                    loaded = True
-                                elif "liste_comportements" in d:
-                                    st.session_state.temp_behavior_list = d["liste_comportements"]
-                                    loaded = True
-                                elif "liste_tests" in d:
-                                    st.session_state.temp_sensations_list = d["liste_tests"]
-                                    loaded = True
-                                
-                                if loaded:
-                                    # On supprime l'entrée de l'historique pour qu'elle repasse en "brouillon"
-                                    supprimer_reponse(current_user, row["Date"], row["Questionnaire"])
-                                    st.toast("Données rechargées ! Remontez pour modifier.", icon="🔄")
-                                    time.sleep(1)
-                                    st.rerun()
-                                else:
-                                    st.error("Ce type d'exercice ne peut pas être modifié.")
-                            except Exception as e:
-                                st.error(f"Erreur : {e}")
-
-                        # 2. BOUTON SUPPRIMER
-                        if st.button("🗑️ Supprimer", key=f"hist_del_{idx}"):
+                    # Bouton de suppression aligné
+                    col_del, col_content = st.columns([1, 6])
+                    with col_del:
+                        if st.button("Supprimer", key=f"hist_del_{idx}"):
                             supprimer_reponse(current_user, row["Date"], row["Questionnaire"])
                             st.rerun()
                     
-                    # --- COLONNE 2 : CONTENU VISUEL ---
                     with col_content:
                         try:
                             d = json.loads(row["Details_Json"])
+                            
+                            # LOGIQUE D'AFFICHAGE SELON LE TYPE D'EXERCICE
                             
                             # 1. Objectifs
                             if "probleme_principal" in d:
@@ -998,6 +958,7 @@ with tab_historique:
                                 for p in d['liste_pratiques']:
                                     st.markdown(f"🧘 **{p['type_exo']}**")
                                     st.write(f"💭 {p['pensees']} | 💓 {p['sensations']}")
+                                    st.caption(f"Scores : Non-jugement {p['score_jugement']}/10 | Ancrage {p['score_ancrage']}/10")
                                     st.divider()
 
                             # 4. Flexibilité
@@ -1022,7 +983,38 @@ with tab_historique:
                                     st.caption(f"Malaise: {t['score_malaise']}/10 | Ressemblance: {t['score_resemblance']}/10")
                                     st.divider()
 
-                            # Fallback (Autres types)
+                            # 7. Hiérarchie
+                            elif "liste_hierarchie" in d:
+                                st.table(pd.DataFrame(d['liste_hierarchie'])[['rang', 'situation', 'score_evit', 'score_detr']])
+
+                            # 8. Enregistrement Exposition
+                            elif "activite" in d:
+                                st.write(f"🎬 **Expo : {d['activite']}**")
+                                c_av, c_ap = st.columns(2)
+                                with c_av:
+                                    st.caption("AVANT")
+                                    st.write(f"🔴 {d['preparation']['pens_auto']}")
+                                    st.write(f"🟢 {d['preparation']['pens_alt']}")
+                                with c_ap:
+                                    st.caption("APRÈS")
+                                    st.write(f"Emotions : {d['debrief']['emotions']}")
+                                    st.write(d['debrief']['appris_capa'])
+
+                            # 9. Bilan Progrès
+                            elif "pleine_conscience" in d and "progres" in d["pleine_conscience"]:
+                                st.success("🏆 Bilan des progrès enregistré")
+                                st.write(f"**PC:** {d['pleine_conscience']['progres']}")
+                                st.write(f"**Flex:** {d['flexibilite']['progres']}")
+                                st.write(f"**Sens:** {d['sensations']['progres']}")
+                                st.write(f"**Comp:** {d['comportements']['progres']}")
+
+                            # 10. Plan Maintien
+                            elif "pleine_conscience" in d and "engagement" in d["pleine_conscience"]:
+                                st.success("📅 Plan de maintien enregistré")
+                                st.write(f"**Engagement PC:** {d['pleine_conscience']['engagement']}")
+                                st.write(f"**Engagement Flex:** {d['flexibilite']['engagement']}")
+
+                            # Fallback
                             else:
                                 st.json(d)
 
