@@ -32,7 +32,6 @@ if "authentifie" not in st.session_state or not st.session_state.authentifie:
 current_user = st.session_state.user_id
 
 # --- FONCTIONS UTILITAIRES (CACHE) ---
-@st.cache_data(ttl=60)
 def charger_historique_complet(uid):
     """Charge tout l'historique et prépare la colonne 'Type' pour les graphiques"""
     try:
