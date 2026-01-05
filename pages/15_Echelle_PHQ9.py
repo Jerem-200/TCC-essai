@@ -3,14 +3,6 @@ import pandas as pd
 from datetime import datetime
 from visualisations import afficher_phq9
 
-st.set_page_config(page_title="Échelle PHQ-9", page_icon="📉")
-if st.button("⬅️ Retour au tableau de bord"):
-    # On dit au menu principal de rouvrir l'onglet "Échelles"
-    st.session_state["target_tab"] = "📊 Échelles"
-    st.switch_page("streamlit_app.py")
-st.divider()
-# ---------------------------------------
-
 # ==============================================================================
 # 0. SÉCURITÉ
 # ==============================================================================
@@ -153,3 +145,9 @@ with tab1:
 with tab2:
     st.header("Suivi des scores")
     afficher_phq9(st.session_state.data_phq9, CURRENT_USER_ID)
+
+st.set_page_config(page_title="Échelle PHQ-9", page_icon="📉")
+if st.button("⬅️ Retour au tableau de bord"):
+    # On dit au menu principal de rouvrir l'onglet "Échelles"
+    st.session_state["target_tab"] = "📊 Échelles"
+    st.switch_page("streamlit_app.py")
