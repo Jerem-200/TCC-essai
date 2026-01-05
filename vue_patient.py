@@ -85,40 +85,37 @@ def afficher_vue_patient(patient_id):
                 time.sleep(1)
                 st.rerun()
 
-    # ======================================================
-    # ONGLET 2 : PROTOCOLE (AVEC TA VUE PRÉFÉRÉE RESTAURÉE)
+# ======================================================
+    # ONGLET 2 : PROTOCOLE (Corrigé avec Sous-Onglets Slide)
     # ======================================================
     with onglets[1]:
         st.header("🗺️ Mon Parcours TCC")
         
-        sous_onglets = ["📍 Progression", "🚀 Lanceur Rapide", "📝 Bilan Hebdo", "📜 Historique"]
-        
-        idx_defaut = 0
-        if st.session_state.get("retour_outils", False):
-            idx_defaut = 1
-            st.session_state["retour_outils"] = False
-            
-        choix_sous_onglet = st.radio("Navigation Protocole", sous_onglets, index=idx_defaut, horizontal=True, label_visibility="collapsed")
-        st.divider()
+        # 1. Création des sous-onglets (C'est ça l'effet "Slide")
+        sub_tab_prog, sub_tab_outils, sub_tab_bilan, sub_tab_histo = st.tabs([
+            "📍 Progression", 
+            "🚀 Lanceur Rapide", 
+            "📝 Bilan Hebdo", 
+            "📜 Historique"
+        ])
 
         # -------------------------------------------------
-        # A. VUE PROGRESSION (TON CODE RESTAURÉ)
+        # A. SOUS-ONGLET : PROGRESSION
         # -------------------------------------------------
-        if choix_sous_onglet == "📍 Progression":
+        with sub_tab_prog:
             st.markdown("### 📍 Mon cheminement")
-    
+            if "last_active_module" not in st.session_state: 
+                st.session_state.last_active_module = "module0"
+
             for code_mod, data in PROTOCOLE_BARLOW.items():
-                
-                # Vérification si le module est débloqué
                 if code_mod in progression:
-                    
-                    # On affiche l'icône de validation si fait
                     icon_valid = "✅" if code_mod in valides else ""
+                    # Ouverture auto du dernier module
+                    is_expanded = (code_mod == st.session_state.last_active_module)
                     
-                    with st.expander(f"{icon_valid} {data['titre']}", expanded=False):
+                    with st.expander(f"{icon_valid} {data['titre']}", expanded=is_expanded):
                         t_seance, t_doc = st.tabs(["📖 Résumé Séance", "📂 Documents"])
                         
-                        # --- Onglet Résumé ---
                         with t_seance:
                             st.info(f"**Objectifs :** {data['objectifs']}")
                             col_step, col_home = st.columns(2)
@@ -133,13 +130,10 @@ def afficher_vue_patient(patient_id):
                             
                             with col_home:
                                 st.markdown("#### 🏠 Travail à la maison")
-                                # On récupère les devoirs exclus pour ce module
                                 exclus = devoirs.get(code_mod, [])
                                 a_faire = False
-                                
                                 if data['taches_domicile']:
                                     for j, dev in enumerate(data['taches_domicile']):
-                                        # Si l'index n'est pas dans les exclus, on l'affiche
                                         if j not in exclus:
                                             a_faire = True
                                             st.markdown(f"👉 **{dev['titre']}**")
@@ -147,14 +141,12 @@ def afficher_vue_patient(patient_id):
                                                 with open(dev['pdf'], "rb") as f:
                                                     st.download_button("📥 Support", f, file_name=os.path.basename(dev['pdf']), key=f"d_home_{code_mod}_{j}")
                                 
-                                if not a_faire: 
-                                    st.success("🎉 Rien de spécial.")
+                                if not a_faire: st.success("🎉 Rien de spécial.")
                                 else:
                                     st.write("")
                                     with st.expander("📸 Envoyer une photo"):
                                         st.camera_input("Photo", key=f"cam_{code_mod}")
 
-                        # --- Onglet Documents ---
                         with t_doc:
                             st.write("Tous les fichiers du module :")
                             if data.get('pdfs_module'):
@@ -169,9 +161,9 @@ def afficher_vue_patient(patient_id):
                         st.divider()
 
         # -------------------------------------------------
-        # B. LANCEUR RAPIDE
+        # B. SOUS-ONGLET : LANCEUR RAPIDE
         # -------------------------------------------------
-        elif choix_sous_onglet == "🚀 Lanceur Rapide":
+        with sub_tab_outils:
             st.subheader("Outils liés à ma progression")
             liste_exos_dispos = []
             for m in progression:
@@ -189,11 +181,11 @@ def afficher_vue_patient(patient_id):
                         st.switch_page("pages/21_Barlow_Exercice.py")
 
         # -------------------------------------------------
-        # C. BILAN HEBDO
+        # C. SOUS-ONGLET : BILAN HEBDO
         # -------------------------------------------------
-        elif choix_sous_onglet == "📝 Bilan Hebdo":
+        with sub_tab_bilan:
             st.subheader("Bilan Hebdomadaire")
-            choix_q = st.radio("Questionnaire :", list(QUESTIONS_HEBDO.keys()), horizontal=True)
+            choix_q = st.selectbox("Questionnaire :", list(QUESTIONS_HEBDO.keys())) # Selectbox est souvent plus propre ici
             if choix_q:
                 cfg = QUESTIONS_HEBDO[choix_q]
                 with st.container(border=True):
@@ -226,9 +218,9 @@ def afficher_vue_patient(patient_id):
                             st.rerun()
 
         # -------------------------------------------------
-        # D. HISTORIQUE
+        # D. SOUS-ONGLET : HISTORIQUE
         # -------------------------------------------------
-        elif choix_sous_onglet == "📜 Historique":
+        with sub_tab_histo:
             st.subheader("Historique")
             if not df_history.empty:
                 df_charts = df_history[~df_history["Questionnaire"].str.contains("Exercice", na=False)]
@@ -250,7 +242,7 @@ def afficher_vue_patient(patient_id):
                             try: st.json(json.loads(row["Details_Json"]))
                             except: st.write(row["Details_Json"])
             else: st.info("Historique vide.")
-
+            
     # ======================================================
     # ONGLET 3 : LES 4 AGENDAS
     # ======================================================
