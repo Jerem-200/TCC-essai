@@ -160,12 +160,12 @@ def afficher_vue_patient(patient_id):
                         st.divider()
 
         # -------------------------------------------------
-        # B. VUE LANCEUR RAPIDE (Architecturé)
+        # B. SOUS-ONGLET : LANCEUR RAPIDE
         # -------------------------------------------------
         with sub_tab_outils:
             st.subheader("Outils liés à ma progression")
             
-            # 1. Récupération des exercices
+            # 1. Récupération des exercices disponibles
             liste_exos_dispos = []
             for m in progression:
                 if m in PROTOCOLE_BARLOW and "exercices" in PROTOCOLE_BARLOW[m]:
@@ -176,52 +176,26 @@ def afficher_vue_patient(patient_id):
                 st.warning("Aucun exercice disponible.")
                 st.caption("Avancez dans les modules pour débloquer des outils.")
             else:
-                # 2. Affichage des exercices
+                # 2. Affichage simple (Boutons de redirection)
+                # On utilise des colonnes pour faire plus propre
                 for k, item in enumerate(liste_exos_dispos):
                     exo = item["exo_data"]
                     mod_code = item["mod_code"]
-                    titre_complet = f"🚀 {exo['titre']} (Module {mod_code[-1]})"
                     
-                    with st.expander(titre_complet):
-                        if exo.get('description'): st.info(exo['description'])
+                    # On crée un conteneur visuel pour chaque outil
+                    with st.container(border=True):
+                        c1, c2 = st.columns([4, 1])
+                        with c1:
+                            st.markdown(f"**🚀 {exo['titre']}** <small style='color:grey'>(Module {mod_code[-1]})</small>", unsafe_allow_html=True)
+                            if exo.get('description'):
+                                st.caption(exo['description'][:100] + "..." if len(exo['description']) > 100 else exo['description'])
                         
-                        with st.form(key=f"form_fast_exo_{k}"):
-                            reponses_exo = {}
-                            
-                            # CAS 1 : Questions liste
-                            if "questions" in exo and isinstance(exo["questions"], list):
-                                for idx_q, q_text in enumerate(exo["questions"]):
-                                    st.markdown(f"**{idx_q + 1}. {q_text}**")
-                                    reponses_exo[q_text] = st.text_area("Réponse", height=100, key=f"txt_{k}_{idx_q}", label_visibility="collapsed")
-                                    st.write("")
-                            
-                            # CAS 2 : Étapes structurées
-                            elif "etapes" in exo and isinstance(exo["etapes"], list):
-                                for idx_e, etape in enumerate(exo["etapes"]):
-                                    st.markdown(f"#### Étape {idx_e + 1} : {etape.get('titre', '')}")
-                                    if etape.get('instruction'): st.caption(etape['instruction'])
-                                    cle_etape = etape.get('titre', f"Etape {idx_e}")
-                                    reponses_exo[cle_etape] = st.text_area("Réponse :", height=100, key=f"step_{k}_{idx_e}")
-                                    st.divider()
-                            
-                            # CAS 3 : Libre
-                            else:
-                                st.write("Notez vos observations :")
-                                reponses_exo["Réflexion"] = st.text_area("Votre travail :", height=200, key=f"free_{k}")
-                            
-                            st.write("---")
-                            if st.form_submit_button("💾 Enregistrer cet exercice", type="primary"):
-                                nom_sauvegarde = f"Exercice - {exo['titre']}"
-                                details_json = {
-                                    "module": mod_code,
-                                    "source": "lanceur_rapide",
-                                    "reponses": reponses_exo
-                                }
-                                if sauvegarder_reponse_hebdo(patient_id, nom_sauvegarde, "Exo", details_json):
-                                    st.success("✅ Exercice enregistré !")
-                                    charger_historique_local.clear()
-                                    time.sleep(1)
-                                    st.rerun()
+                        with c2:
+                            # CE BOUTON REDIRIGE VERS TA PAGE SPÉCIALISÉE
+                            if st.button("Lancer", key=f"btn_fast_launch_{k}", use_container_width=True):
+                                # On prépare le contexte pour la page cible
+                                st.session_state["exercice_actif"] = item
+                                st.switch_page("pages/21_Barlow_Exercice.py")
 
         # -------------------------------------------------
         # C. VUE BILAN HEBDO
