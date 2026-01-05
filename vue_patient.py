@@ -15,7 +15,7 @@ from connect_db import (
     sauvegarder_reponse_hebdo, supprimer_reponse, load_data
 )
 
-# Cache local pour l'historique (Utilisé pour les graphes et le journal)
+# Cache local pour l'historique
 @st.cache_data(ttl=300)
 def charger_historique_local(uid):
     raw = load_data("Reponses_Hebdo")
@@ -45,10 +45,10 @@ def afficher_vue_patient(patient_id):
     
     st.title(f"👋 Espace de {patient_id}")
 
-    # 2. NAVIGATION PRINCIPALE (Tes grands onglets globaux)
+    # 2. NAVIGATION PRINCIPALE
     onglets = st.tabs([
         "🏠 Tableau de Bord", 
-        "🗺️ Protocole",  # C'est ici que ça va se passer
+        "🗺️ Protocole", 
         "📅 Agendas", 
         "🛠️ Outils & Exos", 
         "📊 Échelles", 
@@ -56,7 +56,7 @@ def afficher_vue_patient(patient_id):
     ])
 
     # ======================================================
-    # ONGLET 1 : TABLEAU DE BORD (Accueil + Note Séance)
+    # ONGLET 1 : TABLEAU DE BORD
     # ======================================================
     with onglets[0]:
         st.markdown("### 📌 Ma situation aujourd'hui")
@@ -86,114 +86,90 @@ def afficher_vue_patient(patient_id):
                 st.rerun()
 
     # ======================================================
-    # ONGLET 2 : PROTOCOLE (AVEC TES 4 SOUS-ONGLETS RESTAURÉS)
+    # ONGLET 2 : PROTOCOLE (AVEC TA VUE PRÉFÉRÉE RESTAURÉE)
     # ======================================================
     with onglets[1]:
         st.header("🗺️ Mon Parcours TCC")
         
-        # --- MENU INTERNE DU PROTOCOLE ---
-        # On définit tes 4 sous-sections
         sous_onglets = ["📍 Progression", "🚀 Lanceur Rapide", "📝 Bilan Hebdo", "📜 Historique"]
         
-        # Gestion intelligente du retour "Lanceur Rapide" après un exercice
         idx_defaut = 0
         if st.session_state.get("retour_outils", False):
-            idx_defaut = 1 # Index de "Lanceur Rapide"
+            idx_defaut = 1
             st.session_state["retour_outils"] = False
             
         choix_sous_onglet = st.radio("Navigation Protocole", sous_onglets, index=idx_defaut, horizontal=True, label_visibility="collapsed")
         st.divider()
 
         # -------------------------------------------------
-        # A. SOUS-ONGLET : PROGRESSION
+        # A. VUE PROGRESSION (TON CODE RESTAURÉ)
         # -------------------------------------------------
         if choix_sous_onglet == "📍 Progression":
-            if "last_active_module" not in st.session_state: st.session_state.last_active_module = "module0"
-
+            st.markdown("### 📍 Mon cheminement")
+    
             for code_mod, data in PROTOCOLE_BARLOW.items():
-                is_done = code_mod in valides
-                icon = "✅" if is_done else "🟦"
-                expanded = (code_mod == st.session_state.last_active_module)
                 
+                # Vérification si le module est débloqué
                 if code_mod in progression:
-                    with st.expander(f"{icon} {data['titre']}", expanded=expanded):
-                        # On garde tes onglets internes (Séance / Docs)
-                        t_seance, t_docs = st.tabs(["📖 Résumé Séance", "📂 Documents"])
+                    
+                    # On affiche l'icône de validation si fait
+                    icon_valid = "✅" if code_mod in valides else ""
+                    
+                    with st.expander(f"{icon_valid} {data['titre']}", expanded=False):
+                        t_seance, t_doc = st.tabs(["📖 Résumé Séance", "📂 Documents"])
                         
+                        # --- Onglet Résumé ---
                         with t_seance:
                             st.info(f"**Objectifs :** {data['objectifs']}")
+                            col_step, col_home = st.columns(2)
                             
-                            # FORMULAIRE DE VALIDATION
-                            with st.form(key=f"form_proto_{code_mod}"):
-                                checklist_results = []
-                                
-                                # 1. Examen Devoirs
-                                if data['examen_devoirs']:
-                                    st.markdown("#### 🔍 Examen des tâches")
-                                    for idx, task in enumerate(data['examen_devoirs']):
-                                        chk = st.checkbox(task['titre'], key=f"chk_ex_{code_mod}_{idx}")
-                                        checklist_results.append(chk)
-                                        if task.get('pdf'): st.caption(f"Doc: {os.path.basename(task['pdf'])}")
-                                    st.write("---")
-
-                                # 2. Étapes Séance
+                            with col_step:
                                 st.markdown("#### 📝 Ce que nous avons vu")
-                                for idx, etape in enumerate(data['etapes_seance']):
-                                    chk = st.checkbox(etape['titre'], key=f"chk_st_{code_mod}_{idx}", help=etape.get('details'))
-                                    checklist_results.append(chk)
-                                st.write("---")
+                                if data['etapes_seance']:
+                                    for etape in data['etapes_seance']:
+                                        st.markdown(f"- **{etape['titre']}**")
+                                        if etape.get('details'): st.caption(f"_{etape.get('details')}_")
+                                else: st.caption("Pas d'étapes listées.")
+                            
+                            with col_home:
+                                st.markdown("#### 🏠 Travail à la maison")
+                                # On récupère les devoirs exclus pour ce module
+                                exclus = devoirs.get(code_mod, [])
+                                a_faire = False
                                 
-                                # 3. Devoirs Maison
-                                liste_devoirs_temp = []
                                 if data['taches_domicile']:
-                                    st.markdown("#### 🏠 Travail à la maison")
-                                    current_excluded = devoirs.get(code_mod, [])
                                     for j, dev in enumerate(data['taches_domicile']):
-                                        is_checked = (j not in current_excluded)
-                                        val = st.checkbox(dev['titre'], value=is_checked, key=f"chk_hw_{code_mod}_{j}")
-                                        liste_devoirs_temp.append(val)
-                                        if dev.get('pdf'): 
-                                            st.caption(f"📥 {os.path.basename(dev['pdf'])}")
-                                    st.write("---")
+                                        # Si l'index n'est pas dans les exclus, on l'affiche
+                                        if j not in exclus:
+                                            a_faire = True
+                                            st.markdown(f"👉 **{dev['titre']}**")
+                                            if dev.get('pdf') and os.path.exists(dev['pdf']):
+                                                with open(dev['pdf'], "rb") as f:
+                                                    st.download_button("📥 Support", f, file_name=os.path.basename(dev['pdf']), key=f"d_home_{code_mod}_{j}")
+                                
+                                if not a_faire: 
+                                    st.success("🎉 Rien de spécial.")
+                                else:
+                                    st.write("")
+                                    with st.expander("📸 Envoyer une photo"):
+                                        st.camera_input("Photo", key=f"cam_{code_mod}")
 
-                                # 4. Notes Thérapeute (Optionnel pour patient mais utile pour sauvegarde)
-                                note_precedente = notes_therapeute.get(code_mod, "")
-                                # On cache le textarea si c'est le patient qui remplit, ou on le laisse en lecture seule
-                                # Ici je le laisse éditable pour que tu puisses tester
-                                st.markdown("#### 📝 Notes")
-                                nouvelle_note = st.text_area("Vos notes personnelles :", value=note_precedente, height=80)
-
-                                if st.form_submit_button("💾 Enregistrer l'avancement", type="primary"):
-                                    # Logique de sauvegarde
-                                    if data['taches_domicile']:
-                                        exclus = [k for k, v in enumerate(liste_devoirs_temp) if not v]
-                                        devoirs[code_mod] = exclus
-                                        sauvegarder_etat_devoirs(patient_id, devoirs)
-                                    
-                                    notes_therapeute[code_mod] = nouvelle_note
-                                    
-                                    all_ok = all(checklist_results) if checklist_results else True
-                                    if all_ok and code_mod not in valides: valides.append(code_mod)
-                                    elif not all_ok and code_mod in valides: valides.remove(code_mod)
-                                    
-                                    sauvegarder_suivi_global(patient_id, valides, notes_therapeute)
-                                    st.session_state.last_active_module = code_mod
-                                    time.sleep(0.5)
-                                    st.rerun()
-
-                        with t_docs:
+                        # --- Onglet Documents ---
+                        with t_doc:
                             st.write("Tous les fichiers du module :")
                             if data.get('pdfs_module'):
                                 for p in data['pdfs_module']:
                                     if os.path.exists(p):
                                         with open(p, "rb") as f:
-                                            st.download_button(f"📥 {os.path.basename(p)}", f, file_name=os.path.basename(p), key=f"dl_{code_mod}_{os.path.basename(p)}")
+                                            st.download_button(f"📥 {os.path.basename(p)}", f, file_name=os.path.basename(p), key=f"da_{code_mod}_{os.path.basename(p)}")
                             else: st.caption("Aucun document.")
                 else:
-                    with st.container(): st.write(f"🔒 **{data['titre']}** (Verrouillé)"); st.divider()
+                    with st.container():
+                        st.markdown(f"🔒 **{data['titre']}** _(Verrouillé)_")
+                        st.divider()
 
         # -------------------------------------------------
-        # B. SOUS-ONGLET : LANCEUR RAPIDE (MES OUTILS)
+        # B. LANCEUR RAPIDE
         # -------------------------------------------------
         elif choix_sous_onglet == "🚀 Lanceur Rapide":
             st.subheader("Outils liés à ma progression")
@@ -204,8 +180,7 @@ def afficher_vue_patient(patient_id):
                         liste_exos_dispos.append({"mod_code": m, "exo_data": exo})
             
             if not liste_exos_dispos:
-                st.warning("Aucun exercice disponible pour le moment.")
-                st.info("Avancez dans les modules pour débloquer des outils.")
+                st.warning("Aucun exercice disponible.")
             else:
                 for k, item in enumerate(liste_exos_dispos):
                     exo = item["exo_data"]
@@ -214,30 +189,25 @@ def afficher_vue_patient(patient_id):
                         st.switch_page("pages/21_Barlow_Exercice.py")
 
         # -------------------------------------------------
-        # C. SOUS-ONGLET : BILAN HEBDO
+        # C. BILAN HEBDO
         # -------------------------------------------------
         elif choix_sous_onglet == "📝 Bilan Hebdo":
-            st.subheader("Mon Bilan Hebdomadaire")
-            choix_q = st.radio("Choisir le questionnaire :", list(QUESTIONS_HEBDO.keys()), horizontal=True)
-            
+            st.subheader("Bilan Hebdomadaire")
+            choix_q = st.radio("Questionnaire :", list(QUESTIONS_HEBDO.keys()), horizontal=True)
             if choix_q:
                 cfg = QUESTIONS_HEBDO[choix_q]
                 with st.container(border=True):
                     st.markdown(f"**{cfg['titre']}**")
                     st.caption(cfg['description'])
-                    
                     with st.form(f"form_bilan_{choix_q}"):
                         rep = {}
                         score = 0
-                        if cfg.get("ask_emotion"): 
-                            rep["Emotion"] = st.text_input("Emotion dominante :")
-                        
+                        if cfg.get("ask_emotion"): rep["Emotion"] = st.text_input("Emotion :")
                         if cfg['type'] == "scale_0_8":
                             for q in cfg['questions']:
                                 val = st.slider(q, 0, 8, 0)
                                 rep[q] = val
                                 score += val
-                        
                         elif cfg['type'] == "qcm_oasis":
                              for item in cfg['questions']:
                                 lbl = item['label']
@@ -246,7 +216,7 @@ def afficher_vue_patient(patient_id):
                                 except: pass
                                 rep[lbl] = res
 
-                        if st.form_submit_button("Enregistrer", type="primary"):
+                        if st.form_submit_button("Enregistrer"):
                             lbl = choix_q
                             if "Emotion" in rep: lbl += f" ({rep['Emotion']})"
                             sauvegarder_reponse_hebdo(patient_id, lbl, str(score), rep)
@@ -256,22 +226,18 @@ def afficher_vue_patient(patient_id):
                             st.rerun()
 
         # -------------------------------------------------
-        # D. SOUS-ONGLET : HISTORIQUE
+        # D. HISTORIQUE
         # -------------------------------------------------
         elif choix_sous_onglet == "📜 Historique":
-            st.subheader("Mon Historique Complet")
+            st.subheader("Historique")
             if not df_history.empty:
-                # Graphique
                 df_charts = df_history[~df_history["Questionnaire"].str.contains("Exercice", na=False)]
                 if not df_charts.empty:
-                    st.markdown("#### 📈 Évolution des scores")
-                    chart = alt.Chart(df_charts).mark_line(point=True).encode(
-                        x='Date', y='Score_Global', color='Type', tooltip=['Date', 'Score_Global']
-                    ).interactive()
+                    st.markdown("#### 📈 Évolution")
+                    chart = alt.Chart(df_charts).mark_line(point=True).encode(x='Date', y='Score_Global', color='Type').interactive()
                     st.altair_chart(chart, use_container_width=True)
                 
-                # Liste
-                st.markdown("#### 🛠️ Journal détaillé")
+                st.markdown("#### 🛠️ Journal")
                 for idx, row in df_history.sort_values("Date", ascending=False).iterrows():
                     with st.expander(f"{row['Date'].strftime('%d/%m')} - {row['Questionnaire']}"):
                         c_del, c_cont = st.columns([1, 5])
@@ -283,8 +249,7 @@ def afficher_vue_patient(patient_id):
                         with c_cont:
                             try: st.json(json.loads(row["Details_Json"]))
                             except: st.write(row["Details_Json"])
-            else:
-                st.info("Votre historique est vide.")
+            else: st.info("Historique vide.")
 
     # ======================================================
     # ONGLET 3 : LES 4 AGENDAS
