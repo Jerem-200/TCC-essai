@@ -8,6 +8,25 @@ from protocole_config import PROTOCOLE_BARLOW
 import os
 import json
 
+# Import des fonctions de base de données
+# Dans streamlit_app.py
+
+from connect_db import (
+    verifier_therapeute, 
+    recuperer_mes_patients, 
+    verifier_code_patient,
+    charger_outils_autorises, 
+    sauvegarder_outils_autorises,
+    charger_progression, 
+    charger_etat_devoirs, 
+    charger_suivi_global,
+    charger_donnees_specifiques, 
+    sauvegarder_progression,
+    generer_code_securise,
+    sauvegarder_etat_devoirs,
+    sauvegarder_suivi_global
+)
+
 # Import de toutes les visualisations
 from visualisations import (
     afficher_activites, afficher_sommeil, afficher_conso, afficher_compulsions,
@@ -22,76 +41,10 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# =========================================================
-# 0. SÉCURITÉ & UTILITAIRES
-# =========================================================
-
-def generer_code_securise(prefix="PAT", length=6):
-    """Génère un code aléatoire sécurisé (ex: PAT-X9J2M)"""
-    chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" 
-    suffix = ''.join(secrets.choice(chars) for _ in range(length))
-    return f"{prefix}-{suffix}"
-
 # --- INITIALISATION SESSION ---
 if "authentifie" not in st.session_state: st.session_state.authentifie = False
 if "user_type" not in st.session_state: st.session_state.user_type = None 
 if "user_id" not in st.session_state: st.session_state.user_id = "" 
-
-# =========================================================
-# 1. FONCTIONS DE BASE DE DONNÉES (OPTIMISÉES AVEC CACHE)
-# =========================================================
-
-@st.cache_data(ttl=600)
-def verifier_therapeute(identifiant, mot_de_passe):
-    try:
-        from connect_db import load_data
-        data = load_data("Therapeutes")
-        if data:
-            df = pd.DataFrame(data)
-            df["Identifiant"] = df["Identifiant"].astype(str).str.strip()
-            df["MotDePasse"] = df["MotDePasse"].astype(str).str.strip()
-            user_clean = str(identifiant).strip()
-            pwd_clean = str(mot_de_passe).strip()
-            user_row = df[(df["Identifiant"] == user_clean) & (df["MotDePasse"] == pwd_clean)]
-            if not user_row.empty: return user_row.iloc[0]["ID"] 
-    except: pass
-    return None
-
-@st.cache_data(ttl=300)
-def recuperer_mes_patients(therapeute_id):
-    try:
-        from connect_db import load_data
-        data = load_data("Codes_Patients")
-        if data:
-            df = pd.DataFrame(data)
-            return df[df["Therapeute_ID"] == therapeute_id]
-    except: pass
-    return pd.DataFrame()
-
-# Cache de 2 min pour les données cliniques
-@st.cache_data(ttl=120)
-def charger_donnees_specifiques(nom_onglet, patient_id):
-    try:
-        from connect_db import load_data
-        data = load_data(nom_onglet)
-        if data:
-            df = pd.DataFrame(data)
-            if "Patient" in df.columns:
-                return df[df["Patient"] == patient_id]
-    except: pass
-    return pd.DataFrame()
-
-@st.cache_data(ttl=300)
-def verifier_code_patient(code):
-    try:
-        from connect_db import load_data
-        data = load_data("Codes_Patients")
-        if data:
-            df = pd.DataFrame(data)
-            if "Code" in df.columns:
-                if code.upper() in df["Code"].astype(str).str.upper().values: return True
-    except: pass
-    return False
 
 # =========================================================
 # GESTION DES PERMISSIONS (NOUVEAU SYSTÈME : WHITELIST)
@@ -117,195 +70,7 @@ MAP_OUTILS = {
     "📊 WSAS (Handicap)": "wsas"
 }
 
-@st.cache_data(ttl=300)
-def charger_outils_autorises(patient_id):
-    """
-    Récupère la liste des outils EXPLICITEMENT autorisés pour un patient.
-    Par défaut (si pas de ligne), retourne une liste vide [].
-    """
-    try:
-        from connect_db import load_data
-        # On utilise une nouvelle table 'Outils_Autorises' (à créer dans GSheets : Patient | Outils)
-        data = load_data("Outils_Autorises")
-        if data:
-            df = pd.DataFrame(data)
-            row = df[df["Patient"] == patient_id]
-            if not row.empty:
-                # La colonne s'appelle 'Outils' et contient "sommeil,beck,phq9"
-                outils_str = str(row.iloc[0]["Outils"])
-                return [x.strip() for x in outils_str.split(",") if x.strip()]
-    except: pass
-    return [] # Tout est bloqué par défaut
 
-def sauvegarder_outils_autorises(patient_id, liste_cles):
-    """Enregistre la nouvelle liste d'outils autorisés."""
-    try:
-        from connect_db import save_data, delete_data_flexible
-        
-        # 1. Nettoyage
-        delete_data_flexible("Outils_Autorises", {"Patient": patient_id})
-        
-        # 2. Sauvegarde
-        chaine_outils = ",".join(liste_cles)
-        save_data("Outils_Autorises", [patient_id, chaine_outils])
-        
-        # 3. Mise à jour du cache
-        charger_outils_autorises.clear()
-        return True
-    except Exception as e:
-        st.error(f"Erreur sauvegarde outils : {e}")
-        return False
-    
-# --- GESTION COMBINÉE : VALIDATION + COMMENTAIRES (Onglet Suivi_Validation) ---
-@st.cache_data(ttl=60)
-def charger_suivi_global(patient_id):
-    """
-    Récupère à la fois la liste des modules validés (Vert) 
-    ET les commentaires du thérapeute depuis l'onglet 'Suivi_Validation'.
-    Retourne : (liste_modules_valides, dictionnaire_commentaires)
-    """
-    try:
-        from connect_db import load_data
-        data = load_data("Suivi_Validation") 
-        if data:
-            df = pd.DataFrame(data)
-            row = df[df["Patient"] == patient_id]
-            if not row.empty:
-                # 1. Récupération des modules validés
-                valides_str = str(row.iloc[0].get("Modules_Valides", ""))
-                liste_valides = [x.strip() for x in valides_str.split(",") if x.strip()]
-                
-                # 2. Récupération des commentaires (JSON stocké dans la colonne 'Commentaires')
-                commentaires_json = row.iloc[0].get("Commentaires", "{}")
-                # Petit nettoyage si la cellule est vide ou nan
-                if not commentaires_json or commentaires_json == "nan" or commentaires_json == "None":
-                    dict_notes = {}
-                else:
-                    try:
-                        dict_notes = json.loads(str(commentaires_json))
-                    except:
-                        dict_notes = {}
-                
-                return liste_valides, dict_notes
-    except Exception as e:
-        print(f"Erreur chargement suivi: {e}")
-        pass
-    return [], {}
-
-def sauvegarder_suivi_global(patient_id, liste_modules, dict_notes):
-    """Enregistre tout (Validation + Notes) dans l'onglet Suivi_Validation."""
-    try:
-        from connect_db import save_data, delete_data_flexible
-        
-        # 1. Supprimer l'ancienne ligne
-        delete_data_flexible("Suivi_Validation", {"Patient": patient_id})
-        
-        # 2. Préparer les données
-        chaine_valides = ",".join(liste_modules)
-        json_notes = json.dumps(dict_notes)
-        
-        # 3. Sauvegarder : [Patient, Modules_Valides, Commentaires]
-        # Assure-toi que ton Google Sheet a bien ces 3 colonnes dans cet ordre
-        save_data("Suivi_Validation", [patient_id, chaine_valides, json_notes])
-        
-        # 4. Vider le cache pour rechargement immédiat
-        charger_suivi_global.clear() # Important pour voir le changement tout de suite
-        return True
-    except Exception as e:
-        st.error(f"Erreur sauvegarde globale : {e}")
-        return False
-    
-# =========================================================
-# GESTION DE LA PROGRESSION PROTOCOLE (NOUVEAU)
-# =========================================================
-
-def charger_progression(patient_id):
-    """Récupère la liste des modules débloqués pour un patient"""
-    try:
-        from connect_db import load_data
-        data = load_data("Progression")
-        if data:
-            df = pd.DataFrame(data)
-            row = df[df["Patient"] == patient_id]
-            if not row.empty:
-                modules_str = str(row.iloc[0]["Modules_Actifs"])
-                # Retourne une liste propre : ['intro', 'module1']
-                return [x.strip() for x in modules_str.split(",") if x.strip()]
-    except: pass
-    return ["intro"] # Par défaut, seulement l'intro est débloquée
-
-def sauvegarder_progression(patient_id, liste_modules):
-    """Enregistre les modules débloqués"""
-    try:
-        from connect_db import save_data, delete_data_flexible
-        # 1. On nettoie l'ancienne progression
-        delete_data_flexible("Progression", {"Patient": patient_id})
-        
-        # 2. On enregistre la nouvelle
-        chaine_modules = ",".join(liste_modules)
-        save_data("Progression", [patient_id, chaine_modules])
-        return True
-    except Exception as e:
-        st.error(f"Erreur sauvegarde progression : {e}")
-        return False
-
-def charger_etat_devoirs(patient_id):
-    """Charge la liste des devoirs EXCLUS (décochés) par le thérapeute."""
-    try:
-        from connect_db import load_data
-        data = load_data("Suivi_Devoirs")
-        if data:
-            df = pd.DataFrame(data)
-            row = df[df["Patient"] == patient_id]
-            if not row.empty:
-                # On stocke sous forme JSON : {"module1": [0], "module2": [1]} (indices décochés)
-                json_str = row.iloc[0]["Donnees_Json"]
-                return json.loads(json_str)
-    except: pass
-    return {}
-
-def sauvegarder_etat_devoirs(patient_id, dict_devoirs_exclus):
-    """Sauvegarde l'état des devoirs."""
-    try:
-        from connect_db import save_data, delete_data_flexible
-        delete_data_flexible("Suivi_Devoirs", {"Patient": patient_id})
-        
-        json_str = json.dumps(dict_devoirs_exclus)
-        save_data("Suivi_Devoirs", [patient_id, json_str])
-        return True
-    except Exception as e:
-        st.error(f"Erreur sauvegarde devoirs : {e}")
-        return False
-
-# --- GESTION DES NOTES DE SÉANCE (NOUVEAU) ---
-def charger_notes_seance(patient_id):
-    """Charge les notes textuelles du thérapeute pour chaque module."""
-    try:
-        from connect_db import load_data
-        # On utilise une table 'Notes_Seance' (à créer ou simuler)
-        data = load_data("Notes_Seance")
-        if data:
-            df = pd.DataFrame(data)
-            row = df[df["Patient"] == patient_id]
-            if not row.empty:
-                # Format JSON : {"module1": "Patient va bien...", "module2": "..."}
-                json_str = row.iloc[0]["Donnees_Json"]
-                return json.loads(json_str)
-    except: pass
-    return {}
-
-def sauvegarder_notes_seance(patient_id, dict_notes):
-    """Sauvegarde les notes."""
-    try:
-        from connect_db import save_data, delete_data_flexible
-        delete_data_flexible("Notes_Seance", {"Patient": patient_id})
-        
-        json_str = json.dumps(dict_notes)
-        save_data("Notes_Seance", [patient_id, json_str])
-        return True
-    except Exception as e:
-        st.error(f"Erreur sauvegarde notes : {e}")
-        return False
 
 # =========================================================
 # 2. ÉCRAN DE CONNEXION
