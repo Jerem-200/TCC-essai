@@ -41,7 +41,7 @@ def afficher_vue_patient(patient_id):
     valides, notes_therapeute = charger_suivi_global(patient_id)
     df_history = charger_historique_local(patient_id)
     
-    st.title(f"👋 Espace de {patient_id}")
+    st.title(f"👋 Espace patient")
 
     # 2. NAVIGATION INTELLIGENTE
     # Liste des onglets principaux
