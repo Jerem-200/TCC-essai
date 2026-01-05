@@ -28,18 +28,18 @@ current_user = st.session_state.user_id
 # 3. HEADER
 c1, c2 = st.columns([1, 6])
 with c1:
-    if st.button("⬅️ Retour"): st.switch_page("pages/00_Mon_Parcours.py")
+    if st.button("⬅️ Retour"): 
+        # On signale qu'on veut revenir sur l'onglet outils
+        st.session_state["retour_outils"] = True 
+        st.switch_page("pages/00_Mon_Parcours.py")
 with c2:
     st.header(f"{exo_data['titre']}")
-
-st.info(exo_data['description'])
-st.divider()
 
 # =========================================================
 # LOGIQUE DES OUTILS
 # =========================================================
 
-# --- FONCTION DE SAUVEGARDE (Pour ne pas répéter le code) ---
+# --- FONCTION DE SAUVEGARDE MODIFIÉE ---
 def sauver_et_quitter(payload, nom_exo):
     with st.spinner("Sauvegarde en cours..."):
         # L'IMPORT SE FAIT ICI, UNIQUEMENT QUAND ON CLIQUE !
@@ -47,8 +47,8 @@ def sauver_et_quitter(payload, nom_exo):
         
         if sauvegarder_reponse_hebdo(current_user, f"Exercice - {nom_exo}", "N/A", payload):
             st.toast("✅ Sauvegardé !", icon='🎉')
-            time.sleep(1) # Petit temps pour lire le message
-            st.switch_page("pages/00_Mon_Parcours.py")
+            # ON A SUPPRIMÉ LE SLEEP ET LE SWITCH_PAGE
+            st.success("Exercice sauvegardé ! Vous pouvez continuer à le modifier ou cliquer sur Retour.")
 
 # --- TYPE 1 : FICHE OBJECTIFS ---
 if exo_data["type"] == "fiche_objectifs_traitement":
