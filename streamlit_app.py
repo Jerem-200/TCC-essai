@@ -21,7 +21,7 @@ from visualisations import (
 )
 from protocole_config import PROTOCOLE_BARLOW
 
-# IMPORT DE LA VUE PATIENT CRÉÉE JUSTE AVANT
+# IMPORT DE LA VUE PATIENT
 from vue_patient import afficher_vue_patient
 
 # CONFIGURATION PAGE
@@ -48,6 +48,13 @@ if not st.session_state.authentifie:
                     st.session_state.authentifie = True
                     st.session_state.user_type = "patient"
                     st.session_state.user_id = code 
+                    
+                    # --- RESET NAVIGATION ---
+                    # Pour revenir au tableau de bord à la connexion
+                    if "nav_patient_main" in st.session_state: del st.session_state["nav_patient_main"]
+                    if "nav_proto_sub" in st.session_state: del st.session_state["nav_proto_sub"]
+                    if "target_tab" in st.session_state: del st.session_state["target_tab"]
+                    
                     st.rerun()
                 else: st.error("Code inconnu")
                 
@@ -66,19 +73,91 @@ if not st.session_state.authentifie:
     st.stop()
 
 # =========================================================
-# 2. LOGIQUE PATIENT (Vue Centralisée)
+# 2. LOGIQUE PATIENT (Avec ta Sidebar Riche Restaurée)
 # =========================================================
 if st.session_state.user_type == "patient":
     afficher_vue_patient(st.session_state.user_id)
     
     with st.sidebar:
-        st.write(f"Connecté : {st.session_state.user_id}")
-        if st.button("Se déconnecter"):
+        # 1. Récupération ID Affichage (Ton code)
+        display_id = st.session_state.user_id 
+        try:
+            from connect_db import load_data
+            infos = load_data("Codes_Patients")
+            if infos:
+                df_infos = pd.DataFrame(infos)
+                code_actuel = str(st.session_state.user_id).strip().upper()
+                match = df_infos[df_infos["Identifiant"].astype(str).str.strip().str.upper() == code_actuel]
+                if not match.empty:
+                    col_id = "Identifiant" if "Identifiant" in df_infos.columns else "Commentaire"
+                    display_id = match.iloc[0][col_id]
+        except: pass
+        
+        # 2. Chargement des permissions
+        outils_autorises = charger_outils_autorises(st.session_state.user_id)
+
+        # 3. Affichage Menu
+        st.write(f"👤 ID: **{display_id}**")
+        if st.button("Se déconnecter", key="logout_pat_sidebar"):
             st.session_state.authentifie = False
             st.rerun()
+        st.divider()
+        
+        st.title("Navigation")
+        st.page_link("streamlit_app.py", label="🏠 Accueil")
+        # Note : "Mon Parcours" est maintenant intégré dans l'accueil, mais si tu as gardé la page, on peut laisser le lien
+        # st.info("🎯 **Protocole**")
+        # st.page_link("pages/00_Mon_Parcours.py", label="Mon Parcours", icon="🗺️")
+        st.divider()
+        
+        # --- AGENDAS ---
+        st.caption("📅 Agendas")
+        if "sommeil" in outils_autorises:
+            st.page_link("pages/10_Agenda_Sommeil.py", label="🌙 Sommeil")
+        if "activites" in outils_autorises:
+            st.page_link("pages/05_Registre_Activites.py", label="📝 Activités")
+        if "conso" in outils_autorises:
+            st.page_link("pages/13_Agenda_Consos.py", label="🍷 Consos")
+        if "compulsions" in outils_autorises:
+            st.page_link("pages/14_Agenda_Compulsions.py", label="🛑 Compulsions")
+        
+        # --- OUTILS ---
+        st.caption("🛠️ Outils")
+        if "beck" in outils_autorises:
+            st.page_link("pages/01_Colonnes_Beck.py", label="🧩 Beck")
+        if "sorc" in outils_autorises:
+            st.page_link("pages/12_Analyse_SORC.py", label="🔍 SORC")
+        if "problemes" in outils_autorises:
+            st.page_link("pages/06_Resolution_Probleme.py", label="💡 Problèmes")
+        if "balance" in outils_autorises:
+            st.page_link("pages/11_Balance_Decisionnelle.py", label="⚖️ Balance")
+        if "expo" in outils_autorises:
+            st.page_link("pages/09_Exposition.py", label="🧗 Exposition")
+        if "relax" in outils_autorises:
+            st.page_link("pages/07_Relaxation.py", label="🧘 Relaxation")
+        
+        # --- ÉCHELLES ---
+        st.caption("📊 Échelles")
+        if "phq9" in outils_autorises:
+            st.page_link("pages/15_Echelle_PHQ9.py", label="📊 PHQ-9")
+        if "gad7" in outils_autorises:
+            st.page_link("pages/16_Echelle_GAD7.py", label="📊 GAD-7")
+        if "who5" in outils_autorises:
+            st.page_link("pages/20_Echelle_WHO5.py", label="📊 WHO-5")
+        if "isi" in outils_autorises:
+            st.page_link("pages/17_Echelle_ISI.py", label="📊 ISI")
+        if "peg" in outils_autorises:
+            st.page_link("pages/18_Echelle_PEG.py", label="📊 PEG")
+        if "wsas" in outils_autorises:
+            st.page_link("pages/19_Echelle_WSAS.py", label="📊 WSAS")
+        
+        # --- BILAN ---
+        st.caption("📜 Bilan")
+        st.page_link("pages/04_Historique.py", label="Historique")
+        st.page_link("pages/08_Export_Rapport.py", label="Export PDF")
 
 # =========================================================
-# 3. LOGIQUE THÉRAPEUTE (Code Restauré)
+# 3. LOGIQUE THÉRAPEUTE (Avec Correction Icones)
 # =========================================================
 elif st.session_state.user_type == "therapeute":
     st.title("🩺 Espace Thérapeute")
@@ -109,10 +188,9 @@ elif st.session_state.user_type == "therapeute":
             st.write(" ")
             if st.button("Générer accès"):
                 ac_code = generer_code_securise("TCC")
-                from connect_db import save_data # Import local si besoin
+                from connect_db import save_data 
                 save_data("Codes_Patients", [ac_code, st.session_state.user_id, id_dossier, str(datetime.now().date())])
                 st.success(f"Créé : {id_dossier} -> Code : {ac_code}")
-                # Reset cache
                 if "liste_patients_cache" in st.session_state: del st.session_state.liste_patients_cache
                 recuperer_mes_patients.clear()
                 time.sleep(1)
@@ -130,7 +208,6 @@ elif st.session_state.user_type == "therapeute":
             # --- GESTION DES OUTILS ---
             outils_autorises = charger_outils_autorises(patient_sel)
             
-            # Définition locale de la Map
             MAP_OUTILS = {
                 "🌙 Agenda Sommeil": "sommeil", "📝 Registre Activités": "activites",
                 "🍷 Agenda Consos": "conso", "🛑 Agenda Compulsions": "compulsions",
@@ -156,25 +233,23 @@ elif st.session_state.user_type == "therapeute":
 
             st.divider()
 
-# --- PILOTAGE PROTOCOLE (CORRIGÉ) ---
+            # --- PILOTAGE PROTOCOLE (VUE CORRIGÉE) ---
             with st.expander("🗺️ Pilotage du Protocole (Barlow)", expanded=True):
                 progression = charger_progression(patient_sel)
                 devoirs = charger_etat_devoirs(patient_sel)
                 valides, notes = charger_suivi_global(patient_sel)
 
-                # Barre progression
                 st.progress(len(valides) / len(PROTOCOLE_BARLOW))
 
                 for code_mod, data in PROTOCOLE_BARLOW.items():
-                    # 1. DÉFINITION DE L'ICÔNE DU TITRE (GAUCHE)
+                    # ICONE D'ÉTAT : ✅ Fait | 🟦 En cours (Accessible) | 🔒 Bloqué
                     if code_mod in valides:
-                        icon = "✅"  # Fait
+                        icon = "✅"
                     elif code_mod in progression:
-                        icon = "🟦"  # En cours
+                        icon = "🟦"
                     else:
-                        icon = "🔒"  # Bloqué
+                        icon = "🔒"
                     
-                    # Colonnes : Titre à gauche (90%), Bouton à droite (10%)
                     c_titre, c_lock = st.columns([0.9, 0.1])
                     
                     with c_titre:
@@ -186,21 +261,16 @@ elif st.session_state.user_type == "therapeute":
                                         with open(p, "rb") as f:
                                             st.download_button(f"📥 {os.path.basename(p)}", f, file_name=os.path.basename(p), key=f"dl_th_{patient_sel}_{code_mod}_{os.path.basename(p)}")
                     
-                    # 2. LOGIQUE DU BOUTON (DROITE) - MODE "INTERRUPTEUR"
                     with c_lock:
                         if code_mod in progression:
-                            # CAS : Le module est ACCESSIBLE
-                            # On affiche un cadenas OUVERT 🔓 pour montrer l'état actuel.
-                            # Cliquer dessus va le BLOQUER.
-                            if st.button("🔓", key=f"btn_state_open_{patient_sel}_{code_mod}", help="Actuellement OUVERT. Cliquer pour BLOQUER."):
+                            # BOUTON "OUVERT" -> Pour Bloquer
+                            if st.button("🔓", key=f"btn_st_op_{patient_sel}_{code_mod}", help="Accessible. Cliquer pour BLOQUER."):
                                 progression.remove(code_mod)
                                 sauvegarder_progression(patient_sel, progression)
                                 st.rerun()
                         else:
-                            # CAS : Le module est BLOQUÉ
-                            # On affiche un cadenas FERMÉ 🔒 (en rouge/primaire) pour montrer l'état.
-                            # Cliquer dessus va le DÉBLOQUER.
-                            if st.button("🔒", key=f"btn_state_lock_{patient_sel}_{code_mod}", type="primary", help="Actuellement VERROUILLÉ. Cliquer pour DÉBLOQUER."):
+                            # BOUTON "FERMÉ" -> Pour Débloquer
+                            if st.button("🔒", key=f"btn_st_lo_{patient_sel}_{code_mod}", type="primary", help="Verrouillé. Cliquer pour DÉBLOQUER."):
                                 progression.append(code_mod)
                                 sauvegarder_progression(patient_sel, progression)
                                 st.rerun()
