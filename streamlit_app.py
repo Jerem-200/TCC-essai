@@ -48,12 +48,6 @@ if not st.session_state.authentifie:
                     st.session_state.authentifie = True
                     st.session_state.user_type = "patient"
                     st.session_state.user_id = code 
-                    
-                    # Nettoyage navigation
-                    if "nav_patient_main" in st.session_state: del st.session_state["nav_patient_main"]
-                    if "nav_proto_sub" in st.session_state: del st.session_state["nav_proto_sub"]
-                    if "target_tab" in st.session_state: del st.session_state["target_tab"]
-                    
                     st.rerun()
                 else: st.error("Code inconnu")
                 
@@ -84,7 +78,7 @@ if st.session_state.user_type == "patient":
             st.rerun()
 
 # =========================================================
-# 3. LOGIQUE THÉRAPEUTE
+# 3. LOGIQUE THÉRAPEUTE (Code Restauré)
 # =========================================================
 elif st.session_state.user_type == "therapeute":
     st.title("🩺 Espace Thérapeute")
@@ -115,9 +109,10 @@ elif st.session_state.user_type == "therapeute":
             st.write(" ")
             if st.button("Générer accès"):
                 ac_code = generer_code_securise("TCC")
-                from connect_db import save_data 
+                from connect_db import save_data # Import local si besoin
                 save_data("Codes_Patients", [ac_code, st.session_state.user_id, id_dossier, str(datetime.now().date())])
                 st.success(f"Créé : {id_dossier} -> Code : {ac_code}")
+                # Reset cache
                 if "liste_patients_cache" in st.session_state: del st.session_state.liste_patients_cache
                 recuperer_mes_patients.clear()
                 time.sleep(1)
@@ -135,6 +130,7 @@ elif st.session_state.user_type == "therapeute":
             # --- GESTION DES OUTILS ---
             outils_autorises = charger_outils_autorises(patient_sel)
             
+            # Définition locale de la Map
             MAP_OUTILS = {
                 "🌙 Agenda Sommeil": "sommeil", "📝 Registre Activités": "activites",
                 "🍷 Agenda Consos": "conso", "🛑 Agenda Compulsions": "compulsions",
@@ -208,7 +204,9 @@ elif st.session_state.user_type == "therapeute":
                                 progression.append(code_mod)
                                 sauvegarder_progression(patient_sel, progression)
                                 st.rerun()
-                                
+
+            st.divider()
+
             # --- VISUALISATION ---
             st.subheader("📊 Visualisation des Données")
             
