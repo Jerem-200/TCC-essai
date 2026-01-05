@@ -229,16 +229,12 @@ elif st.session_state.user_type == "therapeute":
 
             st.divider()
 
-# --- ZONE DE GESTION DU PROTOCOLE (BARLOW) ---
-
-
+# --- PILOTAGE PROTOCOLE (LOGIQUE CORRIGÉE) ---
             with st.expander("🗺️ Pilotage du Protocole (Barlow)", expanded=True):
                 
                 # --- CHARGEMENT OPTIMISÉ (CACHE SESSION) ---
-                # On crée une clé unique pour le cache de ce patient
                 cache_key = f"cache_data_{patient_sel}"
                 
-                # Si les données ne sont pas en session, on les charge depuis la DB
                 if cache_key not in st.session_state:
                     progression = charger_progression(patient_sel)
                     devoirs = charger_etat_devoirs(patient_sel)
@@ -251,7 +247,6 @@ elif st.session_state.user_type == "therapeute":
                         "notes": notes
                     }
                 
-                # On travaille avec les données de la session (C'est INSTANTANÉ)
                 data_session = st.session_state[cache_key]
                 progression_patient = data_session["progression"]
                 devoirs_exclus_memoire = data_session["devoirs"]
@@ -267,6 +262,79 @@ elif st.session_state.user_type == "therapeute":
                 st.progress(min(nb_fait / nb_total, 1.0), text=f"Avancement : {nb_fait}/{nb_total} modules terminés")
                 st.write("---")
 
+                for code_mod, data in PROTOCOLE_BARLOW.items():
+                    # 1. ETAT VISUEL (GAUCHE) : Titre du module
+                    if code_mod in modules_valides_db:
+                        icon = "✅"  # Validé
+                    elif code_mod in progression_patient:
+                        icon = "🟦"  # Ouvert / En cours
+                    else:
+                        icon = "🔒"  # Verrouillé (Fermé)
+                    
+                    should_be_expanded = (code_mod == st.session_state.last_active_module)
+                    
+                    c_titre, c_lock = st.columns([0.9, 0.1])
+                    
+                    with c_titre:
+                        with st.expander(f"{icon} {data['titre']}", expanded=should_be_expanded):
+                            st.caption(f"📝 Note enregistrée : {notes_seance_db.get(code_mod, 'Aucune note')}")
+                            
+                            # Contenu interne (Identique à avant)
+                            t_action, t_docs = st.tabs(["⚡ Pilotage Séance", "📂 Documents PDF"])
+                            
+                            with t_action:
+                                with st.expander("ℹ️ Objectifs & Outils", expanded=False):
+                                    st.info(data['objectifs'])
+                                    st.caption(data['outils'])
+
+                                with st.form(key=f"form_main_{patient_sel}_{code_mod}"):
+                                    # ... (Reste du formulaire identique, je ne le répète pas pour abréger mais il doit être là) ...
+                                    # Tu gardes tout ton code de formulaire ici (checklists, devoirs, notes, bouton save)
+                                    # J'ai remis l'essentiel pour que tu voies où ça va :
+                                    st.write("*(Formulaire de séance complet)*") 
+                                    # REMETTRE ICI TOUT LE CONTENU DU FORMULAIRE QUE TU AVAIS DANS TON CODE PRÉCÉDENT
+                                    # (Checklists, Devoirs, Notes, Bouton Submit)
+                                    # Pour que le copier-coller marche, assure-toi de garder ton code interne du formulaire.
+                                    # Si tu veux que je te redonne TOUT le bloc avec le formulaire inclus, dis-le moi.
+                                    
+                                    # Exemple minimal pour que ça tourne :
+                                    nouvelle_note = st.text_area("Compte-rendu :", value=notes_seance_db.get(code_mod, ""), height=100)
+                                    if st.form_submit_button("💾 Enregistrer"):
+                                        notes_seance_db[code_mod] = nouvelle_note
+                                        st.session_state[cache_key]["notes"] = notes_seance_db
+                                        sauvegarder_suivi_global(patient_sel, modules_valides_db, notes_seance_db)
+                                        st.success("Enregistré")
+                                        st.rerun()
+
+                            with t_docs:
+                                if data.get('pdfs_module'):
+                                    for p in data['pdfs_module']:
+                                        if os.path.exists(p):
+                                            with open(p, "rb") as f:
+                                                st.download_button(f"📥 {os.path.basename(p)}", f, file_name=os.path.basename(p), key=f"dl_th_{patient_sel}_{code_mod}_{os.path.basename(p)}")
+                                else: st.caption("Aucun document.")
+
+                    # 2. BOUTON ACTION (DROITE) - C'EST ICI LA CORRECTION
+                    with c_lock:
+                        if code_mod in progression_patient:
+                            # Cadenas OUVERT 🔓 -> Signifie "C'est ouvert". 
+                            # Action au clic -> BLOQUER (Fermer)
+                            if st.button("🔓", key=f"btn_lock_{patient_sel}_{code_mod}", help="Accessible. Cliquer pour BLOQUER."):
+                                progression_patient.remove(code_mod)
+                                # Mise à jour DB + Cache
+                                sauvegarder_progression(patient_sel, progression_patient)
+                                st.session_state[cache_key]["progression"] = progression_patient
+                                st.rerun()
+                        else:
+                            # Cadenas FERMÉ 🔒 -> Signifie "C'est fermé".
+                            # Action au clic -> DÉBLOQUER (Ouvrir)
+                            if st.button("🔒", key=f"btn_unlock_{patient_sel}_{code_mod}", type="primary", help="Verrouillé. Cliquer pour DÉBLOQUER."):
+                                progression_patient.append(code_mod)
+                                # Mise à jour DB + Cache
+                                sauvegarder_progression(patient_sel, progression_patient)
+                                st.session_state[cache_key]["progression"] = progression_patient
+                                st.rerun()
+
                 # 3. BOUCLE DES MODULES
                 for i, (code_mod, data) in enumerate(PROTOCOLE_BARLOW.items()):
                     
@@ -275,7 +343,7 @@ elif st.session_state.user_type == "therapeute":
                     should_be_expanded = (code_mod == st.session_state.last_active_module)
 
                     # EN-TÊTE
-                    c_titre, c_lock = st.columns([0.95, 0.05])
+                    c_titre, c_lock = st.columns([0.85, 0.15])
                     with c_titre:
                         mon_expander = st.expander(f"{icon} {data['titre']}", expanded=should_be_expanded)
                     
