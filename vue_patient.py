@@ -45,20 +45,42 @@ def afficher_vue_patient(patient_id):
     
     st.title(f"👋 Espace de {patient_id}")
 
-    # 2. NAVIGATION PRINCIPALE (GRANDS ONGLETS)
-    onglets = st.tabs([
+    # 2. NAVIGATION PRINCIPALE (STABLE)
+    # On définit les onglets
+    liste_onglets = [
         "🏠 Tableau de Bord", 
         "🗺️ Protocole", 
         "📅 Agendas", 
         "🛠️ Outils & Exos", 
         "📊 Échelles", 
         "📤 Export"
-    ])
+    ]
+    
+    # Gestion du retour forcé (depuis un exercice par exemple)
+    cible = st.session_state.get("target_tab", None)
+    if cible and cible in liste_onglets:
+        st.session_state["nav_patient_main"] = cible
+        st.session_state["target_tab"] = None 
+
+    # Initialisation de la session si besoin
+    if "nav_patient_main" not in st.session_state:
+        st.session_state["nav_patient_main"] = liste_onglets[0]
+
+    # LE MENU RADIO (C'est lui qui contrôle la page active)
+    # L'argument 'key' est CRUCIAL pour ne pas revenir à l'accueil
+    onglet_actif = st.radio(
+        "Menu Principal", 
+        liste_onglets, 
+        horizontal=True, 
+        label_visibility="collapsed",
+        key="nav_patient_main" 
+    )
+    st.divider()
 
     # ======================================================
-    # ONGLET 1 : TABLEAU DE BORD
+    # VUE 1 : TABLEAU DE BORD
     # ======================================================
-    with onglets[0]:
+    if onglet_actif == "🏠 Tableau de Bord":
         st.markdown("### 📌 Ma situation aujourd'hui")
         c1, c2, c3 = st.columns(3)
         nb_valides = len(valides)
@@ -86,12 +108,12 @@ def afficher_vue_patient(patient_id):
                 st.rerun()
 
     # ======================================================
-    # ONGLET 2 : PROTOCOLE (SOUS-ONGLETS SLIDE)
+    # VUE 2 : PROTOCOLE (SOUS-ONGLETS SLIDE)
     # ======================================================
-    with onglets[1]:
+    elif onglet_actif == "🗺️ Protocole":
         st.header("🗺️ Mon Parcours TCC")
         
-        # CRÉATION DES 4 SOUS-ONGLETS
+        # 1. CRÉATION DES 4 SOUS-ONGLETS (Type Slide)
         sub_tab_prog, sub_tab_outils, sub_tab_bilan, sub_tab_histo = st.tabs([
             "📍 Progression", 
             "🚀 Lanceur Rapide", 
@@ -100,7 +122,7 @@ def afficher_vue_patient(patient_id):
         ])
 
         # -------------------------------------------------
-        # A. VUE PROGRESSION
+        # A. SOUS-ONGLET : PROGRESSION
         # -------------------------------------------------
         with sub_tab_prog:
             st.markdown("### 📍 Mon cheminement")
@@ -160,56 +182,42 @@ def afficher_vue_patient(patient_id):
                         st.divider()
 
         # -------------------------------------------------
-        # B. SOUS-ONGLET : LANCEUR RAPIDE (Version Allégée & Triée)
+        # B. SOUS-ONGLET : LANCEUR RAPIDE (Redirection Exos)
         # -------------------------------------------------
         with sub_tab_outils:
             st.subheader("🚀 Accès rapide aux outils")
             st.caption("Retrouvez ici tous les exercices débloqués, classés par module.")
-            st.write("") # Petit espace
+            st.write("")
 
-            # 1. On parcourt le protocole DANS L'ORDRE pour récupérer les exos
             exos_trouves = False
-            
             for code_mod, data in PROTOCOLE_BARLOW.items():
-                # On ne montre que si le module est débloqué dans la progression du patient
                 if code_mod in progression:
                     if "exercices" in data and data["exercices"]:
-                        
-                        # Petite entête discrète pour le module (Optionnel, supprime si tu veux encore plus léger)
-                        # st.markdown(f"**{data['titre']}**") 
-                        
                         for i, exo in enumerate(data["exercices"]):
                             exos_trouves = True
-                            
-                            # Mise en page : Texte à gauche, Bouton à droite
                             c_txt, c_btn = st.columns([5, 1])
-                            
                             with c_txt:
-                                # Titre en gras + Nom du module en gris
                                 st.markdown(f"🔹 **{exo['titre']}** <small style='color:grey'>({data['titre']})</small>", unsafe_allow_html=True)
-                            
                             with c_btn:
-                                # Bouton simple "Ouvrir"
-                                # On crée une clé unique basée sur le module et l'index de l'exo
                                 key_btn = f"btn_light_{code_mod}_{i}"
                                 if st.button("Ouvrir", key=key_btn, use_container_width=True):
-                                    # Redirection vers la page spécialisée
                                     st.session_state["exercice_actif"] = {"mod_code": code_mod, "exo_data": exo}
                                     st.switch_page("pages/21_Barlow_Exercice.py")
-                            
-                            # Une ligne fine de séparation pour aérer
                             st.divider()
 
             if not exos_trouves:
-                st.info("Aucun exercice disponible pour le moment.")
-                st.caption("Avancez dans l'onglet 'Progression' pour débloquer vos premiers outils.")
+                st.info("Aucun exercice disponible.")
+                st.caption("Avancez dans les modules pour débloquer des outils.")
 
         # -------------------------------------------------
-        # C. VUE BILAN HEBDO
+        # C. SOUS-ONGLET : BILAN HEBDO
         # -------------------------------------------------
         with sub_tab_bilan:
             st.subheader("Bilan Hebdomadaire")
-            choix_q = st.selectbox("Questionnaire :", list(QUESTIONS_HEBDO.keys()))
+            
+            # Ajout d'une clé (key) pour stabiliser le selectbox
+            choix_q = st.selectbox("Questionnaire :", list(QUESTIONS_HEBDO.keys()), key="sb_bilan_hebdo")
+            
             if choix_q:
                 cfg = QUESTIONS_HEBDO[choix_q]
                 with st.container(border=True):
@@ -243,7 +251,7 @@ def afficher_vue_patient(patient_id):
                             st.rerun()
 
         # -------------------------------------------------
-        # D. VUE HISTORIQUE
+        # D. SOUS-ONGLET : HISTORIQUE
         # -------------------------------------------------
         with sub_tab_histo:
             st.subheader("Historique")
@@ -269,9 +277,9 @@ def afficher_vue_patient(patient_id):
             else: st.info("Historique vide.")
 
     # ======================================================
-    # ONGLET 3 : LES 4 AGENDAS
+    # VUE 3 : AGENDAS
     # ======================================================
-    with onglets[2]:
+    elif onglet_actif == "📅 Agendas":
         st.header("📅 Mes Agendas de suivi")
         col_a1, col_a2 = st.columns(2)
         with col_a1:
@@ -286,9 +294,9 @@ def afficher_vue_patient(patient_id):
                 if st.button("🛑 Agenda Compulsions", use_container_width=True): st.switch_page("pages/14_Agenda_Compulsions.py")
 
     # ======================================================
-    # ONGLET 4 : BOITE À OUTILS
+    # VUE 4 : OUTILS
     # ======================================================
-    with onglets[3]:
+    elif onglet_actif == "🛠️ Outils & Exos":
         st.header("🛠️ Boîte à outils")
         c1, c2, c3 = st.columns(3)
         with c1:
@@ -308,9 +316,9 @@ def afficher_vue_patient(patient_id):
                 if st.button("🧘 Relaxation", use_container_width=True): st.switch_page("pages/07_Relaxation.py")
 
     # ======================================================
-    # ONGLET 5 : ÉCHELLES
+    # VUE 5 : ÉCHELLES
     # ======================================================
-    with onglets[4]:
+    elif onglet_actif == "📊 Échelles":
         st.header("📊 Mesures")
         liste_ech = [("phq9", "PHQ-9"), ("gad7", "GAD-7"), ("who5", "WHO-5"), ("isi", "ISI"), ("peg", "PEG"), ("wsas", "WSAS")]
         cols = st.columns(3)
@@ -322,8 +330,8 @@ def afficher_vue_patient(patient_id):
                         st.switch_page(f"pages/{page_map[code]}_Echelle_{code.upper()}.py")
 
     # ======================================================
-    # ONGLET 6 : EXPORT
+    # VUE 6 : EXPORT
     # ======================================================
-    with onglets[5]:
+    elif onglet_actif == "📤 Export":
         st.header("📤 Export")
         if st.button("Générer PDF", type="primary"): st.switch_page("pages/08_Export_Rapport.py")
