@@ -6,7 +6,6 @@ import json
 import altair as alt
 from datetime import datetime
 
-# Imports Configuration & DB
 from protocole_config import PROTOCOLE_BARLOW, QUESTIONS_HEBDO
 from connect_db import (
     charger_progression, charger_etat_devoirs, charger_suivi_global,
@@ -15,7 +14,6 @@ from connect_db import (
     sauvegarder_reponse_hebdo, supprimer_reponse, load_data
 )
 
-# Cache local pour l'historique (Utilisé dans l'onglet Historique et le Protocole)
 @st.cache_data(ttl=300)
 def charger_historique_local(uid):
     raw = load_data("Reponses_Hebdo")
@@ -36,9 +34,8 @@ def charger_historique_local(uid):
 
 def afficher_vue_patient(patient_id):
     
-    # 1. CHARGEMENT DONNÉES GLOBALES
+    # 1. DONNÉES
     outils_autorises = charger_outils_autorises(patient_id)
-    # On charge les données spécifiques pour le protocole ici aussi pour les avoir dispos
     progression = charger_progression(patient_id)
     devoirs = charger_etat_devoirs(patient_id)
     valides, notes_therapeute = charger_suivi_global(patient_id)
@@ -46,20 +43,32 @@ def afficher_vue_patient(patient_id):
     
     st.title(f"👋 Espace de {patient_id}")
 
-    # 2. NAVIGATION PRINCIPALE (Tes grands onglets)
-    onglets = st.tabs([
+    # 2. NAVIGATION INTELLIGENTE
+    # Liste des onglets principaux
+    liste_onglets = [
         "🏠 Tableau de Bord", 
-        "🗺️ Protocole & Suivi",  # C'est ici qu'on va remettre tes 4 sous-onglets
+        "🗺️ Protocole", 
         "📅 Agendas", 
         "🛠️ Outils & Exos", 
         "📊 Échelles", 
         "📤 Export"
-    ])
+    ]
+    
+    # Calcul de l'index par défaut selon d'où on vient
+    default_idx = 0
+    cible = st.session_state.get("target_tab", None)
+    if cible in liste_onglets:
+        default_idx = liste_onglets.index(cible)
+        st.session_state["target_tab"] = None # On reset après utilisation
+
+    # On utilise Radio au lieu de Tabs pour contrôler l'index
+    onglet_actif = st.radio("Menu Principal", liste_onglets, index=default_idx, horizontal=True, label_visibility="collapsed")
+    st.divider()
 
     # ======================================================
-    # ONGLET 1 : TABLEAU DE BORD (Accueil + Note Séance)
+    # VUE 1 : TABLEAU DE BORD
     # ======================================================
-    with onglets[0]:
+    if onglet_actif == "🏠 Tableau de Bord":
         st.markdown("### 📌 Ma situation aujourd'hui")
         c1, c2, c3 = st.columns(3)
         nb_valides = len(valides)
@@ -69,16 +78,14 @@ def afficher_vue_patient(patient_id):
         with c2:
             st.metric("Outils Débloqués", f"{len(outils_autorises)}")
         with c3:
-            st.info("💡 **Conseil du jour** : N'oubliez pas de remplir votre bilan hebdo.")
+            st.info("💡 **Conseil** : Pensez à votre bilan hebdo.")
 
         st.divider()
-
         st.subheader("📒 Mon Journal de Séance")
         with st.form("form_note_seance"):
             col_d, col_t = st.columns([1, 3])
             with col_d: date_note = st.date_input("Date", value=datetime.now())
             with col_t: contenu_note = st.text_area("Résumé :", height=100)
-            
             if st.form_submit_button("💾 Enregistrer"):
                 payload = {"type": "note_personnelle", "contenu": contenu_note}
                 sauvegarder_reponse_hebdo(patient_id, f"Note Séance - {date_note}", "Perso", payload)
@@ -87,25 +94,25 @@ def afficher_vue_patient(patient_id):
                 st.rerun()
 
     # ======================================================
-    # ONGLET 2 : PROTOCOLE (AVEC TES 4 SOUS-ONGLETS)
+    # VUE 2 : PROTOCOLE (Structure imbriquée)
     # ======================================================
-    with onglets[1]:
+    elif onglet_actif == "🗺️ Protocole":
         st.header("🗺️ Mon Parcours TCC")
         
-        # ICI : On recrée ta structure "Radio" horizontale interne
+        # Sous-menus du protocole
         sous_onglets = ["📍 Progression", "🚀 Lanceur Rapide", "📝 Bilan Hebdo", "📜 Historique"]
         
-        # Gestion du retour depuis un exercice
-        idx_defaut = 0
-        if st.session_state.get("retour_outils", False):
-            idx_defaut = 1
+        # Gestion du retour "Lanceur rapide"
+        idx_sub = 0
+        if st.session_state.get("retour_outils", False): # Ancien drapeau si tu l'utilises encore
+            idx_sub = 1
             st.session_state["retour_outils"] = False
             
-        choix_sous_onglet = st.radio("Navigation Protocole", sous_onglets, index=idx_defaut, horizontal=True, label_visibility="collapsed")
-        st.divider()
+        choix_sub = st.radio("Sous-menu", sous_onglets, index=idx_sub, horizontal=True)
+        st.write("")
 
-        # --- SOUS-ONGLET 1 : PROGRESSION ---
-        if choix_sous_onglet == "📍 Progression":
+        # --- A. PROGRESSION ---
+        if choix_sub == "📍 Progression":
             if "last_active_module" not in st.session_state: st.session_state.last_active_module = "module0"
 
             for code_mod, data in PROTOCOLE_BARLOW.items():
@@ -121,7 +128,7 @@ def afficher_vue_patient(patient_id):
                             st.info(f"**Objectifs :** {data['objectifs']}")
                             with st.form(key=f"form_proto_{code_mod}"):
                                 checklist_results = []
-                                # ... (Logique Formulaire identique à avant) ...
+                                
                                 if data['examen_devoirs']:
                                     st.markdown("**1️⃣ Retour sur les tâches**")
                                     for idx, task in enumerate(data['examen_devoirs']):
@@ -155,6 +162,7 @@ def afficher_vue_patient(patient_id):
                                         exclus = [k for k, v in enumerate(liste_devoirs_temp) if not v]
                                         devoirs[code_mod] = exclus
                                         sauvegarder_etat_devoirs(patient_id, devoirs)
+                                    
                                     notes_therapeute[code_mod] = nouvelle_note
                                     
                                     all_ok = all(checklist_results) if checklist_results else True
@@ -166,6 +174,14 @@ def afficher_vue_patient(patient_id):
                                     time.sleep(0.5)
                                     st.rerun()
 
+                            # Boutons Exercices (Clés uniques !)
+                            if data.get('exercices'):
+                                st.info("👇 **Outils pour ce module :**")
+                                for k, exo in enumerate(data['exercices']):
+                                    if st.button(f"🚀 Lancer : {exo['titre']}", key=f"btn_nav_exo_{code_mod}_{k}"):
+                                        st.session_state["exercice_actif"] = {"mod_code": code_mod, "exo_data": exo}
+                                        st.switch_page("pages/21_Barlow_Exercice.py")
+
                         with t_docs:
                             if data.get('pdfs_module'):
                                 for p in data['pdfs_module']:
@@ -176,25 +192,26 @@ def afficher_vue_patient(patient_id):
                 else:
                     with st.container(): st.write(f"🔒 **{data['titre']}** (Verrouillé)"); st.divider()
 
-        # --- SOUS-ONGLET 2 : LANCEUR RAPIDE ---
-        elif choix_sous_onglet == "🚀 Lanceur Rapide":
+        # --- B. LANCEUR RAPIDE ---
+        elif choix_sub == "🚀 Lanceur Rapide":
+            st.subheader("Accès direct aux outils")
             liste_exos_dispos = []
             for m in progression:
                 if m in PROTOCOLE_BARLOW and "exercices" in PROTOCOLE_BARLOW[m]:
                     for exo in PROTOCOLE_BARLOW[m]["exercices"]:
                         liste_exos_dispos.append({"mod_code": m, "exo_data": exo})
             
-            if not liste_exos_dispos:
-                st.warning("Aucun exercice disponible pour le moment.")
+            if not liste_exos_dispos: st.warning("Aucun outil débloqué.")
             else:
                 for k, item in enumerate(liste_exos_dispos):
                     exo = item["exo_data"]
-                    if st.button(f"👉 {item['mod_code']} - {exo['titre']}", key=f"btn_rapide_{k}", use_container_width=True):
+                    if st.button(f"👉 {item['mod_code']} - {exo['titre']}", key=f"btn_fast_{k}", use_container_width=True):
                         st.session_state["exercice_actif"] = item
                         st.switch_page("pages/21_Barlow_Exercice.py")
 
-        # --- SOUS-ONGLET 3 : BILAN HEBDO ---
-        elif choix_sous_onglet == "📝 Bilan Hebdo":
+        # --- C. BILAN HEBDO ---
+        elif choix_sub == "📝 Bilan Hebdo":
+            st.subheader("Bilan Hebdomadaire")
             choix_q = st.selectbox("Questionnaire :", list(QUESTIONS_HEBDO.keys()))
             if choix_q:
                 cfg = QUESTIONS_HEBDO[choix_q]
@@ -215,21 +232,20 @@ def afficher_vue_patient(patient_id):
                         st.success("Sauvegardé !")
                         charger_historique_local.clear()
 
-        # --- SOUS-ONGLET 4 : HISTORIQUE ---
-        elif choix_sous_onglet == "📜 Historique":
+        # --- D. HISTORIQUE ---
+        elif choix_sub == "📜 Historique":
+            st.subheader("Historique")
             if not df_history.empty:
-                # Graphique
                 df_charts = df_history[~df_history["Questionnaire"].str.contains("Exercice", na=False)]
                 if not df_charts.empty:
                     chart = alt.Chart(df_charts).mark_line(point=True).encode(x='Date', y='Score_Global', color='Type').interactive()
                     st.altair_chart(chart, use_container_width=True)
                 
-                # Liste
                 for idx, row in df_history.sort_values("Date", ascending=False).iterrows():
                     with st.expander(f"{row['Date'].strftime('%d/%m')} - {row['Questionnaire']}"):
                         c_del, c_cont = st.columns([1, 5])
                         with c_del:
-                            if st.button("🗑️", key=f"del_h_proto_{idx}"):
+                            if st.button("🗑️", key=f"del_h_p_{idx}"):
                                 supprimer_reponse(patient_id, row["Date"], row["Questionnaire"])
                                 charger_historique_local.clear()
                                 st.rerun()
@@ -239,10 +255,10 @@ def afficher_vue_patient(patient_id):
             else: st.info("Historique vide.")
 
     # ======================================================
-    # ONGLET 3 : LES 4 AGENDAS
+    # VUE 3 : AGENDAS
     # ======================================================
-    with onglets[2]:
-        st.header("📅 Mes Agendas de suivi")
+    elif onglet_actif == "📅 Agendas":
+        st.header("📅 Mes Agendas")
         col_a1, col_a2 = st.columns(2)
         with col_a1:
             if "sommeil" in outils_autorises:
@@ -256,9 +272,9 @@ def afficher_vue_patient(patient_id):
                 if st.button("🛑 Agenda Compulsions", use_container_width=True): st.switch_page("pages/14_Agenda_Compulsions.py")
 
     # ======================================================
-    # ONGLET 4 : BOITE À OUTILS
+    # VUE 4 : OUTILS
     # ======================================================
-    with onglets[3]:
+    elif onglet_actif == "🛠️ Outils & Exos":
         st.header("🛠️ Boîte à outils")
         c1, c2, c3 = st.columns(3)
         with c1:
@@ -278,23 +294,23 @@ def afficher_vue_patient(patient_id):
                 if st.button("🧘 Relaxation", use_container_width=True): st.switch_page("pages/07_Relaxation.py")
 
     # ======================================================
-    # ONGLET 5 : ÉCHELLES
+    # VUE 5 : ÉCHELLES
     # ======================================================
-    with onglets[4]:
+    elif onglet_actif == "📊 Échelles":
         st.header("📊 Mesures")
         liste_ech = [("phq9", "PHQ-9"), ("gad7", "GAD-7"), ("who5", "WHO-5"), ("isi", "ISI"), ("peg", "PEG"), ("wsas", "WSAS")]
         cols = st.columns(3)
         for i, (code, titre) in enumerate(liste_ech):
             if code in outils_autorises:
                 with cols[i%3]:
+                    # Map manuel des pages si besoin
+                    page_map = {"phq9": "15", "gad7": "16", "isi": "17", "peg": "18", "wsas": "19", "who5": "20"}
                     if st.button(titre, key=f"btn_e_{code}", use_container_width=True): 
-                        # Mappage simple des pages, à adapter si besoin
-                        page_map = {"phq9": "15", "gad7": "16", "isi": "17", "peg": "18", "wsas": "19", "who5": "20"}
                         st.switch_page(f"pages/{page_map[code]}_Echelle_{code.upper()}.py")
 
     # ======================================================
-    # ONGLET 6 : EXPORT
+    # VUE 6 : EXPORT
     # ======================================================
-    with onglets[5]:
+    elif onglet_actif == "📤 Export":
         st.header("📤 Export")
         if st.button("Générer PDF", type="primary"): st.switch_page("pages/08_Export_Rapport.py")

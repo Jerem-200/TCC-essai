@@ -29,9 +29,9 @@ current_user = st.session_state.user_id
 c1, c2 = st.columns([1, 6])
 with c1:
     if st.button("⬅️ Retour"): 
-        # On signale qu'on veut revenir sur l'onglet outils
-        st.session_state["retour_outils"] = True 
-        st.switch_page("pages/00_Mon_Parcours.py")
+        # On dit qu'on veut revenir sur l'onglet Protocole
+        st.session_state["target_tab"] = "🗺️ Protocole" 
+        st.switch_page("streamlit_app.py")
 with c2:
     st.header(f"{exo_data['titre']}")
 
@@ -42,13 +42,14 @@ with c2:
 # --- FONCTION DE SAUVEGARDE MODIFIÉE ---
 def sauver_et_quitter(payload, nom_exo):
     with st.spinner("Sauvegarde en cours..."):
-        # L'IMPORT SE FAIT ICI, UNIQUEMENT QUAND ON CLIQUE !
         from connect_db import sauvegarder_reponse_hebdo
         
         if sauvegarder_reponse_hebdo(current_user, f"Exercice - {nom_exo}", "N/A", payload):
             st.toast("✅ Sauvegardé !", icon='🎉')
-            # ON A SUPPRIMÉ LE SLEEP ET LE SWITCH_PAGE
-            st.success("Exercice sauvegardé ! Vous pouvez continuer à le modifier ou cliquer sur Retour.")
+            time.sleep(1)
+            # On force le retour sur l'onglet Protocole
+            st.session_state["target_tab"] = "🗺️ Protocole"
+            st.switch_page("streamlit_app.py") # <--- ON RENVOIE VERS L'ACCUEIL GLOBAL
 
 # --- TYPE 1 : FICHE OBJECTIFS ---
 if exo_data["type"] == "fiche_objectifs_traitement":
