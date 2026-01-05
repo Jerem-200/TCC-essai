@@ -161,10 +161,12 @@ def afficher_vue_patient(patient_id):
                         st.divider()
 
         # -------------------------------------------------
-        # B. SOUS-ONGLET : LANCEUR RAPIDE
+        # B. SOUS-ONGLET : LANCEUR RAPIDE (Version Déroulante)
         # -------------------------------------------------
         with sub_tab_outils:
-            st.subheader("Outils liés à ma progression")
+            st.subheader("Exercices")
+            
+            # 1. On récupère la liste des exos
             liste_exos_dispos = []
             for m in progression:
                 if m in PROTOCOLE_BARLOW and "exercices" in PROTOCOLE_BARLOW[m]:
@@ -172,13 +174,48 @@ def afficher_vue_patient(patient_id):
                         liste_exos_dispos.append({"mod_code": m, "exo_data": exo})
             
             if not liste_exos_dispos:
-                st.warning("Aucun exercice disponible.")
+                st.warning("Aucun exercice disponible pour le moment.")
+                st.caption("Avancez dans les modules pour débloquer des outils.")
             else:
+                # 2. On affiche chaque exo sous forme de menu déroulant (Expander)
                 for k, item in enumerate(liste_exos_dispos):
                     exo = item["exo_data"]
-                    if st.button(f"👉 {item['mod_code']} - {exo['titre']}", key=f"btn_rapide_{k}", use_container_width=True):
-                        st.session_state["exercice_actif"] = item
-                        st.switch_page("pages/21_Barlow_Exercice.py")
+                    mod_code = item["mod_code"]
+                    
+                    # Le titre de l'expander
+                    titre_complet = f"🚀 {exo['titre']} (Module {mod_code[-1]})"
+                    
+                    with st.expander(titre_complet):
+                        st.info(exo.get('description', 'Consignes de l\'exercice.'))
+                        
+                        # Le formulaire direct
+                        with st.form(key=f"form_fast_exo_{k}"):
+                            reponses_exo = {}
+                            
+                            # Si l'exercice a des "étapes" ou "questions" définies dans la config
+                            if "questions" in exo:
+                                for q in exo['questions']:
+                                    reponses_exo[q] = st.text_area(q, height=100)
+                            else:
+                                # Sinon un champ générique
+                                reponses_exo["Réflexion"] = st.text_area("Votre travail :", height=150)
+                            
+                            # Bouton de sauvegarde
+                            if st.form_submit_button("💾 Enregistrer cet exercice", type="primary"):
+                                # On sauvegarde comme une "Réponse Hebdo" mais taguée "Exercice"
+                                nom_sauvegarde = f"Exercice - {exo['titre']}"
+                                
+                                # On convertit le dict en JSON pour le stockage propre
+                                details_json = {
+                                    "module": mod_code,
+                                    "reponses": reponses_exo
+                                }
+                                
+                                if sauvegarder_reponse_hebdo(patient_id, nom_sauvegarde, "Exo", details_json):
+                                    st.success("Exercice enregistré dans l'historique !")
+                                    charger_historique_local.clear() # Mise à jour immédiate
+                                    time.sleep(1)
+                                    st.rerun()
 
         # -------------------------------------------------
         # C. SOUS-ONGLET : BILAN HEBDO
@@ -242,7 +279,7 @@ def afficher_vue_patient(patient_id):
                             try: st.json(json.loads(row["Details_Json"]))
                             except: st.write(row["Details_Json"])
             else: st.info("Historique vide.")
-            
+
     # ======================================================
     # ONGLET 3 : LES 4 AGENDAS
     # ======================================================
