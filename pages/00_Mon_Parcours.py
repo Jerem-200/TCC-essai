@@ -80,12 +80,28 @@ st.title(f"Espace Patient - {current_user}")
 # =========================================================
 # LA GRANDE NAVIGATION
 # =========================================================
-tab_parcours, tab_outils, tab_bilan, tab_historique = st.tabs([
-    "🗺️ Ma Progression",
-    "🛠️ Mes Outils", 
-    "📝 Bilan Hebdo",
-    "📜 Mon Historique"
-])
+
+# Vérification : Doit-on ouvrir "Mes Outils" en priorité ?
+if st.session_state.get("retour_outils", False):
+    # On remet le drapeau à False pour ne pas rester bloqué là tout le temps
+    st.session_state["retour_outils"] = False
+    
+    # ASTUCE : On met "Mes Outils" en PREMIER dans la liste pour qu'il soit ouvert par défaut
+    # Note l'ordre inversé des variables et des titres
+    tab_outils, tab_parcours, tab_bilan, tab_historique = st.tabs([
+        "🛠️ Mes Outils",       # <--- Devient le 1er onglet (actif)
+        "🗺️ Ma Progression",   # <--- Devient le 2eme
+        "📝 Bilan Hebdo",
+        "📜 Mon Historique"
+    ])
+else:
+    # Ordre Classique (Progression en premier)
+    tab_parcours, tab_outils, tab_bilan, tab_historique = st.tabs([
+        "🗺️ Ma Progression",
+        "🛠️ Mes Outils",
+        "📝 Bilan Hebdo",
+        "📜 Mon Historique"
+    ])
 
 # =========================================================
 # 1. MA PROGRESSION
