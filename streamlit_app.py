@@ -280,39 +280,131 @@ elif st.session_state.user_type == "therapeute":
                             st.caption(f"📝 Note enregistrée : {notes_seance_db.get(code_mod, 'Aucune note')}")
                             
                             # Contenu interne (Identique à avant)
-                            t_action, t_docs = st.tabs(["⚡ Pilotage Séance", "📂 Documents PDF"])
-                            
-                            with t_action:
-                                with st.expander("ℹ️ Objectifs & Outils", expanded=False):
-                                    st.info(data['objectifs'])
-                                    st.caption(data['outils'])
+                    # EN-TÊTE
+                    c_titre, c_lock = st.columns([0.95, 0.05])
+                    with c_titre:
+                        mon_expander = st.expander(f"{icon} {data['titre']}", expanded=should_be_expanded)
 
-                                with st.form(key=f"form_main_{patient_sel}_{code_mod}"):
-                                    # ... (Reste du formulaire identique, je ne le répète pas pour abréger mais il doit être là) ...
-                                    # Tu gardes tout ton code de formulaire ici (checklists, devoirs, notes, bouton save)
-                                    # J'ai remis l'essentiel pour que tu voies où ça va :
-                                    st.write("*(Formulaire de séance complet)*") 
-                                    # REMETTRE ICI TOUT LE CONTENU DU FORMULAIRE QUE TU AVAIS DANS TON CODE PRÉCÉDENT
-                                    # (Checklists, Devoirs, Notes, Bouton Submit)
-                                    # Pour que le copier-coller marche, assure-toi de garder ton code interne du formulaire.
-                                    # Si tu veux que je te redonne TOUT le bloc avec le formulaire inclus, dis-le moi.
+                    # CONTENU
+                    with mon_expander:
+                        t_action, t_docs = st.tabs(["⚡ Pilotage Séance", "📂 Documents PDF"])
+                        
+                        with t_action:
+                            with st.expander("ℹ️ Objectifs & Outils", expanded=False):
+                                st.info(data['objectifs'])
+                                st.caption(data['outils'])
+
+                            with st.form(key=f"form_main_{patient_sel}_{code_mod}"):
+                                check_list = []
+
+                                # A. EXAMEN DES TÂCHES
+                                if data['examen_devoirs']:
+                                    st.markdown("**🔍 Examen des tâches précédentes**")
+                                    for idx, d in enumerate(data['examen_devoirs']):
+                                        val = st.checkbox(f"{d['titre']}", key=f"exam_{patient_sel}_{code_mod}_{idx}")
+                                        check_list.append(val)
+                                        if d.get('pdf'):
+                                            nom = os.path.basename(d['pdf'])
+                                            st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
+                                    st.write("---")
+                                
+                                # B. ÉTAPES SÉANCE
+                                st.markdown("**📝 Étapes de la séance**")
+                                for idx_etape, etape in enumerate(data['etapes_seance']):
+                                    info_bulle = etape.get('details', None) 
+                                    val = st.checkbox(
+                                        f"{etape['titre']}", 
+                                        key=f"step_{patient_sel}_{code_mod}_{idx_etape}",
+                                        help=info_bulle
+                                    )
+                                    check_list.append(val)
+                                    if etape.get('pdfs'):
+                                        for pdf_path in etape['pdfs']:
+                                            nom = os.path.basename(pdf_path)
+                                            st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
+                                
+                                st.write("")
+                                st.write("---")
+
+                                # C. DEVOIRS
+                                indices_exclus = devoirs_exclus_memoire.get(code_mod, [])
+                                choix_devoirs_temp = [] 
+                                if data['taches_domicile']:
+                                    st.markdown("**🏠 Assignation Devoirs**")
+                                    for j, dev in enumerate(data['taches_domicile']):
+                                        is_chk = (j not in indices_exclus)
+                                        val = st.checkbox(dev['titre'], value=is_chk, key=f"dev_{patient_sel}_{code_mod}_{j}")
+                                        choix_devoirs_temp.append(val)
+                                        if dev.get('pdf'):
+                                            nom = os.path.basename(dev['pdf'])
+                                            st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
+                                st.write("---")
+                                
+                                # D. COMMENTAIRES
+                                st.markdown("**👩‍⚕️ Notes de séance**")
+                                texte_actuel = notes_seance_db.get(code_mod, "")
+                                nouvelle_note = st.text_area("Compte-rendu :", value=texte_actuel, height=150, key=f"note_area_{patient_sel}_{code_mod}")
+                                st.write("")
+                                
+                                # E. ENREGISTRER (RAPIDE)
+                                if st.form_submit_button("💾 Enregistrer la séance", type="primary"):
                                     
-                                    # Exemple minimal pour que ça tourne :
-                                    nouvelle_note = st.text_area("Compte-rendu :", value=notes_seance_db.get(code_mod, ""), height=100)
-                                    if st.form_submit_button("💾 Enregistrer"):
-                                        notes_seance_db[code_mod] = nouvelle_note
-                                        st.session_state[cache_key]["notes"] = notes_seance_db
-                                        sauvegarder_suivi_global(patient_sel, modules_valides_db, notes_seance_db)
-                                        st.success("Enregistré")
-                                        st.rerun()
+                                    # 1. Mise à jour Session State (Instantané pour l'utilisateur)
+                                    
+                                    # Devoirs
+                                    if data['taches_domicile']:
+                                        nouveaux_exclus = [k for k, chk in enumerate(choix_devoirs_temp) if not chk]
+                                        devoirs_exclus_memoire[code_mod] = nouveaux_exclus
+                                        st.session_state[cache_key]["devoirs"] = devoirs_exclus_memoire
+                                    
+                                    # Notes
+                                    notes_seance_db[code_mod] = nouvelle_note
+                                    st.session_state[cache_key]["notes"] = notes_seance_db
 
-                            with t_docs:
-                                if data.get('pdfs_module'):
-                                    for p in data['pdfs_module']:
-                                        if os.path.exists(p):
-                                            with open(p, "rb") as f:
-                                                st.download_button(f"📥 {os.path.basename(p)}", f, file_name=os.path.basename(p), key=f"dl_th_{patient_sel}_{code_mod}_{os.path.basename(p)}")
-                                else: st.caption("Aucun document.")
+                                    # Progression
+                                    if code_mod not in progression_patient:
+                                        progression_patient.append(code_mod)
+                                        st.session_state[cache_key]["progression"] = progression_patient
+                                    
+                                    # Validation
+                                    tout_est_fini = all(check_list) if check_list else True
+                                    if tout_est_fini:
+                                        if code_mod not in modules_valides_db:
+                                            modules_valides_db.append(code_mod)
+                                            st.toast("✅ Validé (Vert) !", icon="🎉")
+                                    else:
+                                        if code_mod in modules_valides_db:
+                                            modules_valides_db.remove(code_mod)
+                                            st.toast("ℹ️ En cours (Bleu)", icon="ue800")
+                                    st.session_state[cache_key]["valides"] = modules_valides_db
+
+                                    # 2. Sauvegarde Cloud (Le "Slow part")
+                                    # On lance les sauvegardes mais on affiche le succès tout de suite
+                                    if data['taches_domicile']:
+                                        sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
+                                    
+                                    if code_mod not in charger_progression(patient_sel): # Vérif légère
+                                        sauvegarder_progression(patient_sel, progression_patient)
+                                        
+                                    sauvegarder_suivi_global(patient_sel, modules_valides_db, notes_seance_db)
+                                    
+                                    # 3. Rafraîchissement
+                                    st.session_state.last_active_module = code_mod
+                                    st.success("✅ Enregistré !")
+                                    time.sleep(0.1) # Très court juste pour l'UX
+                                    st.rerun()
+
+                        # ONGLET 2 (inchangé)
+                        with t_docs:
+                            st.info("📂 Documents")
+                            if 'pdfs_module' in data and data['pdfs_module']:
+                                for chemin in data['pdfs_module']:
+                                    nom_fichier = os.path.basename(chemin)
+                                    if os.path.exists(chemin):
+                                        with open(chemin, "rb") as f:
+                                            st.download_button(f"📥 {nom_fichier}", f, file_name=nom_fichier, key=f"dl_th_{patient_sel}_{code_mod}_{nom_fichier}")
+                                    else: st.warning(f"Manque : {nom_fichier}")
+                            else: st.caption("Aucun document.")
 
                     # 2. BOUTON ACTION (DROITE) - C'EST ICI LA CORRECTION
                     with c_lock:
