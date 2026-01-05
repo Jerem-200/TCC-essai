@@ -13,7 +13,6 @@ from connect_db import (
     charger_outils_autorises, sauvegarder_progression,
     sauvegarder_etat_devoirs, sauvegarder_suivi_global,
     sauvegarder_reponse_hebdo, supprimer_reponse, load_data,
-    charger_historique_complet_cache # Si tu l'as ajoutée dans connect_db, sinon définir ici
 )
 
 # Si charger_historique_complet_cache n'est pas dans connect_db, on le garde ici en local
