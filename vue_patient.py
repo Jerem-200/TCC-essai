@@ -53,6 +53,7 @@ def afficher_vue_patient(patient_id):
         "📅 Agendas", 
         "🛠️ Outils & Exos", 
         "📊 Échelles", 
+        "📚 Psychoéducation",
         "📤 Export"
     ]
     
@@ -328,6 +329,71 @@ def afficher_vue_patient(patient_id):
                     page_map = {"phq9": "15", "gad7": "16", "isi": "17", "peg": "18", "wsas": "19", "who5": "20"}
                     if st.button(titre, key=f"btn_e_{code}", use_container_width=True): 
                         st.switch_page(f"pages/{page_map[code]}_Echelle_{code.upper()}.py")
+
+    # ======================================================
+    # ONGLET 5 : PSYCHOÉDUCATION (DOCUMENTS UNIQUEMENT)
+    # ======================================================
+    elif onglet_actif == "📚 Psychoéducation":
+        st.header("📚 Ressources Psycho-éducatives")
+        st.write("Consultez les fiches directement ci-dessous ou téléchargez-les pour les imprimer.")
+
+        # --- FONCTION LOCALE D'AFFICHAGE ---
+        def afficher_ressource(titre_pdf, nom_fichier_pdf, liste_images):
+            # 1. BOUTON DE TÉLÉCHARGEMENT
+            if os.path.exists(nom_fichier_pdf):
+                with open(nom_fichier_pdf, "rb") as f:
+                    st.download_button(
+                        label=f"📥 Télécharger la fiche '{titre_pdf}' (PDF)",
+                        data=f,
+                        file_name=os.path.basename(nom_fichier_pdf),
+                        mime="application/pdf",
+                        help="Idéal pour l'impression."
+                    )
+            else:
+                st.warning(f"Fichier PDF '{nom_fichier_pdf}' introuvable dans le dossier 'assets'.")
+
+            st.divider()
+
+            # 2. GALERIE D'IMAGES
+            # (Note: Les images s'afficheront seulement si elles existent dans 'assets/')
+            for image_name in liste_images:
+                if os.path.exists(image_name):
+                    st.image(image_name, use_container_width=True)
+        
+        # --- LES SOUS-ONGLETS DE RESSOURCES ---
+        t_emotions, t_roue, t_distorsions = st.tabs(["Fonctions des Émotions", "Roue des Émotions", "Distorsions Cognitives"])
+
+        with t_emotions:
+            st.subheader("À quoi servent nos émotions ?")
+            
+            afficher_ressource(
+                titre_pdf="Fonctions des émotions",
+                nom_fichier_pdf="assets/Les fonctions des émotions.pdf",
+                liste_images=["assets/fonctions.jpg"]
+            )
+
+        with t_roue:
+            st.subheader("La Roue de Plutchik")
+            st.caption("Un outil pour identifier précisément ce que vous ressentez.")
+            
+            afficher_ressource(
+                titre_pdf="Roue des sentiments",
+                nom_fichier_pdf="assets/Roue des sentiments de Plutchik.pdf",
+                liste_images=["assets/roue.jpg"]
+            )
+
+        with t_distorsions:
+            st.subheader("Les Distorsions Cognitives")
+            
+            afficher_ressource(
+                titre_pdf="Liste des Distorsions",
+                nom_fichier_pdf="assets/Distorsions cognitives.pdf",
+                liste_images=[
+                    "assets/disto_1.jpg", 
+                    "assets/disto_2.jpg", 
+                    "assets/disto_3.jpg"
+                ]
+            )
 
     # ======================================================
     # VUE 6 : EXPORT
