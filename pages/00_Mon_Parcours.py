@@ -167,7 +167,7 @@ if choix_onglet == titres_onglets[0]:
 # =========================================================
 if choix_onglet == titres_onglets[1]:
     
-    # Recherche des exercices disponibles
+# Recherche des exercices disponibles
     liste_exos_dispos = []
     for m in modules_debloques:
         if m in PROTOCOLE_BARLOW and "exercices" in PROTOCOLE_BARLOW[m]:
@@ -180,35 +180,24 @@ if choix_onglet == titres_onglets[1]:
 
     liste_exos_dispos.sort(key=lambda x: x['mod_code'])
     
-    col_menu, col_work = st.columns([1, 2])
-    
-    with col_menu:
-        st.subheader("Choix de l'outil")
-        if not liste_exos_dispos:
-            st.warning("⚠️ Aucun exercice trouvé.")
-            st.info("Les exercices apparaîtront ici quand vous débloquerez les modules.")
-            exo_choisi = None
-        else:
-            options_map = {f"{x['mod_code']} - {x['exo_data']['titre']}": x for x in liste_exos_dispos}
-            # C'EST ICI QUE CA BLOQUAIT : Maintenant, changer ce bouton est instantané
-            choix_cle = st.radio("Exercices disponibles :", list(options_map.keys()))
-            exo_choisi = options_map[choix_cle]
+    st.subheader("🚀 Lanceur d'outils")
+    st.caption("Cliquez sur un outil pour l'ouvrir immédiatement.")
 
-    with col_work:
-        if exo_choisi:
-            exo_data = exo_choisi["exo_data"]
-            st.markdown(f"### {exo_data['titre']}")
-            st.info(exo_data['description'])
+    if not liste_exos_dispos:
+        st.warning("⚠️ Aucun exercice trouvé.")
+        st.info("Les exercices apparaîtront ici quand vous débloquerez les modules.")
+    else:
+        # On affiche une liste de boutons. 
+        # Un clic = Une action immédiate.
+        for item in liste_exos_dispos:
+            exo_data = item["exo_data"]
+            titre_complet = f"{item['mod_code']} - {exo_data['titre']}"
             
-            st.write("---")
-            st.markdown("#### 🚀 Prêt à travailler ?")
-            st.write("Cet exercice s'ouvrira en plein écran pour plus de confort.")
-            
-            # LE BOUTON MAGIQUE QUI LANCE LA PAGE 21
-            if st.button("👉 Ouvrir l'exercice", key=f"launch_{exo_data['id']}", type="primary", use_container_width=True):
+            # Astuce : on met la description dans l'infobulle (help) pour garder l'info dispo
+            if st.button(f"👉 {titre_complet}", key=f"btn_launch_{exo_data['id']}", help=exo_data['description'], use_container_width=True):
                 # 1. On sauvegarde le contexte
-                st.session_state["exercice_actif"] = exo_choisi
-                # 2. On change de page vers le fichier qui contient les formulaires
+                st.session_state["exercice_actif"] = item
+                # 2. On change de page immédiatement
                 st.switch_page("pages/21_Barlow_Exercice.py")
 
 # =========================================================
