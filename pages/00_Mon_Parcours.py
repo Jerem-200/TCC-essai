@@ -61,7 +61,7 @@ def charger_historique_complet_cache(uid):
 
 # 2. On "enveloppe" les fonctions externes dans un cache local
 # Cela empêche de re-télécharger la progression quand on change d'outil
-#@st.cache_data(ttl=300)
+@st.cache_data(ttl=300)
 def charger_donnees_utilisateur_cache(uid):
     try:
         from streamlit_app import charger_progression, charger_etat_devoirs
