@@ -50,7 +50,6 @@ if not st.session_state.authentifie:
                     st.session_state.user_id = code 
                     
                     # --- RESET NAVIGATION ---
-                    # Pour revenir au tableau de bord à la connexion
                     if "nav_patient_main" in st.session_state: del st.session_state["nav_patient_main"]
                     if "nav_proto_sub" in st.session_state: del st.session_state["nav_proto_sub"]
                     if "target_tab" in st.session_state: del st.session_state["target_tab"]
@@ -79,7 +78,7 @@ if st.session_state.user_type == "patient":
     afficher_vue_patient(st.session_state.user_id)
     
     with st.sidebar:
-        # 1. Récupération ID Affichage (Ton code)
+        # 1. Récupération ID Affichage
         display_id = st.session_state.user_id 
         try:
             from connect_db import load_data
@@ -105,9 +104,6 @@ if st.session_state.user_type == "patient":
         
         st.title("Navigation")
         st.page_link("streamlit_app.py", label="🏠 Accueil")
-        # Note : "Mon Parcours" est maintenant intégré dans l'accueil, mais si tu as gardé la page, on peut laisser le lien
-        # st.info("🎯 **Protocole**")
-        # st.page_link("pages/00_Mon_Parcours.py", label="Mon Parcours", icon="🗺️")
         st.divider()
         
         # --- AGENDAS ---
@@ -157,7 +153,7 @@ if st.session_state.user_type == "patient":
         st.page_link("pages/08_Export_Rapport.py", label="Export PDF")
 
 # =========================================================
-# 3. LOGIQUE THÉRAPEUTE (Avec Correction Icones)
+# 3. LOGIQUE THÉRAPEUTE (CORRIGÉE & COMPLÈTE)
 # =========================================================
 elif st.session_state.user_type == "therapeute":
     st.title("🩺 Espace Thérapeute")
@@ -233,7 +229,7 @@ elif st.session_state.user_type == "therapeute":
 
             st.divider()
 
-            # --- PILOTAGE PROTOCOLE (VUE CORRIGÉE) ---
+            # --- PILOTAGE PROTOCOLE (VUE CORRIGÉE : ETAT + BOUTON) ---
             with st.expander("🗺️ Pilotage du Protocole (Barlow)", expanded=True):
                 progression = charger_progression(patient_sel)
                 devoirs = charger_etat_devoirs(patient_sel)
@@ -242,13 +238,13 @@ elif st.session_state.user_type == "therapeute":
                 st.progress(len(valides) / len(PROTOCOLE_BARLOW))
 
                 for code_mod, data in PROTOCOLE_BARLOW.items():
-                    # ICONE D'ÉTAT : ✅ Fait | 🟦 En cours (Accessible) | 🔒 Bloqué
+                    # 1. ETAT VISUEL (GAUCHE)
                     if code_mod in valides:
                         icon = "✅"
                     elif code_mod in progression:
-                        icon = "🟦"
+                        icon = "🟦" # Accessible
                     else:
-                        icon = "🔒"
+                        icon = "🔒" # Bloqué
                     
                     c_titre, c_lock = st.columns([0.9, 0.1])
                     
@@ -261,16 +257,19 @@ elif st.session_state.user_type == "therapeute":
                                         with open(p, "rb") as f:
                                             st.download_button(f"📥 {os.path.basename(p)}", f, file_name=os.path.basename(p), key=f"dl_th_{patient_sel}_{code_mod}_{os.path.basename(p)}")
                     
+                    # 2. BOUTON ACTION (DROITE)
                     with c_lock:
                         if code_mod in progression:
-                            # BOUTON "OUVERT" -> Pour Bloquer
-                            if st.button("🔓", key=f"btn_st_op_{patient_sel}_{code_mod}", help="Accessible. Cliquer pour BLOQUER."):
+                            # Cadenas OUVERT 🔓 signifie "Le module est ouvert".
+                            # Cliquer dessus va le fermer.
+                            if st.button("🔓", key=f"btn_st_op_{patient_sel}_{code_mod}", help="Module OUVERT. Cliquer pour BLOQUER."):
                                 progression.remove(code_mod)
                                 sauvegarder_progression(patient_sel, progression)
                                 st.rerun()
                         else:
-                            # BOUTON "FERMÉ" -> Pour Débloquer
-                            if st.button("🔒", key=f"btn_st_lo_{patient_sel}_{code_mod}", type="primary", help="Verrouillé. Cliquer pour DÉBLOQUER."):
+                            # Cadenas FERMÉ 🔒 (rouge) signifie "Le module est fermé".
+                            # Cliquer dessus va l'ouvrir.
+                            if st.button("🔒", key=f"btn_st_lo_{patient_sel}_{code_mod}", type="primary", help="Module VERROUILLÉ. Cliquer pour DÉBLOQUER."):
                                 progression.append(code_mod)
                                 sauvegarder_progression(patient_sel, progression)
                                 st.rerun()
