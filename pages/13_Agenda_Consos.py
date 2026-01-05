@@ -430,4 +430,8 @@ with tab2:
             st.info("Historique vide.")
 
 st.divider()
-st.page_link("streamlit_app.py", label="Retour à l'accueil", icon="🏠")
+st.set_page_config(page_title="Échelle Consos", page_icon="📉")
+if st.button("⬅️ Retour au tableau de bord"):
+    # On dit au menu principal de rouvrir l'onglet "Échelles"
+    st.session_state["target_tab"] = "📅 Agendas"
+    st.switch_page("streamlit_app.py")

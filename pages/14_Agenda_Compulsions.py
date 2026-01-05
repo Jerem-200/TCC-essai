@@ -202,5 +202,5 @@ st.divider()
 st.set_page_config(page_title="Échelle Compulsions", page_icon="📉")
 if st.button("⬅️ Retour au tableau de bord"):
     # On dit au menu principal de rouvrir l'onglet "Échelles"
-    st.session_state["target_tab"] = "🛠️ Outils & Exos"
+    st.session_state["target_tab"] = "📅 Agendas"
     st.switch_page("streamlit_app.py")
