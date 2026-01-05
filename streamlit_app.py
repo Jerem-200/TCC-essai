@@ -48,6 +48,12 @@ if not st.session_state.authentifie:
                     st.session_state.authentifie = True
                     st.session_state.user_type = "patient"
                     st.session_state.user_id = code 
+                    
+                    # Nettoyage navigation
+                    if "nav_patient_main" in st.session_state: del st.session_state["nav_patient_main"]
+                    if "nav_proto_sub" in st.session_state: del st.session_state["nav_proto_sub"]
+                    if "target_tab" in st.session_state: del st.session_state["target_tab"]
+                    
                     st.rerun()
                 else: st.error("Code inconnu")
                 
@@ -78,7 +84,7 @@ if st.session_state.user_type == "patient":
             st.rerun()
 
 # =========================================================
-# 3. LOGIQUE THÉRAPEUTE (Code Restauré)
+# 3. LOGIQUE THÉRAPEUTE
 # =========================================================
 elif st.session_state.user_type == "therapeute":
     st.title("🩺 Espace Thérapeute")
@@ -109,10 +115,9 @@ elif st.session_state.user_type == "therapeute":
             st.write(" ")
             if st.button("Générer accès"):
                 ac_code = generer_code_securise("TCC")
-                from connect_db import save_data # Import local si besoin
+                from connect_db import save_data 
                 save_data("Codes_Patients", [ac_code, st.session_state.user_id, id_dossier, str(datetime.now().date())])
                 st.success(f"Créé : {id_dossier} -> Code : {ac_code}")
-                # Reset cache
                 if "liste_patients_cache" in st.session_state: del st.session_state.liste_patients_cache
                 recuperer_mes_patients.clear()
                 time.sleep(1)
@@ -130,7 +135,6 @@ elif st.session_state.user_type == "therapeute":
             # --- GESTION DES OUTILS ---
             outils_autorises = charger_outils_autorises(patient_sel)
             
-            # Définition locale de la Map
             MAP_OUTILS = {
                 "🌙 Agenda Sommeil": "sommeil", "📝 Registre Activités": "activites",
                 "🍷 Agenda Consos": "conso", "🛑 Agenda Compulsions": "compulsions",
@@ -156,19 +160,22 @@ elif st.session_state.user_type == "therapeute":
 
             st.divider()
 
-            # --- PILOTAGE PROTOCOLE ---
+            # --- PILOTAGE PROTOCOLE (ICONES CORRIGÉES) ---
             with st.expander("🗺️ Pilotage du Protocole (Barlow)", expanded=True):
-                # Chargement données patient
                 progression = charger_progression(patient_sel)
                 devoirs = charger_etat_devoirs(patient_sel)
                 valides, notes = charger_suivi_global(patient_sel)
 
-                # Barre progression
                 st.progress(len(valides) / len(PROTOCOLE_BARLOW))
 
                 for code_mod, data in PROTOCOLE_BARLOW.items():
-                    is_done = code_mod in valides
-                    icon = "✅" if is_done else "🟦"
+                    # --- LOGIQUE D'AFFICHAGE ICONE ---
+                    if code_mod in valides:
+                        icon = "✅"  # Validé
+                    elif code_mod in progression:
+                        icon = "🟦"  # En cours / Débloqué
+                    else:
+                        icon = "🔒"  # Bloqué
                     
                     c_titre, c_lock = st.columns([0.9, 0.1])
                     with c_titre:
@@ -182,12 +189,14 @@ elif st.session_state.user_type == "therapeute":
                     
                     with c_lock:
                         if code_mod in progression:
-                            if st.button("🔒", key=f"lock_{patient_sel}_{code_mod}"):
+                            # Si c'est dans la progression, le bouton sert à BLOQUER
+                            if st.button("🔒", key=f"lock_{patient_sel}_{code_mod}", help="Bloquer ce module"):
                                 progression.remove(code_mod)
                                 sauvegarder_progression(patient_sel, progression)
                                 st.rerun()
                         else:
-                            if st.button("🔓", key=f"unlock_{patient_sel}_{code_mod}"):
+                            # Si ce n'est PAS dans la progression, le bouton sert à DÉBLOQUER
+                            if st.button("🔓", key=f"unlock_{patient_sel}_{code_mod}", help="Débloquer ce module"):
                                 progression.append(code_mod)
                                 sauvegarder_progression(patient_sel, progression)
                                 st.rerun()
