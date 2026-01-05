@@ -7,7 +7,13 @@ import json
 from datetime import datetime
 
 from protocole_config import PROTOCOLE_BARLOW, QUESTIONS_HEBDO 
-from connect_db import load_data, sauvegarder_reponse_hebdo, supprimer_reponse
+from connect_db import (
+    load_data, 
+    sauvegarder_reponse_hebdo, 
+    supprimer_reponse,
+    charger_progression,  
+    charger_etat_devoirs  
+)
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Mon Espace Santé", page_icon="🧘", layout="wide")
