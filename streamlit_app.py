@@ -72,7 +72,7 @@ if not st.session_state.authentifie:
     st.stop()
 
 # =========================================================
-# 2. LOGIQUE PATIENT (Avec ta Sidebar Riche Restaurée)
+# 2. LOGIQUE PATIENT (TA VERSION RICHE PRÉSERVÉE)
 # =========================================================
 if st.session_state.user_type == "patient":
     afficher_vue_patient(st.session_state.user_id)
@@ -153,7 +153,7 @@ if st.session_state.user_type == "patient":
         st.page_link("pages/08_Export_Rapport.py", label="Export PDF")
 
 # =========================================================
-# 3. LOGIQUE THÉRAPEUTE (CORRIGÉE & COMPLÈTE)
+# 3. LOGIQUE THÉRAPEUTE (VUE ET BOUTONS CORRIGÉS)
 # =========================================================
 elif st.session_state.user_type == "therapeute":
     st.title("🩺 Espace Thérapeute")
@@ -238,11 +238,11 @@ elif st.session_state.user_type == "therapeute":
                 st.progress(len(valides) / len(PROTOCOLE_BARLOW))
 
                 for code_mod, data in PROTOCOLE_BARLOW.items():
-                    # 1. ETAT VISUEL (GAUCHE)
+                    # 1. ETAT VISUEL (GAUCHE) : On détermine l'icône du titre
                     if code_mod in valides:
-                        icon = "✅"
+                        icon = "✅" # Validé
                     elif code_mod in progression:
-                        icon = "🟦" # Accessible
+                        icon = "🟦" # Ouvert / En cours
                     else:
                         icon = "🔒" # Bloqué
                     
@@ -261,14 +261,14 @@ elif st.session_state.user_type == "therapeute":
                     with c_lock:
                         if code_mod in progression:
                             # Cadenas OUVERT 🔓 signifie "Le module est ouvert".
-                            # Cliquer dessus va le fermer.
+                            # Cliquer dessus va le fermer (Bloquer).
                             if st.button("🔓", key=f"btn_st_op_{patient_sel}_{code_mod}", help="Module OUVERT. Cliquer pour BLOQUER."):
                                 progression.remove(code_mod)
                                 sauvegarder_progression(patient_sel, progression)
                                 st.rerun()
                         else:
                             # Cadenas FERMÉ 🔒 (rouge) signifie "Le module est fermé".
-                            # Cliquer dessus va l'ouvrir.
+                            # Cliquer dessus va l'ouvrir (Débloquer).
                             if st.button("🔒", key=f"btn_st_lo_{patient_sel}_{code_mod}", type="primary", help="Module VERROUILLÉ. Cliquer pour DÉBLOQUER."):
                                 progression.append(code_mod)
                                 sauvegarder_progression(patient_sel, progression)
