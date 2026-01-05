@@ -45,7 +45,7 @@ def afficher_vue_patient(patient_id):
     
     st.title(f"👋 Espace de {patient_id}")
 
-    # 2. NAVIGATION PRINCIPALE
+    # 2. NAVIGATION PRINCIPALE (GRANDS ONGLETS)
     onglets = st.tabs([
         "🏠 Tableau de Bord", 
         "🗺️ Protocole", 
@@ -85,13 +85,13 @@ def afficher_vue_patient(patient_id):
                 time.sleep(1)
                 st.rerun()
 
-# ======================================================
-    # ONGLET 2 : PROTOCOLE (Corrigé avec Sous-Onglets Slide)
+    # ======================================================
+    # ONGLET 2 : PROTOCOLE (SOUS-ONGLETS SLIDE)
     # ======================================================
     with onglets[1]:
         st.header("🗺️ Mon Parcours TCC")
         
-        # 1. Création des sous-onglets (C'est ça l'effet "Slide")
+        # CRÉATION DES 4 SOUS-ONGLETS
         sub_tab_prog, sub_tab_outils, sub_tab_bilan, sub_tab_histo = st.tabs([
             "📍 Progression", 
             "🚀 Lanceur Rapide", 
@@ -100,7 +100,7 @@ def afficher_vue_patient(patient_id):
         ])
 
         # -------------------------------------------------
-        # A. SOUS-ONGLET : PROGRESSION
+        # A. VUE PROGRESSION
         # -------------------------------------------------
         with sub_tab_prog:
             st.markdown("### 📍 Mon cheminement")
@@ -110,7 +110,6 @@ def afficher_vue_patient(patient_id):
             for code_mod, data in PROTOCOLE_BARLOW.items():
                 if code_mod in progression:
                     icon_valid = "✅" if code_mod in valides else ""
-                    # Ouverture auto du dernier module
                     is_expanded = (code_mod == st.session_state.last_active_module)
                     
                     with st.expander(f"{icon_valid} {data['titre']}", expanded=is_expanded):
@@ -161,12 +160,12 @@ def afficher_vue_patient(patient_id):
                         st.divider()
 
         # -------------------------------------------------
-        # B. SOUS-ONGLET : LANCEUR RAPIDE (Version Déroulante)
+        # B. VUE LANCEUR RAPIDE (Architecturé)
         # -------------------------------------------------
         with sub_tab_outils:
-            st.subheader("Exercices")
+            st.subheader("Outils liés à ma progression")
             
-            # 1. On récupère la liste des exos
+            # 1. Récupération des exercices
             liste_exos_dispos = []
             for m in progression:
                 if m in PROTOCOLE_BARLOW and "exercices" in PROTOCOLE_BARLOW[m]:
@@ -174,55 +173,62 @@ def afficher_vue_patient(patient_id):
                         liste_exos_dispos.append({"mod_code": m, "exo_data": exo})
             
             if not liste_exos_dispos:
-                st.warning("Aucun exercice disponible pour le moment.")
+                st.warning("Aucun exercice disponible.")
                 st.caption("Avancez dans les modules pour débloquer des outils.")
             else:
-                # 2. On affiche chaque exo sous forme de menu déroulant (Expander)
+                # 2. Affichage des exercices
                 for k, item in enumerate(liste_exos_dispos):
                     exo = item["exo_data"]
                     mod_code = item["mod_code"]
-                    
-                    # Le titre de l'expander
                     titre_complet = f"🚀 {exo['titre']} (Module {mod_code[-1]})"
                     
                     with st.expander(titre_complet):
-                        st.info(exo.get('description', 'Consignes de l\'exercice.'))
+                        if exo.get('description'): st.info(exo['description'])
                         
-                        # Le formulaire direct
                         with st.form(key=f"form_fast_exo_{k}"):
                             reponses_exo = {}
                             
-                            # Si l'exercice a des "étapes" ou "questions" définies dans la config
-                            if "questions" in exo:
-                                for q in exo['questions']:
-                                    reponses_exo[q] = st.text_area(q, height=100)
-                            else:
-                                # Sinon un champ générique
-                                reponses_exo["Réflexion"] = st.text_area("Votre travail :", height=150)
+                            # CAS 1 : Questions liste
+                            if "questions" in exo and isinstance(exo["questions"], list):
+                                for idx_q, q_text in enumerate(exo["questions"]):
+                                    st.markdown(f"**{idx_q + 1}. {q_text}**")
+                                    reponses_exo[q_text] = st.text_area("Réponse", height=100, key=f"txt_{k}_{idx_q}", label_visibility="collapsed")
+                                    st.write("")
                             
-                            # Bouton de sauvegarde
+                            # CAS 2 : Étapes structurées
+                            elif "etapes" in exo and isinstance(exo["etapes"], list):
+                                for idx_e, etape in enumerate(exo["etapes"]):
+                                    st.markdown(f"#### Étape {idx_e + 1} : {etape.get('titre', '')}")
+                                    if etape.get('instruction'): st.caption(etape['instruction'])
+                                    cle_etape = etape.get('titre', f"Etape {idx_e}")
+                                    reponses_exo[cle_etape] = st.text_area("Réponse :", height=100, key=f"step_{k}_{idx_e}")
+                                    st.divider()
+                            
+                            # CAS 3 : Libre
+                            else:
+                                st.write("Notez vos observations :")
+                                reponses_exo["Réflexion"] = st.text_area("Votre travail :", height=200, key=f"free_{k}")
+                            
+                            st.write("---")
                             if st.form_submit_button("💾 Enregistrer cet exercice", type="primary"):
-                                # On sauvegarde comme une "Réponse Hebdo" mais taguée "Exercice"
                                 nom_sauvegarde = f"Exercice - {exo['titre']}"
-                                
-                                # On convertit le dict en JSON pour le stockage propre
                                 details_json = {
                                     "module": mod_code,
+                                    "source": "lanceur_rapide",
                                     "reponses": reponses_exo
                                 }
-                                
                                 if sauvegarder_reponse_hebdo(patient_id, nom_sauvegarde, "Exo", details_json):
-                                    st.success("Exercice enregistré dans l'historique !")
-                                    charger_historique_local.clear() # Mise à jour immédiate
+                                    st.success("✅ Exercice enregistré !")
+                                    charger_historique_local.clear()
                                     time.sleep(1)
                                     st.rerun()
 
         # -------------------------------------------------
-        # C. SOUS-ONGLET : BILAN HEBDO
+        # C. VUE BILAN HEBDO
         # -------------------------------------------------
         with sub_tab_bilan:
             st.subheader("Bilan Hebdomadaire")
-            choix_q = st.selectbox("Questionnaire :", list(QUESTIONS_HEBDO.keys())) # Selectbox est souvent plus propre ici
+            choix_q = st.selectbox("Questionnaire :", list(QUESTIONS_HEBDO.keys()))
             if choix_q:
                 cfg = QUESTIONS_HEBDO[choix_q]
                 with st.container(border=True):
@@ -232,6 +238,7 @@ def afficher_vue_patient(patient_id):
                         rep = {}
                         score = 0
                         if cfg.get("ask_emotion"): rep["Emotion"] = st.text_input("Emotion :")
+                        
                         if cfg['type'] == "scale_0_8":
                             for q in cfg['questions']:
                                 val = st.slider(q, 0, 8, 0)
@@ -255,7 +262,7 @@ def afficher_vue_patient(patient_id):
                             st.rerun()
 
         # -------------------------------------------------
-        # D. SOUS-ONGLET : HISTORIQUE
+        # D. VUE HISTORIQUE
         # -------------------------------------------------
         with sub_tab_histo:
             st.subheader("Historique")
