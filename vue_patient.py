@@ -160,42 +160,49 @@ def afficher_vue_patient(patient_id):
                         st.divider()
 
         # -------------------------------------------------
-        # B. SOUS-ONGLET : LANCEUR RAPIDE
+        # B. SOUS-ONGLET : LANCEUR RAPIDE (Version Allégée & Triée)
         # -------------------------------------------------
         with sub_tab_outils:
-            st.subheader("Outils liés à ma progression")
+            st.subheader("🚀 Accès rapide aux outils")
+            st.caption("Retrouvez ici tous les exercices débloqués, classés par module.")
+            st.write("") # Petit espace
+
+            # 1. On parcourt le protocole DANS L'ORDRE pour récupérer les exos
+            exos_trouves = False
             
-            # 1. Récupération des exercices disponibles
-            liste_exos_dispos = []
-            for m in progression:
-                if m in PROTOCOLE_BARLOW and "exercices" in PROTOCOLE_BARLOW[m]:
-                    for exo in PROTOCOLE_BARLOW[m]["exercices"]:
-                        liste_exos_dispos.append({"mod_code": m, "exo_data": exo})
-            
-            if not liste_exos_dispos:
-                st.warning("Aucun exercice disponible.")
-                st.caption("Avancez dans les modules pour débloquer des outils.")
-            else:
-                # 2. Affichage simple (Boutons de redirection)
-                # On utilise des colonnes pour faire plus propre
-                for k, item in enumerate(liste_exos_dispos):
-                    exo = item["exo_data"]
-                    mod_code = item["mod_code"]
-                    
-                    # On crée un conteneur visuel pour chaque outil
-                    with st.container(border=True):
-                        c1, c2 = st.columns([4, 1])
-                        with c1:
-                            st.markdown(f"**🚀 {exo['titre']}** <small style='color:grey'>(Module {mod_code[-1]})</small>", unsafe_allow_html=True)
-                            if exo.get('description'):
-                                st.caption(exo['description'][:100] + "..." if len(exo['description']) > 100 else exo['description'])
+            for code_mod, data in PROTOCOLE_BARLOW.items():
+                # On ne montre que si le module est débloqué dans la progression du patient
+                if code_mod in progression:
+                    if "exercices" in data and data["exercices"]:
                         
-                        with c2:
-                            # CE BOUTON REDIRIGE VERS TA PAGE SPÉCIALISÉE
-                            if st.button("Lancer", key=f"btn_fast_launch_{k}", use_container_width=True):
-                                # On prépare le contexte pour la page cible
-                                st.session_state["exercice_actif"] = item
-                                st.switch_page("pages/21_Barlow_Exercice.py")
+                        # Petite entête discrète pour le module (Optionnel, supprime si tu veux encore plus léger)
+                        # st.markdown(f"**{data['titre']}**") 
+                        
+                        for i, exo in enumerate(data["exercices"]):
+                            exos_trouves = True
+                            
+                            # Mise en page : Texte à gauche, Bouton à droite
+                            c_txt, c_btn = st.columns([5, 1])
+                            
+                            with c_txt:
+                                # Titre en gras + Nom du module en gris
+                                st.markdown(f"🔹 **{exo['titre']}** <small style='color:grey'>({data['titre']})</small>", unsafe_allow_html=True)
+                            
+                            with c_btn:
+                                # Bouton simple "Ouvrir"
+                                # On crée une clé unique basée sur le module et l'index de l'exo
+                                key_btn = f"btn_light_{code_mod}_{i}"
+                                if st.button("Ouvrir", key=key_btn, use_container_width=True):
+                                    # Redirection vers la page spécialisée
+                                    st.session_state["exercice_actif"] = {"mod_code": code_mod, "exo_data": exo}
+                                    st.switch_page("pages/21_Barlow_Exercice.py")
+                            
+                            # Une ligne fine de séparation pour aérer
+                            st.divider()
+
+            if not exos_trouves:
+                st.info("Aucun exercice disponible pour le moment.")
+                st.caption("Avancez dans l'onglet 'Progression' pour débloquer vos premiers outils.")
 
         # -------------------------------------------------
         # C. VUE BILAN HEBDO
