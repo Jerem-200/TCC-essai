@@ -12,10 +12,10 @@ from connect_db import (
     charger_progression, charger_etat_devoirs, charger_suivi_global,
     charger_outils_autorises, sauvegarder_progression,
     sauvegarder_etat_devoirs, sauvegarder_suivi_global,
-    sauvegarder_reponse_hebdo, supprimer_reponse, load_data,
+    sauvegarder_reponse_hebdo, supprimer_reponse, load_data
 )
 
-# Si charger_historique_complet_cache n'est pas dans connect_db, on le garde ici en local
+# Cache local pour l'historique
 @st.cache_data(ttl=300)
 def charger_historique_local(uid):
     raw = load_data("Reponses_Hebdo")
@@ -38,8 +38,7 @@ def afficher_vue_patient(patient_id):
     
     st.title(f"👋 Espace de {patient_id}")
 
-    # 2. CRÉATION DES ONGLETS (Navigation Principale)
-    # C'est ici qu'on définit ta structure idéale
+    # 2. NAVIGATION PRINCIPALE
     onglets = st.tabs([
         "🏠 Tableau de Bord", 
         "🗺️ Protocole", 
@@ -52,12 +51,10 @@ def afficher_vue_patient(patient_id):
     ])
 
     # ======================================================
-    # ONGLET 1 : TABLEAU DE BORD (Accueil + Note Séance)
+    # ONGLET 1 : TABLEAU DE BORD
     # ======================================================
     with onglets[0]:
         st.markdown("### 📌 Ma situation aujourd'hui")
-        
-        # Indicateurs rapides
         c1, c2, c3 = st.columns(3)
         nb_valides = len(valides)
         with c1: 
@@ -70,7 +67,6 @@ def afficher_vue_patient(patient_id):
 
         st.divider()
 
-        # NOUVELLE FONCTIONNALITÉ : NOTE DE SÉANCE
         st.subheader("📒 Mon Journal de Séance")
         st.caption("Un espace pour noter ce que vous retenez de vos échanges avec le psychologue.")
         
@@ -89,7 +85,7 @@ def afficher_vue_patient(patient_id):
                 st.rerun()
 
     # ======================================================
-    # ONGLET 2 : PROTOCOLE (BARLOW) - COMPLET
+    # ONGLET 2 : PROTOCOLE (BARLOW)
     # ======================================================
     with onglets[1]:
         st.header("🗺️ Mon Parcours TCC")
@@ -102,7 +98,6 @@ def afficher_vue_patient(patient_id):
             icon = "✅" if is_done else "🟦"
             expanded = (code_mod == st.session_state.last_active_module)
             
-            # MODULE ACCESSIBLE
             if code_mod in progression:
                 with st.expander(f"{icon} {data['titre']}", expanded=expanded):
                     
@@ -111,11 +106,9 @@ def afficher_vue_patient(patient_id):
                     with t_seance:
                         st.info(f"**Objectifs :** {data['objectifs']}")
                         
-                        # --- FORMULAIRE DE TRAVAIL ---
                         with st.form(key=f"form_proto_{code_mod}"):
                             checklist_results = []
                             
-                            # A. EXAMEN (Si présent)
                             if data['examen_devoirs']:
                                 st.markdown("**1️⃣ Retour sur les tâches**")
                                 for idx, task in enumerate(data['examen_devoirs']):
@@ -123,14 +116,12 @@ def afficher_vue_patient(patient_id):
                                     checklist_results.append(chk)
                                 st.write("---")
 
-                            # B. ÉTAPES DE LA SÉANCE
                             st.markdown("**2️⃣ Contenu de la séance**")
                             for idx, etape in enumerate(data['etapes_seance']):
                                 chk = st.checkbox(etape['titre'], key=f"chk_st_{code_mod}_{idx}", help=etape.get('details'))
                                 checklist_results.append(chk)
                             st.write("---")
                             
-                            # C. DEVOIRS (Si présents)
                             liste_devoirs_temp = []
                             if data['taches_domicile']:
                                 st.markdown("**3️⃣ Travail à la maison**")
@@ -142,23 +133,18 @@ def afficher_vue_patient(patient_id):
                                     if dev.get('pdf'): st.caption(f"📄 {os.path.basename(dev['pdf'])}")
                                 st.write("---")
 
-                            # D. NOTES DU THÉRAPEUTE (C'est ce qu'il manquait !)
                             st.markdown("**4️⃣ Notes & Commentaires**")
                             note_precedente = notes_therapeute.get(code_mod, "")
                             nouvelle_note = st.text_area("Observations :", value=note_precedente, height=100)
 
-                            # BOUTON VALIDATION
                             if st.form_submit_button("💾 Sauvegarder l'avancement", type="primary"):
-                                # 1. Sauvegarde Devoirs (ceux décochés sont exclus)
                                 if data['taches_domicile']:
                                     exclus = [k for k, v in enumerate(liste_devoirs_temp) if not v]
                                     devoirs[code_mod] = exclus
                                     sauvegarder_etat_devoirs(patient_id, devoirs)
                                 
-                                # 2. Sauvegarde Note
                                 notes_therapeute[code_mod] = nouvelle_note
                                 
-                                # 3. Validation Module (Si tout coché)
                                 all_ok = all(checklist_results) if checklist_results else True
                                 if all_ok and code_mod not in valides:
                                     valides.append(code_mod)
@@ -172,23 +158,29 @@ def afficher_vue_patient(patient_id):
                                 time.sleep(0.5)
                                 st.rerun()
 
-                        # --- LANCEMENT EXERCICE SPÉCIFIQUE ---
+                        # --- CORRECTION 1 : CLÉS UNIQUES POUR LES EXERCICES ---
                         if data.get('exercices'):
                             st.info("👇 **Outil pratique associé :**")
-                            for exo in data['exercices']:
-                                if st.button(f"🚀 Lancer : {exo['titre']}", key=f"btn_exo_{code_mod}"):
+                            for k, exo in enumerate(data['exercices']):
+                                # On ajoute l'index 'k' dans la clé pour éviter les doublons
+                                if st.button(f"🚀 Lancer : {exo['titre']}", key=f"btn_exo_{code_mod}_{k}"):
                                     st.session_state["exercice_actif"] = {"mod_code": code_mod, "exo_data": exo}
                                     st.switch_page("pages/21_Barlow_Exercice.py")
                     
                     with t_docs:
                         if data.get('pdfs_module'):
-                            for p in data['pdfs_module']:
+                            # --- CORRECTION 2 : CLÉS UNIQUES POUR LES PDFS ---
+                            for k, p in enumerate(data['pdfs_module']):
                                 if os.path.exists(p):
                                     with open(p, "rb") as f:
-                                        st.download_button(f"📥 {os.path.basename(p)}", f, file_name=os.path.basename(p), key=f"dl_{code_mod}")
+                                        # On ajoute le nom du fichier dans la clé pour la rendre unique
+                                        st.download_button(
+                                            f"📥 {os.path.basename(p)}", 
+                                            f, 
+                                            file_name=os.path.basename(p), 
+                                            key=f"dl_{code_mod}_{os.path.basename(p)}" # <--- LA CORRECTION EST ICI
+                                        )
                         else: st.caption("Aucun document.")
-            
-            # MODULE VERROUILLÉ
             else:
                 with st.container():
                     st.write(f"🔒 **{data['titre']}** (Bientôt disponible)")
@@ -199,11 +191,8 @@ def afficher_vue_patient(patient_id):
     # ======================================================
     with onglets[2]:
         st.header("📅 Mes Agendas de suivi")
-        st.caption("Cliquez pour ouvrir l'agenda.")
-        
         col_a1, col_a2 = st.columns(2)
         
-        # 1. SOMMEIL
         with col_a1:
             if "sommeil" in outils_autorises:
                 with st.container(border=True):
@@ -213,7 +202,6 @@ def afficher_vue_patient(patient_id):
                         st.switch_page("pages/10_Agenda_Sommeil.py")
             else: st.info("🌙 Agenda Sommeil (Verrouillé)")
 
-            # 2. CONSOMMATIONS
             if "conso" in outils_autorises:
                 with st.container(border=True):
                     st.subheader("🍷 Consommations")
@@ -223,7 +211,6 @@ def afficher_vue_patient(patient_id):
             else: st.info("🍷 Agenda Consos (Verrouillé)")
 
         with col_a2:
-            # 3. ACTIVITÉS
             if "activites" in outils_autorises:
                 with st.container(border=True):
                     st.subheader("📝 Activités")
@@ -232,7 +219,6 @@ def afficher_vue_patient(patient_id):
                         st.switch_page("pages/05_Registre_Activites.py")
             else: st.info("📝 Registre Activités (Verrouillé)")
             
-            # 4. COMPULSIONS
             if "compulsions" in outils_autorises:
                 with st.container(border=True):
                     st.subheader("🛑 Compulsions")
@@ -242,11 +228,10 @@ def afficher_vue_patient(patient_id):
             else: st.info("🛑 Agenda Compulsions (Verrouillé)")
 
     # ======================================================
-    # ONGLET 4 : BOITE À OUTILS (EXERCICES)
+    # ONGLET 4 : BOITE À OUTILS
     # ======================================================
     with onglets[3]:
         st.header("🛠️ Boîte à outils TCC")
-        
         c1, c2, c3 = st.columns(3)
         with c1:
             if "beck" in outils_autorises:
@@ -277,8 +262,6 @@ def afficher_vue_patient(patient_id):
     # ======================================================
     with onglets[4]:
         st.header("📊 Mesures Psychométriques")
-        
-        # Liste simplifiée pour générer les boutons
         liste_echelles = [
             ("phq9", "PHQ-9 (Dépression)", "pages/15_Echelle_PHQ9.py"),
             ("gad7", "GAD-7 (Anxiété)", "pages/16_Echelle_GAD7.py"),
@@ -287,7 +270,6 @@ def afficher_vue_patient(patient_id):
             ("peg", "PEG (Douleur)", "pages/18_Echelle_PEG.py"),
             ("wsas", "WSAS (Handicap)", "pages/19_Echelle_WSAS.py")
         ]
-        
         cols = st.columns(3)
         for i, (code, titre, page) in enumerate(liste_echelles):
             if code in outils_autorises:
@@ -334,7 +316,6 @@ def afficher_vue_patient(patient_id):
         df_hist = charger_historique_local(patient_id)
         
         if not df_hist.empty:
-            # Graphique
             df_chart = df_hist[~df_hist["Questionnaire"].str.contains("Note|Exercice", na=False)]
             if not df_chart.empty:
                 st.markdown("##### 📈 Évolution")
@@ -343,7 +324,6 @@ def afficher_vue_patient(patient_id):
                 ).interactive()
                 st.altair_chart(chart, use_container_width=True)
             
-            # Liste
             st.markdown("##### 🗓️ Journal")
             for idx, row in df_hist.sort_values("Date", ascending=False).iterrows():
                 label_titre = f"{row['Date'].strftime('%d/%m')} - {row['Questionnaire']}"
