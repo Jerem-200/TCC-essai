@@ -127,7 +127,7 @@ with tab2:
     st.header("Suivi de la douleur")
     afficher_peg(st.session_state.data_peg, CURRENT_USER_ID)
 
-st.set_page_config(page_title="Échelle PHQ-9", page_icon="📉")
+st.set_page_config(page_title="Échelle PEG", page_icon="📉")
 if st.button("⬅️ Retour au tableau de bord"):
     # On dit au menu principal de rouvrir l'onglet "Échelles"
     st.session_state["target_tab"] = "📊 Échelles"

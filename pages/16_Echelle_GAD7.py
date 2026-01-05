@@ -140,7 +140,7 @@ with tab2:
     st.header("Suivi de l'anxiété")
     afficher_gad7(st.session_state.data_gad7, CURRENT_USER_ID)
 
-st.set_page_config(page_title="Échelle PHQ-9", page_icon="📉")
+st.set_page_config(page_title="Échelle GAD-7", page_icon="📉")
 if st.button("⬅️ Retour au tableau de bord"):
     # On dit au menu principal de rouvrir l'onglet "Échelles"
     st.session_state["target_tab"] = "📊 Échelles"
