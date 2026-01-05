@@ -160,24 +160,27 @@ elif st.session_state.user_type == "therapeute":
 
             st.divider()
 
-            # --- PILOTAGE PROTOCOLE (ICONES CORRIGÉES) ---
+# --- PILOTAGE PROTOCOLE (CORRIGÉ) ---
             with st.expander("🗺️ Pilotage du Protocole (Barlow)", expanded=True):
                 progression = charger_progression(patient_sel)
                 devoirs = charger_etat_devoirs(patient_sel)
                 valides, notes = charger_suivi_global(patient_sel)
 
+                # Barre progression
                 st.progress(len(valides) / len(PROTOCOLE_BARLOW))
 
                 for code_mod, data in PROTOCOLE_BARLOW.items():
-                    # --- LOGIQUE D'AFFICHAGE ICONE ---
+                    # 1. DÉFINITION DE L'ICÔNE DU TITRE (GAUCHE)
                     if code_mod in valides:
-                        icon = "✅"  # Validé
+                        icon = "✅"  # Fait
                     elif code_mod in progression:
-                        icon = "🟦"  # En cours / Débloqué
+                        icon = "🟦"  # En cours
                     else:
                         icon = "🔒"  # Bloqué
                     
+                    # Colonnes : Titre à gauche (90%), Bouton à droite (10%)
                     c_titre, c_lock = st.columns([0.9, 0.1])
+                    
                     with c_titre:
                         with st.expander(f"{icon} {data['titre']}"):
                             st.caption(f"📝 Note enregistrée : {notes.get(code_mod, 'Aucune note')}")
@@ -187,22 +190,25 @@ elif st.session_state.user_type == "therapeute":
                                         with open(p, "rb") as f:
                                             st.download_button(f"📥 {os.path.basename(p)}", f, file_name=os.path.basename(p), key=f"dl_th_{patient_sel}_{code_mod}_{os.path.basename(p)}")
                     
+                    # 2. LOGIQUE DU BOUTON (DROITE) - MODE "INTERRUPTEUR"
                     with c_lock:
                         if code_mod in progression:
-                            # Si c'est dans la progression, le bouton sert à BLOQUER
-                            if st.button("🔒", key=f"lock_{patient_sel}_{code_mod}", help="Bloquer ce module"):
+                            # CAS : Le module est ACCESSIBLE
+                            # On affiche un cadenas OUVERT 🔓 pour montrer l'état actuel.
+                            # Cliquer dessus va le BLOQUER.
+                            if st.button("🔓", key=f"btn_state_open_{patient_sel}_{code_mod}", help="Actuellement OUVERT. Cliquer pour BLOQUER."):
                                 progression.remove(code_mod)
                                 sauvegarder_progression(patient_sel, progression)
                                 st.rerun()
                         else:
-                            # Si ce n'est PAS dans la progression, le bouton sert à DÉBLOQUER
-                            if st.button("🔓", key=f"unlock_{patient_sel}_{code_mod}", help="Débloquer ce module"):
+                            # CAS : Le module est BLOQUÉ
+                            # On affiche un cadenas FERMÉ 🔒 (en rouge/primaire) pour montrer l'état.
+                            # Cliquer dessus va le DÉBLOQUER.
+                            if st.button("🔒", key=f"btn_state_lock_{patient_sel}_{code_mod}", type="primary", help="Actuellement VERROUILLÉ. Cliquer pour DÉBLOQUER."):
                                 progression.append(code_mod)
                                 sauvegarder_progression(patient_sel, progression)
                                 st.rerun()
-
-            st.divider()
-
+                                
             # --- VISUALISATION ---
             st.subheader("📊 Visualisation des Données")
             
