@@ -370,4 +370,8 @@ with tab4:
                 st.info(row['Apprentissage'])
 
 st.divider()
-st.page_link("streamlit_app.py", label="Retour Accueil", icon="🏠")
+st.set_page_config(page_title="Exposition", page_icon="📉")
+if st.button("⬅️ Retour au tableau de bord"):
+    # On dit au menu principal de rouvrir l'onglet "Échelles"
+    st.session_state["target_tab"] = "🛠️ Outils & Exos"
+    st.switch_page("streamlit_app.py")
