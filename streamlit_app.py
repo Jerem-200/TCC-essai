@@ -525,142 +525,28 @@ else:
     # -----------------------------------------------------
     # B. ESPACE PATIENT (AVEC FILTRAGE)
     # -----------------------------------------------------
+# -----------------------------------------------------
+    # B. ESPACE PATIENT (SIMPLIFIÉ)
+    # -----------------------------------------------------
     elif st.session_state.user_type == "patient":
         
-        # 1. CHARGEMENT DES AUTORISATIONS (WHITELIST)
-        # On remplace l'ancien appel 'charger_blocages' par le nouveau
-        OUTILS_AUTORISES = charger_outils_autorises(st.session_state.user_id)
+        # On affiche juste un accueil chaleureux
+        st.title("👋 Bonjour !")
+        st.success(f"Vous êtes bien connecté en tant que **{st.session_state.user_id}**.")
         
-        c_titre, c_logout = st.columns([4, 1])
-        with c_titre:
-            st.title(f"🧠 Espace Patient")
-        with c_logout:
-            if st.button("Se déconnecter"):
-                st.session_state.authentifie = False
-                st.session_state.user_id = "" 
-                st.rerun()
-
-        st.divider()
-
-        # =========================================================
-        # SECTION 1 : AGENDAS
-        # =========================================================
-        st.markdown("### 📅 Mes Agendas (Quotidien)")
-        c1, c2, c3, c4 = st.columns(4)
-        
-        # ATTENTION : On change la condition !
-        # Avant : if "sommeil" not in OUTILS_BLOQUES
-        # Maintenant : if "sommeil" in OUTILS_AUTORISES
-        
-        if "sommeil" in OUTILS_AUTORISES:
-            with c1:
-                st.warning("**Sommeil**")
-                st.page_link("pages/10_Agenda_Sommeil.py", label="Ouvrir", icon="🌙")
-        
-        if "activites" in OUTILS_AUTORISES:
-            with c2:
-                st.warning("**Activités**")
-                st.page_link("pages/05_Registre_Activites.py", label="Ouvrir", icon="📝")
-        
-        if "conso" in OUTILS_AUTORISES:
-            with c3:
-                st.warning("**Consommations**")
-                st.page_link("pages/13_Agenda_Consos.py", label="Ouvrir", icon="🍷")
-        
-        if "compulsions" in OUTILS_AUTORISES:
-            with c4:
-                st.warning("**Compulsions**")
-                st.page_link("pages/14_Agenda_Compulsions.py", label="Ouvrir", icon="🛑")
-
-        st.write("") 
-
-        # =========================================================
-        # SECTION 2 : BOÎTE À OUTILS
-        # =========================================================
-        st.markdown("### 🛠️ Boîte à Outils (Exercices)")
-        
-        c5, c6, c7 = st.columns(3)
-        with c5:
-            if "beck" in OUTILS_AUTORISES:
-                st.info("**Restructuration (Beck)**")
-                st.page_link("pages/01_Colonnes_Beck.py", label="Lancer", icon="🧩")
-                st.write("")
-            
-            if "sorc" in OUTILS_AUTORISES:
-                st.info("**Analyse SORC**")
-                st.page_link("pages/12_Analyse_SORC.py", label="Lancer", icon="🔍")
-            
-        with c6:
-            if "problemes" in OUTILS_AUTORISES:
-                st.info("**Résolution Problème**")
-                st.page_link("pages/06_Resolution_Probleme.py", label="Lancer", icon="💡")
-                st.write("")
-            
-            if "balance" in OUTILS_AUTORISES:
-                st.info("**Balance Décisionnelle**")
-                st.page_link("pages/11_Balance_Decisionnelle.py", label="Lancer", icon="⚖️")
-
-        with c7:
-            if "expo" in OUTILS_AUTORISES:
-                st.info("**Exposition**")
-                st.page_link("pages/09_Exposition.py", label="Lancer", icon="🧗")
-                st.write("")
-            
-            if "relax" in OUTILS_AUTORISES:
-                st.info("**Relaxation**")
-                st.page_link("pages/07_Relaxation.py", label="Lancer", icon="🧘")
-
-        st.write("") 
-
-        # =========================================================
-        # SECTION 3 : MESURES
-        # =========================================================
-        st.markdown("### 📊 Mesures & Échelles")
-        
-        m1, m2, m3 = st.columns(3)
-        with m1:
-            if "phq9" in OUTILS_AUTORISES:
-                st.success("**PHQ-9 (Dépression)**")
-                st.page_link("pages/15_Echelle_PHQ9.py", label="Lancer", icon="📊")
-        with m2:
-            if "gad7" in OUTILS_AUTORISES:
-                st.success("**GAD-7 (Anxiété)**")
-                st.page_link("pages/16_Echelle_GAD7.py", label="Lancer", icon="📊")
-        with m3:
-            if "who5" in OUTILS_AUTORISES:
-                st.success("**WHO-5 (Bien-être)**")
-                st.page_link("pages/20_Echelle_WHO5.py", label="Lancer", icon="📊")
-
-        m4, m5, m6 = st.columns(3)
-        with m4:
-            if "isi" in OUTILS_AUTORISES:
-                st.success("**ISI (Insomnie)**")
-                st.page_link("pages/17_Echelle_ISI.py", label="Lancer", icon="📊")
-        with m5:
-            if "peg" in OUTILS_AUTORISES:
-                st.success("**PEG (Douleur)**")
-                st.page_link("pages/18_Echelle_PEG.py", label="Lancer", icon="📊")
-        with m6:
-            if "wsas" in OUTILS_AUTORISES:
-                st.success("**WSAS (Impact)**")
-                st.page_link("pages/19_Echelle_WSAS.py", label="Lancer", icon="📊")
-
-        st.write("")
-
-        # =========================================================
-        # SECTION 4 : BILAN & EXPORT
-        # =========================================================
-        st.markdown("### 📜 Bilan Global")
-        
-        b1, b2, b3 = st.columns([1, 1, 2])
-        with b1:
-            st.page_link("pages/04_Historique.py", label="Voir mon Historique", icon="📜")
-        with b2:
-            st.page_link("pages/08_Export_Rapport.py", label="Exporter en PDF", icon="📤")
+        st.markdown("### Prêt à travailler sur vous-même ?")
+        st.write("Votre parcours complet, vos outils et votre historique se trouvent dans votre espace dédié.")
         
         st.divider()
-        st.page_link("pages/03_Ressources.py", label="Consulter les Fiches & Ressources", icon="📚")
+        
+        col_center = st.columns([1, 2, 1])
+        with col_center[1]:
+            # Un gros bouton qui redirige vers le VRAI tableau de bord
+            if st.button("🚀 Accéder à Mon Parcours & Outils", type="primary", use_container_width=True):
+                st.switch_page("pages/00_Mon_Parcours.py")
 
+    # La sidebar reste gérée automatiquement ou tu peux la laisser vide ici 
+    # car elle sera rechargée correctement dans 00_Mon_Parcours.py
 
     # =========================================================
     # 4. SIDEBAR (MENU LATÉRAL) - FILTRÉE ET SÉCURISÉE
