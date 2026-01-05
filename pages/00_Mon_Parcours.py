@@ -78,35 +78,39 @@ df_history = charger_historique_complet_cache(current_user)
 st.title(f"Espace Patient - {current_user}")
 
 # =========================================================
-# LA GRANDE NAVIGATION
+# LA GRANDE NAVIGATION (Refaite proprement)
 # =========================================================
 
-# Vérification : Doit-on ouvrir "Mes Outils" en priorité ?
+# 1. On définit l'ordre fixe des onglets
+titres_onglets = [
+    "🗺️ Ma Progression", 
+    "🛠️ Mes Outils", 
+    "📝 Bilan Hebdo", 
+    "📜 Mon Historique"
+]
+
+# 2. On calcule quel onglet doit être actif par défaut
+index_par_defaut = 0 # Par défaut : Progression (le premier)
+
 if st.session_state.get("retour_outils", False):
-    # On remet le drapeau à False pour ne pas rester bloqué là tout le temps
-    st.session_state["retour_outils"] = False
-    
-    # ASTUCE : On met "Mes Outils" en PREMIER dans la liste pour qu'il soit ouvert par défaut
-    # Note l'ordre inversé des variables et des titres
-    tab_outils, tab_parcours, tab_bilan, tab_historique = st.tabs([
-        "🛠️ Mes Outils",       # <--- Devient le 1er onglet (actif)
-        "🗺️ Ma Progression",   # <--- Devient le 2eme
-        "📝 Bilan Hebdo",
-        "📜 Mon Historique"
-    ])
-else:
-    # Ordre Classique (Progression en premier)
-    tab_parcours, tab_outils, tab_bilan, tab_historique = st.tabs([
-        "🗺️ Ma Progression",
-        "🛠️ Mes Outils",
-        "📝 Bilan Hebdo",
-        "📜 Mon Historique"
-    ])
+    index_par_defaut = 1 # Si on revient d'un exo : Outils (le deuxième)
+    st.session_state["retour_outils"] = False # On reset le "drapeau"
+
+# 3. On crée la barre de navigation (Radio horizontal)
+choix_onglet = st.radio(
+    "Navigation",
+    options=titres_onglets,
+    index=index_par_defaut,
+    horizontal=True,             # C'est ça qui donne l'aspect "Barre"
+    label_visibility="collapsed" # On cache le titre "Navigation"
+)
+
+st.divider() # Une petite ligne pour séparer le menu du contenu
 
 # =========================================================
 # 1. MA PROGRESSION
 # =========================================================
-with tab_parcours:
+if choix_onglet == titres_onglets[0]:
     st.markdown("### 📍 Mon cheminement")
     
     for code_mod, data in PROTOCOLE_BARLOW.items():
@@ -161,7 +165,7 @@ with tab_parcours:
 # =========================================================
 # 2. MES OUTILS (LE LANCEUR RAPIDE)
 # =========================================================
-with tab_outils:
+if choix_onglet == titres_onglets[1]:
     
     # Recherche des exercices disponibles
     liste_exos_dispos = []
@@ -210,7 +214,7 @@ with tab_outils:
 # =========================================================
 # 3. MON SUIVI DE SANTÉ
 # =========================================================
-with tab_bilan:
+if choix_onglet == titres_onglets[2]:
     c1, c2 = st.columns([1, 2])
     
     with c1:
@@ -261,7 +265,7 @@ with tab_bilan:
 # =========================================================
 # 4. MON HISTORIQUE
 # =========================================================
-with tab_historique:
+if choix_onglet == titres_onglets[3]:
     st.subheader("📜 Historique Complet")
     
     if not df_history.empty:
