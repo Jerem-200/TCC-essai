@@ -11,7 +11,7 @@ from connect_db import (
     charger_outils_autorises, sauvegarder_outils_autorises, 
     charger_progression, charger_etat_devoirs, charger_suivi_global,
     charger_donnees_specifiques, sauvegarder_progression, 
-    load_data, generer_code_securise, sauvegarder_etat_devoirs,sauvegarder_suivi_global
+    load_data, generer_code_securise, sauvegarder_etat_devoirs, sauvegarder_suivi_global
 )
 
 # Imports Visualisation & Config
@@ -153,7 +153,7 @@ if st.session_state.user_type == "patient":
         st.page_link("pages/08_Export_Rapport.py", label="Export PDF")
 
 # =========================================================
-# 3. LOGIQUE THÉRAPEUTE (VUE ET BOUTONS CORRIGÉS)
+# 3. LOGIQUE THÉRAPEUTE (CORRIGÉE & FONCTIONNELLE)
 # =========================================================
 elif st.session_state.user_type == "therapeute":
     st.title("🩺 Espace Thérapeute")
@@ -229,9 +229,8 @@ elif st.session_state.user_type == "therapeute":
 
             st.divider()
 
-# --- PILOTAGE PROTOCOLE (LOGIQUE CORRIGÉE) ---
+            # --- PILOTAGE PROTOCOLE (VUE CORRIGÉE) ---
             with st.expander("🗺️ Pilotage du Protocole (Barlow)", expanded=True):
-                
                 # --- CHARGEMENT OPTIMISÉ (CACHE SESSION) ---
                 cache_key = f"cache_data_{patient_sel}"
                 
@@ -263,13 +262,13 @@ elif st.session_state.user_type == "therapeute":
                 st.write("---")
 
                 for code_mod, data in PROTOCOLE_BARLOW.items():
-                    # 1. ETAT VISUEL (GAUCHE) : Titre du module
+                    # 1. ICONE D'ÉTAT VISUEL (Titre)
                     if code_mod in modules_valides_db:
                         icon = "✅"  # Validé
                     elif code_mod in progression_patient:
-                        icon = "🟦"  # Ouvert / En cours
+                        icon = "🟦"  # En cours (Accessible)
                     else:
-                        icon = "🔒"  # Verrouillé (Fermé)
+                        icon = "🔒"  # Verrouillé (Inaccessible)
                     
                     should_be_expanded = (code_mod == st.session_state.last_active_module)
                     
@@ -279,134 +278,122 @@ elif st.session_state.user_type == "therapeute":
                         with st.expander(f"{icon} {data['titre']}", expanded=should_be_expanded):
                             st.caption(f"📝 Note enregistrée : {notes_seance_db.get(code_mod, 'Aucune note')}")
                             
-                            # Contenu interne (Identique à avant)
-                    # EN-TÊTE
-                    c_titre, c_lock = st.columns([0.95, 0.05])
-                    with c_titre:
-                        mon_expander = st.expander(f"{icon} {data['titre']}", expanded=should_be_expanded)
+                            # Contenu interne
+                            t_action, t_docs = st.tabs(["⚡ Pilotage Séance", "📂 Documents PDF"])
+                            
+                            with t_action:
+                                with st.expander("ℹ️ Objectifs & Outils", expanded=False):
+                                    st.info(data['objectifs'])
+                                    st.caption(data['outils'])
 
-                    # CONTENU
-                    with mon_expander:
-                        t_action, t_docs = st.tabs(["⚡ Pilotage Séance", "📂 Documents PDF"])
-                        
-                        with t_action:
-                            with st.expander("ℹ️ Objectifs & Outils", expanded=False):
-                                st.info(data['objectifs'])
-                                st.caption(data['outils'])
+                                with st.form(key=f"form_main_{patient_sel}_{code_mod}"):
+                                    check_list = []
 
-                            with st.form(key=f"form_main_{patient_sel}_{code_mod}"):
-                                check_list = []
-
-                                # A. EXAMEN DES TÂCHES
-                                if data['examen_devoirs']:
-                                    st.markdown("**🔍 Examen des tâches précédentes**")
-                                    for idx, d in enumerate(data['examen_devoirs']):
-                                        val = st.checkbox(f"{d['titre']}", key=f"exam_{patient_sel}_{code_mod}_{idx}")
+                                    # A. EXAMEN DES TÂCHES
+                                    if data['examen_devoirs']:
+                                        st.markdown("**🔍 Examen des tâches précédentes**")
+                                        for idx, d in enumerate(data['examen_devoirs']):
+                                            val = st.checkbox(f"{d['titre']}", key=f"exam_{patient_sel}_{code_mod}_{idx}")
+                                            check_list.append(val)
+                                            if d.get('pdf'):
+                                                nom = os.path.basename(d['pdf'])
+                                                st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
+                                        st.write("---")
+                                    
+                                    # B. ÉTAPES SÉANCE
+                                    st.markdown("**📝 Étapes de la séance**")
+                                    for idx_etape, etape in enumerate(data['etapes_seance']):
+                                        info_bulle = etape.get('details', None) 
+                                        val = st.checkbox(
+                                            f"{etape['titre']}", 
+                                            key=f"step_{patient_sel}_{code_mod}_{idx_etape}",
+                                            help=info_bulle
+                                        )
                                         check_list.append(val)
-                                        if d.get('pdf'):
-                                            nom = os.path.basename(d['pdf'])
-                                            st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
+                                        if etape.get('pdfs'):
+                                            for pdf_path in etape['pdfs']:
+                                                nom = os.path.basename(pdf_path)
+                                                st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
+                                    
+                                    st.write("")
                                     st.write("---")
-                                
-                                # B. ÉTAPES SÉANCE
-                                st.markdown("**📝 Étapes de la séance**")
-                                for idx_etape, etape in enumerate(data['etapes_seance']):
-                                    info_bulle = etape.get('details', None) 
-                                    val = st.checkbox(
-                                        f"{etape['titre']}", 
-                                        key=f"step_{patient_sel}_{code_mod}_{idx_etape}",
-                                        help=info_bulle
-                                    )
-                                    check_list.append(val)
-                                    if etape.get('pdfs'):
-                                        for pdf_path in etape['pdfs']:
-                                            nom = os.path.basename(pdf_path)
-                                            st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
-                                
-                                st.write("")
-                                st.write("---")
 
-                                # C. DEVOIRS
-                                indices_exclus = devoirs_exclus_memoire.get(code_mod, [])
-                                choix_devoirs_temp = [] 
-                                if data['taches_domicile']:
-                                    st.markdown("**🏠 Assignation Devoirs**")
-                                    for j, dev in enumerate(data['taches_domicile']):
-                                        is_chk = (j not in indices_exclus)
-                                        val = st.checkbox(dev['titre'], value=is_chk, key=f"dev_{patient_sel}_{code_mod}_{j}")
-                                        choix_devoirs_temp.append(val)
-                                        if dev.get('pdf'):
-                                            nom = os.path.basename(dev['pdf'])
-                                            st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
-                                st.write("---")
-                                
-                                # D. COMMENTAIRES
-                                st.markdown("**👩‍⚕️ Notes de séance**")
-                                texte_actuel = notes_seance_db.get(code_mod, "")
-                                nouvelle_note = st.text_area("Compte-rendu :", value=texte_actuel, height=150, key=f"note_area_{patient_sel}_{code_mod}")
-                                st.write("")
-                                
-                                # E. ENREGISTRER (RAPIDE)
-                                if st.form_submit_button("💾 Enregistrer la séance", type="primary"):
-                                    
-                                    # 1. Mise à jour Session State (Instantané pour l'utilisateur)
-                                    
-                                    # Devoirs
+                                    # C. DEVOIRS
+                                    indices_exclus = devoirs_exclus_memoire.get(code_mod, [])
+                                    choix_devoirs_temp = [] 
                                     if data['taches_domicile']:
-                                        nouveaux_exclus = [k for k, chk in enumerate(choix_devoirs_temp) if not chk]
-                                        devoirs_exclus_memoire[code_mod] = nouveaux_exclus
-                                        st.session_state[cache_key]["devoirs"] = devoirs_exclus_memoire
+                                        st.markdown("**🏠 Assignation Devoirs**")
+                                        for j, dev in enumerate(data['taches_domicile']):
+                                            is_chk = (j not in indices_exclus)
+                                            val = st.checkbox(dev['titre'], value=is_chk, key=f"dev_{patient_sel}_{code_mod}_{j}")
+                                            choix_devoirs_temp.append(val)
+                                            if dev.get('pdf'):
+                                                nom = os.path.basename(dev['pdf'])
+                                                st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
+                                        st.write("---")
                                     
-                                    # Notes
-                                    notes_seance_db[code_mod] = nouvelle_note
-                                    st.session_state[cache_key]["notes"] = notes_seance_db
-
-                                    # Progression
-                                    if code_mod not in progression_patient:
-                                        progression_patient.append(code_mod)
-                                        st.session_state[cache_key]["progression"] = progression_patient
+                                    # D. COMMENTAIRES
+                                    st.markdown("**👩‍⚕️ Notes de séance**")
+                                    texte_actuel = notes_seance_db.get(code_mod, "")
+                                    nouvelle_note = st.text_area("Compte-rendu :", value=texte_actuel, height=150, key=f"note_area_{patient_sel}_{code_mod}")
+                                    st.write("")
                                     
-                                    # Validation
-                                    tout_est_fini = all(check_list) if check_list else True
-                                    if tout_est_fini:
-                                        if code_mod not in modules_valides_db:
-                                            modules_valides_db.append(code_mod)
-                                            st.toast("✅ Validé (Vert) !", icon="🎉")
-                                    else:
-                                        if code_mod in modules_valides_db:
-                                            modules_valides_db.remove(code_mod)
-                                            st.toast("ℹ️ En cours (Bleu)", icon="ue800")
-                                    st.session_state[cache_key]["valides"] = modules_valides_db
-
-                                    # 2. Sauvegarde Cloud (Le "Slow part")
-                                    # On lance les sauvegardes mais on affiche le succès tout de suite
-                                    if data['taches_domicile']:
-                                        sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
-                                    
-                                    if code_mod not in charger_progression(patient_sel): # Vérif légère
-                                        sauvegarder_progression(patient_sel, progression_patient)
+                                    # E. ENREGISTRER (RAPIDE)
+                                    if st.form_submit_button("💾 Enregistrer la séance", type="primary"):
                                         
-                                    sauvegarder_suivi_global(patient_sel, modules_valides_db, notes_seance_db)
-                                    
-                                    # 3. Rafraîchissement
-                                    st.session_state.last_active_module = code_mod
-                                    st.success("✅ Enregistré !")
-                                    time.sleep(0.1) # Très court juste pour l'UX
-                                    st.rerun()
+                                        # 1. Mise à jour Session State (Instantané pour l'utilisateur)
+                                        
+                                        # Devoirs
+                                        if data['taches_domicile']:
+                                            nouveaux_exclus = [k for k, chk in enumerate(choix_devoirs_temp) if not chk]
+                                            devoirs_exclus_memoire[code_mod] = nouveaux_exclus
+                                            st.session_state[cache_key]["devoirs"] = devoirs_exclus_memoire
+                                        
+                                        # Notes
+                                        notes_seance_db[code_mod] = nouvelle_note
+                                        st.session_state[cache_key]["notes"] = notes_seance_db
 
-                        # ONGLET 2 (inchangé)
-                        with t_docs:
-                            st.info("📂 Documents")
-                            if 'pdfs_module' in data and data['pdfs_module']:
-                                for chemin in data['pdfs_module']:
-                                    nom_fichier = os.path.basename(chemin)
-                                    if os.path.exists(chemin):
-                                        with open(chemin, "rb") as f:
-                                            st.download_button(f"📥 {nom_fichier}", f, file_name=nom_fichier, key=f"dl_th_{patient_sel}_{code_mod}_{nom_fichier}")
-                                    else: st.warning(f"Manque : {nom_fichier}")
-                            else: st.caption("Aucun document.")
+                                        # Progression
+                                        if code_mod not in progression_patient:
+                                            progression_patient.append(code_mod)
+                                            st.session_state[cache_key]["progression"] = progression_patient
+                                        
+                                        # Validation
+                                        tout_est_fini = all(check_list) if check_list else True
+                                        if tout_est_fini:
+                                            if code_mod not in modules_valides_db:
+                                                modules_valides_db.append(code_mod)
+                                                st.toast("✅ Validé (Vert) !", icon="🎉")
+                                        else:
+                                            if code_mod in modules_valides_db:
+                                                modules_valides_db.remove(code_mod)
+                                                st.toast("ℹ️ En cours (Bleu)", icon="ue800")
+                                        st.session_state[cache_key]["valides"] = modules_valides_db
 
-                    # 2. BOUTON ACTION (DROITE) - C'EST ICI LA CORRECTION
+                                        # 2. Sauvegarde Cloud (Le "Slow part")
+                                        if data['taches_domicile']:
+                                            sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
+                                        
+                                        if code_mod not in charger_progression(patient_sel): # Vérif légère
+                                            sauvegarder_progression(patient_sel, progression_patient)
+                                            
+                                        sauvegarder_suivi_global(patient_sel, modules_valides_db, notes_seance_db)
+                                        
+                                        # 3. Rafraîchissement
+                                        st.session_state.last_active_module = code_mod
+                                        st.success("✅ Enregistré !")
+                                        time.sleep(0.1) 
+                                        st.rerun()
+
+                            with t_docs:
+                                if data.get('pdfs_module'):
+                                    for p in data['pdfs_module']:
+                                        if os.path.exists(p):
+                                            with open(p, "rb") as f:
+                                                st.download_button(f"📥 {os.path.basename(p)}", f, file_name=os.path.basename(p), key=f"dl_th_{patient_sel}_{code_mod}_{os.path.basename(p)}")
+                                else: st.caption("Aucun document.")
+                    
+                    # 2. LOGIQUE DU BOUTON D'ACTION
                     with c_lock:
                         if code_mod in progression_patient:
                             # Cadenas OUVERT 🔓 -> Signifie "C'est ouvert". 
@@ -427,231 +414,76 @@ elif st.session_state.user_type == "therapeute":
                                 st.session_state[cache_key]["progression"] = progression_patient
                                 st.rerun()
 
-                # 3. BOUCLE DES MODULES
-                for i, (code_mod, data) in enumerate(PROTOCOLE_BARLOW.items()):
-                    
-                    is_done = code_mod in modules_valides_db
-                    icon = "✅" if is_done else "🟦"
-                    should_be_expanded = (code_mod == st.session_state.last_active_module)
+            st.divider()
 
-                    # EN-TÊTE
-                    c_titre, c_lock = st.columns([0.85, 0.15])
-                    with c_titre:
-                        mon_expander = st.expander(f"{icon} {data['titre']}", expanded=should_be_expanded)
-                    
-                    with c_lock:
-                        is_accessible = code_mod in progression_patient
-                        if is_accessible:
-                            if st.button("🔒", key=f"lock_{patient_sel}_{code_mod}", help="Bloquer l'accès"):
-                                progression_patient.remove(code_mod)
-                                # Mise à jour DB + Session
-                                sauvegarder_progression(patient_sel, progression_patient)
-                                st.session_state[cache_key]["progression"] = progression_patient
-                                st.rerun()
-                        else:
-                            if st.button("🔓", type="primary", key=f"unlock_{patient_sel}_{code_mod}", help="Débloquer"):
-                                progression_patient.append(code_mod)
-                                # Mise à jour DB + Session
-                                sauvegarder_progression(patient_sel, progression_patient)
-                                st.session_state[cache_key]["progression"] = progression_patient
-                                st.rerun()
+            # --- VISUALISATION ---
+            st.subheader("📊 Visualisation des Données")
+            
+            def T(titre, cle):
+                return f"{titre} 🔒" if cle not in outils_autorises else titre
 
-                    # CONTENU
-                    with mon_expander:
-                        t_action, t_docs = st.tabs(["⚡ Pilotage Séance", "📂 Documents PDF"])
-                        
-                        with t_action:
-                            with st.expander("ℹ️ Objectifs & Outils", expanded=False):
-                                st.info(data['objectifs'])
-                                st.caption(data['outils'])
+            liste_choix = [
+                "Choisir...",
+                T("📝 Activités & Humeur", "activites"), T("🌙 Sommeil", "sommeil"), 
+                T("🍷 Consommations", "conso"), T("🛑 Compulsions", "compulsions"),
+                T("📉 PHQ-9", "phq9"), T("😰 GAD-7", "gad7"), T("🌿 WHO-5", "who5"),
+                T("😴 ISI", "isi"), T("🤕 PEG", "peg"), T("🧩 WSAS", "wsas")
+            ]
+            
+            choix_vue = st.selectbox("Outil à analyser :", liste_choix)
 
-                            with st.form(key=f"form_main_{patient_sel}_{code_mod}"):
-                                check_list = []
+            if "Activités" in choix_vue:
+                df_act = charger_donnees_specifiques("Activites", patient_sel)
+                df_hum = charger_donnees_specifiques("Humeur", patient_sel)
+                afficher_activites(df_act, df_hum, patient_sel)
+            
+            elif "Sommeil" in choix_vue:
+                df = charger_donnees_specifiques("Sommeil", patient_sel)
+                afficher_sommeil(df, patient_sel)
 
-                                # A. EXAMEN DES TÂCHES
-                                if data['examen_devoirs']:
-                                    st.markdown("**🔍 Examen des tâches précédentes**")
-                                    for idx, d in enumerate(data['examen_devoirs']):
-                                        val = st.checkbox(f"{d['titre']}", key=f"exam_{patient_sel}_{code_mod}_{idx}")
-                                        check_list.append(val)
-                                        if d.get('pdf'):
-                                            nom = os.path.basename(d['pdf'])
-                                            st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
-                                    st.write("---")
-                                
-                                # B. ÉTAPES SÉANCE
-                                st.markdown("**📝 Étapes de la séance**")
-                                for idx_etape, etape in enumerate(data['etapes_seance']):
-                                    info_bulle = etape.get('details', None) 
-                                    val = st.checkbox(
-                                        f"{etape['titre']}", 
-                                        key=f"step_{patient_sel}_{code_mod}_{idx_etape}",
-                                        help=info_bulle
-                                    )
-                                    check_list.append(val)
-                                    if etape.get('pdfs'):
-                                        for pdf_path in etape['pdfs']:
-                                            nom = os.path.basename(pdf_path)
-                                            st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
-                                
-                                st.write("")
-                                st.write("---")
+            elif "PHQ-9" in choix_vue:
+                df = charger_donnees_specifiques("PHQ9", patient_sel)
+                afficher_phq9(df, patient_sel)
+            
+            elif "GAD-7" in choix_vue:
+                df = charger_donnees_specifiques("GAD7", patient_sel)
+                afficher_gad7(df, patient_sel)
 
-                                # C. DEVOIRS
-                                indices_exclus = devoirs_exclus_memoire.get(code_mod, [])
-                                choix_devoirs_temp = [] 
-                                if data['taches_domicile']:
-                                    st.markdown("**🏠 Assignation Devoirs**")
-                                    for j, dev in enumerate(data['taches_domicile']):
-                                        is_chk = (j not in indices_exclus)
-                                        val = st.checkbox(dev['titre'], value=is_chk, key=f"dev_{patient_sel}_{code_mod}_{j}")
-                                        choix_devoirs_temp.append(val)
-                                        if dev.get('pdf'):
-                                            nom = os.path.basename(dev['pdf'])
-                                            st.markdown(f"<small style='color:grey; margin-left: 20px;'>📄 Document : {nom}</small>", unsafe_allow_html=True)
-                                st.write("---")
-                                
-                                # D. COMMENTAIRES
-                                st.markdown("**👩‍⚕️ Notes de séance**")
-                                texte_actuel = notes_seance_db.get(code_mod, "")
-                                nouvelle_note = st.text_area("Compte-rendu :", value=texte_actuel, height=150, key=f"note_area_{patient_sel}_{code_mod}")
-                                st.write("")
-                                
-                                # E. ENREGISTRER (RAPIDE)
-                                if st.form_submit_button("💾 Enregistrer la séance", type="primary"):
-                                    
-                                    # 1. Mise à jour Session State (Instantané pour l'utilisateur)
-                                    
-                                    # Devoirs
-                                    if data['taches_domicile']:
-                                        nouveaux_exclus = [k for k, chk in enumerate(choix_devoirs_temp) if not chk]
-                                        devoirs_exclus_memoire[code_mod] = nouveaux_exclus
-                                        st.session_state[cache_key]["devoirs"] = devoirs_exclus_memoire
-                                    
-                                    # Notes
-                                    notes_seance_db[code_mod] = nouvelle_note
-                                    st.session_state[cache_key]["notes"] = notes_seance_db
+            elif "ISI" in choix_vue:
+                df = charger_donnees_specifiques("ISI", patient_sel)
+                afficher_isi(df, patient_sel)
 
-                                    # Progression
-                                    if code_mod not in progression_patient:
-                                        progression_patient.append(code_mod)
-                                        st.session_state[cache_key]["progression"] = progression_patient
-                                    
-                                    # Validation
-                                    tout_est_fini = all(check_list) if check_list else True
-                                    if tout_est_fini:
-                                        if code_mod not in modules_valides_db:
-                                            modules_valides_db.append(code_mod)
-                                            st.toast("✅ Validé (Vert) !", icon="🎉")
-                                    else:
-                                        if code_mod in modules_valides_db:
-                                            modules_valides_db.remove(code_mod)
-                                            st.toast("ℹ️ En cours (Bleu)", icon="ue800")
-                                    st.session_state[cache_key]["valides"] = modules_valides_db
+            elif "PEG" in choix_vue:
+                df = charger_donnees_specifiques("PEG", patient_sel)
+                afficher_peg(df, patient_sel)
 
-                                    # 2. Sauvegarde Cloud (Le "Slow part")
-                                    # On lance les sauvegardes mais on affiche le succès tout de suite
-                                    if data['taches_domicile']:
-                                        sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
-                                    
-                                    if code_mod not in charger_progression(patient_sel): # Vérif légère
-                                        sauvegarder_progression(patient_sel, progression_patient)
-                                        
-                                    sauvegarder_suivi_global(patient_sel, modules_valides_db, notes_seance_db)
-                                    
-                                    # 3. Rafraîchissement
-                                    st.session_state.last_active_module = code_mod
-                                    st.success("✅ Enregistré !")
-                                    time.sleep(0.1) # Très court juste pour l'UX
-                                    st.rerun()
+            elif "WHO-5" in choix_vue:
+                df = charger_donnees_specifiques("WHO5", patient_sel)
+                afficher_who5(df, patient_sel)
 
-                        # ONGLET 2 (inchangé)
-                        with t_docs:
-                            st.info("📂 Documents")
-                            if 'pdfs_module' in data and data['pdfs_module']:
-                                for chemin in data['pdfs_module']:
-                                    nom_fichier = os.path.basename(chemin)
-                                    if os.path.exists(chemin):
-                                        with open(chemin, "rb") as f:
-                                            st.download_button(f"📥 {nom_fichier}", f, file_name=nom_fichier, key=f"dl_th_{patient_sel}_{code_mod}_{nom_fichier}")
-                                    else: st.warning(f"Manque : {nom_fichier}")
-                            else: st.caption("Aucun document.")
+            elif "WSAS" in choix_vue:
+                df = charger_donnees_specifiques("WSAS", patient_sel)
+                afficher_wsas(df, patient_sel)
 
-            # --- FONCTION POUR AJOUTER LE CADENAS DANS LE TITRE ---
-            def T(titre, cle_technique):
-                # Si l'outil N'EST PAS dans la liste des autorisés, on met un cadenas
-                if cle_technique not in outils_autorises:
-                    return f"{titre} 🔒"
-                return titre
+            elif "Problèmes" in choix_vue:
+                df = charger_donnees_specifiques("Resolution_Probleme", patient_sel)
+                if not df.empty: st.dataframe(df, use_container_width=True)
+                else: st.info("Aucune donnée.")
 
-        # --- VISUALISATION ---
-        st.subheader("📊 Visualisation des Données")
-        
-        def T(titre, cle):
-            return f"{titre} 🔒" if cle not in outils_autorises else titre
+            elif "Expo" in choix_vue:
+                df = charger_donnees_specifiques("Exposition", patient_sel)
+                if not df.empty: st.dataframe(df, use_container_width=True)
+                else: st.info("Aucune donnée.")
 
-        liste_choix = [
-            "Choisir...",
-            T("📝 Activités & Humeur", "activites"), T("🌙 Sommeil", "sommeil"), 
-            T("🍷 Consommations", "conso"), T("🛑 Compulsions", "compulsions"),
-            T("📉 PHQ-9", "phq9"), T("😰 GAD-7", "gad7"), T("🌿 WHO-5", "who5"),
-            T("😴 ISI", "isi"), T("🤕 PEG", "peg"), T("🧩 WSAS", "wsas")
-        ]
-        
-        choix_vue = st.selectbox("Outil à analyser :", liste_choix)
+            elif "Balance" in choix_vue:
+                df = charger_donnees_specifiques("Balance_Decisionnelle", patient_sel)
+                if not df.empty: st.dataframe(df, use_container_width=True)
+                else: st.info("Aucune donnée.")
 
-        if "Activités" in choix_vue:
-            df_act = charger_donnees_specifiques("Activites", patient_sel)
-            df_hum = charger_donnees_specifiques("Humeur", patient_sel)
-            afficher_activites(df_act, df_hum, patient_sel)
-        
-        elif "Sommeil" in choix_vue:
-            df = charger_donnees_specifiques("Sommeil", patient_sel)
-            afficher_sommeil(df, patient_sel)
-
-        elif "PHQ-9" in choix_vue:
-            df = charger_donnees_specifiques("PHQ9", patient_sel)
-            afficher_phq9(df, patient_sel)
-        
-        elif "GAD-7" in choix_vue:
-            df = charger_donnees_specifiques("GAD7", patient_sel)
-            afficher_gad7(df, patient_sel)
-
-        elif "ISI" in choix_vue:
-            df = charger_donnees_specifiques("ISI", patient_sel)
-            afficher_isi(df, patient_sel)
-
-        elif "PEG" in choix_vue:
-            df = charger_donnees_specifiques("PEG", patient_sel)
-            afficher_peg(df, patient_sel)
-
-        elif "WHO-5" in choix_vue:
-            df = charger_donnees_specifiques("WHO5", patient_sel)
-            afficher_who5(df, patient_sel)
-
-        elif "WSAS" in choix_vue:
-            df = charger_donnees_specifiques("WSAS", patient_sel)
-            afficher_wsas(df, patient_sel)
-
-        elif "Problèmes" in choix_vue:
-            df = charger_donnees_specifiques("Resolution_Probleme", patient_sel)
-            if not df.empty: st.dataframe(df, use_container_width=True)
-            else: st.info("Aucune donnée.")
-
-        elif "Expo" in choix_vue:
-            df = charger_donnees_specifiques("Exposition", patient_sel)
-            if not df.empty: st.dataframe(df, use_container_width=True)
-            else: st.info("Aucune donnée.")
-
-        elif "Balance" in choix_vue:
-            df = charger_donnees_specifiques("Balance_Decisionnelle", patient_sel)
-            if not df.empty: st.dataframe(df, use_container_width=True)
-            else: st.info("Aucune donnée.")
-
-        elif "SORC" in choix_vue:
-            df = charger_donnees_specifiques("SORC", patient_sel)
-            if not df.empty: st.dataframe(df, use_container_width=True)
-            else: st.info("Aucune donnée.")
-
-else:
-    st.warning("Aucun patient trouvé.")
+            elif "SORC" in choix_vue:
+                df = charger_donnees_specifiques("SORC", patient_sel)
+                if not df.empty: st.dataframe(df, use_container_width=True)
+                else: st.info("Aucune donnée.")
+    
+    else:
+        st.warning("Aucun patient trouvé.")
