@@ -179,7 +179,7 @@ elif st.session_state.user_type == "therapeute":
     tab_dash, tab_gestion, tab_proto, tab_exos, tab_visu, tab_res = st.tabs([
         "🏠 Tableau de Bord", 
         "👤 Gestion Patients",
-        "🗺️ Protocole & Accès", 
+        "🗺️ Protocole", 
         "📝 Gestion Exercices",
         "📊 Visualisation",
         "📚 Ressources"
