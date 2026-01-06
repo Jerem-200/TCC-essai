@@ -112,44 +112,20 @@ def afficher_vue_patient(patient_id):
                 "wsas": ("WSAS", "pages/19_Echelle_WSAS.py")
             }
 
-            cols = st.columns(3)
-            
-            for index, t in enumerate(taches):
-                with cols[index % 3]: # Affichage en grille
-                    
-                    # --- CAS 1 : C'EST UN EXERCICE DU PROTOCOLE (Nouveau) ---
-                    if t.startswith("PROTO_"):
-                        try:
-                            # On décode l'ID : "PROTO_module1_0"
-                            parts = t.split("_")
-                            code_mod = parts[1]
-                            idx_exo = int(parts[2])
-                            
-                            # On va chercher les infos dans la config
-                            data_mod = PROTOCOLE_BARLOW.get(code_mod)
-                            exo_data = data_mod["exercices"][idx_exo]
-                            
-                            with st.container(border=True):
-                                st.markdown(f"**{exo_data['titre']}**")
-                                st.caption(f"📍 {data_mod['titre']}")
-                                
-                                if st.button(f"👉 Démarrer", key=f"go_proto_{t}", use_container_width=True):
-                                    # Redirection vers la page d'exercice dynamique
-                                    st.session_state["exercice_actif"] = {"mod_code": code_mod, "exo_data": exo_data}
-                                    st.switch_page("pages/21_Barlow_Exercice.py")
-                        except:
-                            # Si le protocole a changé et que l'exercice n'existe plus
-                            st.error("Exercice introuvable")
+            for t in taches:
+                if t in MAP_REDIRECTION:
+                    label, page = MAP_REDIRECTION[t]
+                    # Affichage style "Alerte"
+                    col_alert, col_go = st.columns([4, 1])
+                    with col_alert:
+                        st.warning(f"👉 **{label}**")
+                    with col_go:
+                        if st.button("Go", key=f"go_{t}"):
+                            st.switch_page(page)
+        else:
+            st.caption("✅ Aucune tâche spécifique assignée pour le moment.")
 
-                    # --- CAS 2 : C'EST UN OUTIL CLASSIQUE (Ancien) ---
-                    elif t in MAP_REDIRECTION:
-                        titre_outil, page, action_text = MAP_REDIRECTION[t]
-                        
-                        with st.container(border=True):
-                            st.markdown(f"**{titre_outil}**")
-                            st.caption("Outil libre")
-                            if st.button(f"👉 {action_text}", key=f"go_{t}", use_container_width=True):
-                                st.switch_page(page)
+        st.divider()
 
         # 3. MON JOURNAL DE BORD (Totalement indépendant du protocole)
         st.subheader("📒 Mon Journal de Séance")
