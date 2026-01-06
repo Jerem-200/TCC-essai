@@ -436,20 +436,63 @@ def afficher_vue_patient(patient_id):
         if idx_card == 0:
             st.info("Aucun exercice spécifique n'est paramétré dans le protocole pour l'instant.")
 
-    # ======================================================
-    # VUE 5 : ÉCHELLES
+# ======================================================
+    # VUE 5 : ÉCHELLES & MESURES (DESIGN CARTES)
     # ======================================================
     elif onglet_actif == "📊 Échelles":
+        
+        # 1. Chargement des permissions
         outils_autorises = charger_outils_autorises(patient_id)
-        st.header("📊 Mesures")
-        liste_ech = [("phq9", "PHQ-9"), ("gad7", "GAD-7"), ("who5", "WHO-5"), ("isi", "ISI"), ("peg", "PEG"), ("wsas", "WSAS")]
+        
+        st.header("📊 Mesures Cliniques")
+        st.caption("Questionnaires pour suivre l'évolution de vos symptômes.")
+
+        # 2. Définition de toutes les échelles disponibles dans l'app
+        # Cela permet d'avoir une structure propre pour la boucle
+        CATALOGUE_ECHELLES = [
+            {"code": "phq9", "titre": "PHQ-9", "sous_titre": "Dépression", "page": "pages/15_Echelle_PHQ9.py"},
+            {"code": "gad7", "titre": "GAD-7", "sous_titre": "Anxiété", "page": "pages/16_Echelle_GAD7.py"},
+            {"code": "who5", "titre": "WHO-5", "sous_titre": "Bien-être", "page": "pages/20_Echelle_WHO5.py"},
+            {"code": "isi",  "titre": "ISI",   "sous_titre": "Insomnie",  "page": "pages/17_Echelle_ISI.py"},
+            {"code": "peg",  "titre": "PEG",   "sous_titre": "Douleur",   "page": "pages/18_Echelle_PEG.py"},
+            {"code": "wsas", "titre": "WSAS",  "sous_titre": "Impact Vie", "page": "pages/19_Echelle_WSAS.py"}
+        ]
+
+        # 3. Affichage en Grille (3 colonnes)
         cols = st.columns(3)
-        for i, (code, titre) in enumerate(liste_ech):
-            if code in outils_autorises:
-                with cols[i%3]:
-                    page_map = {"phq9": "15", "gad7": "16", "isi": "17", "peg": "18", "wsas": "19", "who5": "20"}
-                    if st.button(titre, key=f"btn_e_{code}", use_container_width=True): 
-                        st.switch_page(f"pages/{page_map[code]}_Echelle_{code.upper()}.py")
+        
+        for index, scale in enumerate(CATALOGUE_ECHELLES):
+            
+            # Vérification : Est-ce que le patient a le droit ?
+            est_debloque = (scale["code"] in outils_autorises)
+            
+            # On place dans la colonne (modulo 3)
+            with cols[index % 3]:
+                
+                # Style visuel
+                with st.container(border=True):
+                    
+                    # En-tête avec Cadenas si bloqué
+                    c_titre, c_lock = st.columns([5, 1])
+                    with c_titre:
+                        prefixe = "" if est_debloque else "🔒 "
+                        st.markdown(f"**{prefixe}{scale['titre']}**")
+                    with c_lock:
+                        if not est_debloque: st.write("🔒")
+
+                    # Description
+                    st.caption(f"Suivi : {scale['sous_titre']}")
+                    
+                    st.write("") # Espace
+
+                    # Bouton d'action
+                    key_btn = f"btn_scale_{scale['code']}"
+                    
+                    if est_debloque:
+                        if st.button("Remplir", key=key_btn, use_container_width=True, type="secondary"):
+                            st.switch_page(scale["page"])
+                    else:
+                        st.button("Non activé", key=key_btn, disabled=True, use_container_width=True)
 
     # ======================================================
     # ONGLET 6 : PSYCHOÉDUCATION (HYBRIDE LOCAL + CLOUD)
