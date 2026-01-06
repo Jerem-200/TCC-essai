@@ -425,17 +425,17 @@ elif st.session_state.user_type == "therapeute":
                             st.session_state[cache_key]["progression"] = progression_patient
                             st.rerun()
 
-    # =================================================
-    # ONGLET 4 : GESTION EXERCICES
+# =================================================
+    # ONGLET 4 : GESTION EXERCICES (Code Complet)
     # =================================================
     with tab_exos:
         patient_sel = st.session_state.patient_selectionne
         if not patient_sel:
             st.info("Veuillez sélectionner un patient d'abord.")
         else:
-            st.header(f"📝 Communication & Exercices : {patient_sel}")
+            st.header(f"📝 Communication & Prescription : {patient_sel}")
 
-            # --- 1. DÉBLOCAGE DES OUTILS ---
+            # --- 1. DÉBLOCAGE DES OUTILS (WHITELIST) ---
             outils_autorises = charger_outils_autorises(patient_sel)
             MAP_OUTILS = {
                 "🌙 Agenda Sommeil": "sommeil", "📝 Registre Activités": "activites",
@@ -447,156 +447,108 @@ elif st.session_state.user_type == "therapeute":
                 "📊 PEG": "peg", "📊 WHO-5": "who5", "📊 WSAS": "wsas"
             }
             
-            with st.expander("🛠️ Gérer les accès aux Outils & Échelles", expanded=False):
+            with st.expander("🛠️ Gérer les accès aux Outils & Échelles (Menu App)", expanded=False):
                 INV_MAP = {v: k for k, v in MAP_OUTILS.items()}
                 default_options = [INV_MAP[k] for k in outils_autorises if k in INV_MAP]
-                choix_ouverts = st.multiselect("Outils accessibles pour ce patient :", options=list(MAP_OUTILS.keys()), default=default_options)
-                if st.button("💾 Enregistrer les accès outils"):
+                choix_ouverts = st.multiselect("Outils visibles par le patient :", options=list(MAP_OUTILS.keys()), default=default_options)
+                
+                if st.button("💾 Enregistrer les accès"):
                     nouvelle_liste_cles = [MAP_OUTILS[nom] for nom in choix_ouverts]
                     sauvegarder_outils_autorises(patient_sel, nouvelle_liste_cles)
-                    st.success("Accès outils mis à jour !")
+                    st.success("Accès mis à jour !")
                     time.sleep(0.5)
                     st.rerun()
             
-            # Récupération des données existantes
+            st.divider()
+
+            # --- 2. COMMUNICATION & TÂCHES ---
             msg_actuel = charger_message_therapeute(patient_sel)
             taches_actuelles = charger_taches_assignees(patient_sel)
 
-            # --- COLONNE GAUCHE : MESSAGE THÉRAPEUTE ---
             c_msg, c_assign = st.columns([1, 1.5], gap="large")
             
+            # A. MESSAGE THÉRAPEUTE
             with c_msg:
                 st.subheader("💬 Message au patient")
                 with st.container(border=True):
-                    st.caption("Ce texte remplacera la section 'Situation Patient' sur son accueil.")
-                    nouveau_msg = st.text_area("Rédiger le message :", value=msg_actuel, height=200, placeholder="Bonjour, cette semaine nous allons nous concentrer sur...")
+                    st.caption("Remplace la 'Situation Patient' sur l'accueil.")
+                    nouveau_msg = st.text_area("Message :", value=msg_actuel, height=150)
                     
                     if st.button("☁️ Mettre à jour le message", type="primary"):
                         sauvegarder_message_therapeute(patient_sel, nouveau_msg)
-                        st.success("Message enregistré dans le cloud !")
+                        st.success("Message envoyé !")
                         time.sleep(1)
                         st.rerun()
 
-            # --- COLONNE DROITE : ASSIGNATION EXERCICES (Structure App) ---
+            # B. ALERTES (TÂCHES À FAIRE)
             with c_assign:
-                st.subheader("🔔 Exercices à faire (Alertes)")
-                st.caption("Cochez les éléments pour créer une alerte sur le tableau de bord du patient.")
+                st.subheader("🔔 Alertes (Tâches à faire)")
+                st.caption("Cochez pour afficher une alerte sur le tableau de bord.")
                 
-                # Définition de la structure complète de l'App
-                # Clé = Code interne, Valeur = Nom affiché
+                # --- PARTIE 1 : TÂCHES GÉNÉRIQUES ---
                 STRUCTURE_COMPLETE = {
-                    "📅 Agendas": {
-                        "sommeil": "Agenda du Sommeil",
-                        "activites": "Registre des Activités",
-                        "conso": "Agenda Consommations",
-                        "compulsions": "Agenda Compulsions"
-                    },
-                    "🛠️ Outils TCC": {
-                        "beck": "Colonnes de Beck",
-                        "sorc": "Analyse SORC",
-                        "problemes": "Résolution de Problème",
-                        "balance": "Balance Décisionnelle",
-                        "expo": "Exercice d'Exposition",
-                        "relax": "Séance de Relaxation"
-                    },
-                    "📊 Échelles & Mesures": {
-                        "phq9": "Questionnaire PHQ-9 (Dépression)",
-                        "gad7": "Questionnaire GAD-7 (Anxiété)",
-                        "who5": "Indice Bien-être (WHO-5)",
-                        "isi": "Indice Insomnie (ISI)",
-                        "wsas": "Retentissement (WSAS)"
-                    }
+                    "📅 Agendas": {"sommeil": "Agenda Sommeil", "activites": "Registre Activités", "conso": "Conso", "compulsions": "Compulsions"},
+                    "🛠️ Outils": {"beck": "Beck", "sorc": "SORC", "problemes": "Résolution Pb", "balance": "Balance", "expo": "Exposition", "relax": "Relaxation"},
+                    "📊 Échelles": {"phq9": "PHQ-9", "gad7": "GAD-7", "who5": "WHO-5"}
                 }
 
-                with st.form("form_assignation_complete"):
-                    nouvelles_taches = []
+                with st.form("form_assign_base"):
+                    nouvelles_taches = [t for t in taches_actuelles if t.startswith("PROTO_")] # On garde les tâches protocolaires existantes
                     
-                    # On boucle sur les catégories pour créer les menus déroulants
-                    for categorie, outils in STRUCTURE_COMPLETE.items():
-                        with st.expander(categorie, expanded=False):
-                            for code_outil, label_outil in outils.items():
-                                # Est-ce que c'était déjà coché ?
-                                est_coche = (code_outil in taches_actuelles)
-                                if st.checkbox(label_outil, value=est_coche, key=f"chk_{code_outil}"):
-                                    nouvelles_taches.append(code_outil)
+                    for cat, items in STRUCTURE_COMPLETE.items():
+                        with st.expander(cat):
+                            for k, label in items.items():
+                                checked = (k in taches_actuelles)
+                                if st.checkbox(label, value=checked, key=f"chk_{k}"):
+                                    nouvelles_taches.append(k)
                     
-                    st.write("")
-                    if st.form_submit_button("🔔 Mettre à jour les alertes"):
+                    if st.form_submit_button("Mettre à jour les alertes"):
                         sauvegarder_taches_assignees(patient_sel, nouvelles_taches)
-                        st.success("Alertes mises à jour pour le patient !")
-                        time.sleep(0.5)
+                        st.success("Alertes mises à jour !")
                         st.rerun()
 
-            st.divider()
-            st.subheader("🎯 Assigner un exercice spécifique du Protocole")
-            st.caption("Sélectionnez un exercice précis (ex: 'Respiration diaphragmatique').")
+                # --- PARTIE 2 : ASSIGNATION PROTOCOLE (MENU DÉROULANT) ---
+                st.write("")
+                st.markdown("##### 🎯 Assigner un exercice du Protocole")
+                
+                progression_patient = charger_progression(patient_sel)
+                liste_options = []
+                map_proto = {}
 
-            # 1. On charge la progression pour la vérification
-            progression_patient = charger_progression(patient_sel)
+                for code_mod, data in PROTOCOLE_BARLOW.items():
+                    if "exercices" in data and data["exercices"]:
+                        for i, exo in enumerate(data["exercices"]):
+                            id_tech = f"PROTO_{code_mod}_{i}"
+                            label = f"{exo['titre']} ({data['titre']})"
+                            liste_options.append(label)
+                            map_proto[label] = {"id": id_tech, "mod": code_mod}
 
-            # 2. On construit la liste de tous les exercices disponibles dans le code
-            # Format de la liste : dictionnaire pour retrouver les infos
-            liste_options_proto = []
-            map_proto = {} # Pour retrouver les infos quand on sélectionne
-
-            for code_mod, data in PROTOCOLE_BARLOW.items():
-                if "exercices" in data and data["exercices"]:
-                    for i, exo in enumerate(data["exercices"]):
-                        # On crée un identifiant unique pour la sauvegarde
-                        id_technique = f"PROTO_{code_mod}_{i}" 
-                        label = f"{exo['titre']} ({data['titre']})"
-                        
-                        liste_options_proto.append(label)
-                        map_proto[label] = {
-                            "id": id_technique,
-                            "mod_code": code_mod,
-                            "titre_mod": data['titre']
-                        }
-
-            # 3. L'interface d'assignation
-            col_sel, col_btn = st.columns([3, 1])
-            
-            with col_sel:
-                choix_exo = st.selectbox("Choisir l'exercice :", ["Selectionner..."] + liste_options_proto, label_visibility="collapsed")
-            
-            with col_btn:
-                if st.button("➕ Assigner", type="primary"):
-                    if choix_exo != "Selectionner...":
-                        info = map_proto[choix_exo]
-                        
-                        # --- VERIFICATION DE SECURITÉ ---
-                        if info["mod_code"] in progression_patient:
-                            # 1. On récupère la liste actuelle
-                            taches_now = charger_taches_assignees(patient_sel)
-                            # 2. On ajoute si pas déjà présent
-                            if info["id"] not in taches_now:
-                                taches_now.append(info["id"])
-                                sauvegarder_taches_assignees(patient_sel, taches_now)
-                                st.success(f"Exercice '{choix_exo}' ajouté aux alertes !")
-                                time.sleep(1)
-                                st.rerun()
-                            else:
-                                st.warning("Cet exercice est déjà dans les alertes.")
-                        else:
-                            # ALERTE SI BLOQUÉ
-                            st.error(f"🚫 Impossible ! Le module '{info['titre_mod']}' est encore verrouillé pour ce patient.")
-                            st.caption("Débloquez d'abord le module dans l'onglet 'Protocole'.")
-                    else:
-                        st.warning("Choisissez un exercice.")
-            
-            # Petit affichage des tâches protocolaires actuelles pour info
-            taches_actuelles = charger_taches_assignees(patient_sel)
-            taches_proto = [t for t in taches_actuelles if t.startswith("PROTO_")]
-            if taches_proto:
-                st.caption("Exercices protocolaires en cours :")
-                for t in taches_proto:
-                    # On essaie de retrouver le nom lisible
-                    parts = t.split("_") # PROTO, module, index
-                    if len(parts) == 3:
-                        try:
-                            mod = parts[1]
-                            idx = int(parts[2])
-                            nom = PROTOCOLE_BARLOW[mod]["exercices"][idx]["titre"]
+                c_sel, c_add = st.columns([3, 1])
+                with c_sel:
+                    choix_exo = st.selectbox("Exercice :", ["Choisir..."] + liste_options, label_visibility="collapsed")
+                with c_add:
+                    if st.button("Ajouter"):
+                        if choix_exo != "Choisir...":
+                            info = map_proto[choix_exo]
+                            if info["mod"] in progression_patient:
+                                taches_now = charger_taches_assignees(patient_sel)
+                                if info["id"] not in taches_now:
+                                    taches_now.append(info["id"])
+                                    sauvegarder_taches_assignees(patient_sel, taches_now)
+                                    st.success("Ajouté !")
+                                    st.rerun()
+                                else: st.warning("Déjà assigné.")
+                            else: st.error("Module verrouillé !")
+                
+                # Affichage des tâches protocolaires en cours
+                encours = [t for t in taches_actuelles if t.startswith("PROTO_")]
+                if encours:
+                    st.caption("En cours :")
+                    for t in encours:
+                        # Petite astuce pour retrouver le nom
+                        parts = t.split("_")
+                        try: 
+                            nom = PROTOCOLE_BARLOW[parts[1]]["exercices"][int(parts[2])]["titre"]
                             st.text(f"- {nom}")
                         except: st.text(f"- {t}")
 
