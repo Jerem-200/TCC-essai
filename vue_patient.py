@@ -243,32 +243,65 @@ def afficher_vue_patient(patient_id):
                         st.divider()
 
         # -------------------------------------------------
-        # B. SOUS-ONGLET : LANCEUR RAPIDE (Redirection Exos)
+        # B. SOUS-ONGLET : LANCEUR RAPIDE (Table des matières active)
         # -------------------------------------------------
         with sub_tab_outils:
             st.subheader("🚀 Accès rapide aux outils")
-            st.caption("Retrouvez ici tous les exercices débloqués, classés par module.")
+            st.caption("Voici tous les exercices du protocole. Ils se déverrouillent au fur et à mesure.")
             st.write("")
 
+            # On utilise une grille de 3 colonnes pour faire propre
+            cols = st.columns(3)
+            idx_card = 0
             exos_trouves = False
+
+            # On parcourt TOUS les modules (sans filtrer par progression au début)
             for code_mod, data in PROTOCOLE_BARLOW.items():
-                if code_mod in progression:
-                    if "exercices" in data and data["exercices"]:
-                        for i, exo in enumerate(data["exercices"]):
-                            exos_trouves = True
-                            c_txt, c_btn = st.columns([5, 1])
-                            with c_txt:
-                                st.markdown(f"🔹 **{exo['titre']}** <small style='color:grey'>({data['titre']})</small>", unsafe_allow_html=True)
-                            with c_btn:
-                                key_btn = f"btn_light_{code_mod}_{i}"
-                                if st.button("Ouvrir", key=key_btn, use_container_width=True):
-                                    st.session_state["exercice_actif"] = {"mod_code": code_mod, "exo_data": exo}
-                                    st.switch_page("pages/21_Barlow_Exercice.py")
-                            st.divider()
+                
+                # S'il y a des exercices dans ce module
+                if "exercices" in data and data["exercices"]:
+                    
+                    # C'est ICI qu'on vérifie si c'est débloqué
+                    est_debloque = (code_mod in progression)
+
+                    for i, exo in enumerate(data["exercices"]):
+                        exos_trouves = True
+                        
+                        # Affichage dans la grille
+                        with cols[idx_card % 3]:
+                            
+                            # Style visuel : on encadre
+                            with st.container(border=True):
+                                
+                                # En-tête : Titre + Petit cadenas
+                                c_titre, c_lock = st.columns([6, 1])
+                                with c_titre:
+                                    # Titre de l'exercice
+                                    style_titre = f"**{exo['titre']}**" if est_debloque else f"**🔒 {exo['titre']}**"
+                                    st.markdown(style_titre)
+                                with c_lock:
+                                    if not est_debloque: st.write("🔒")
+
+                                # Sous-titre : Nom du module
+                                st.caption(f"📍 {data['titre']}")
+                                st.write("") # Espace
+
+                                # Bouton d'action
+                                key_btn = f"btn_fast_launch_{code_mod}_{i}"
+                                
+                                if est_debloque:
+                                    # CAS 1 : Ouvert -> Bouton vert/actif
+                                    if st.button("👉 Ouvrir", key=key_btn, use_container_width=True, type="secondary"):
+                                        st.session_state["exercice_actif"] = {"mod_code": code_mod, "exo_data": exo}
+                                        st.switch_page("pages/21_Barlow_Exercice.py")
+                                else:
+                                    # CAS 2 : Fermé -> Bouton gris
+                                    st.button("Verrouillé", key=key_btn, disabled=True, use_container_width=True)
+                        
+                        idx_card += 1
 
             if not exos_trouves:
-                st.info("Aucun exercice disponible.")
-                st.caption("Avancez dans les modules pour débloquer des outils.")
+                st.info("Aucun exercice n'est configuré dans le protocole.")
 
         # -------------------------------------------------
         # C. SOUS-ONGLET : BILAN HEBDO
