@@ -49,8 +49,9 @@ def afficher_vue_patient(patient_id):
     
     st.title(f"👋 Espace de {patient_id}")
 
-    # 2. CRÉATION DES ONGLETS (STYLE SLIDES)
-    tab_dash, tab_proto, tab_agenda, tab_outils, tab_echelles, tab_psycho, tab_export = st.tabs([
+    # 2. NAVIGATION PRINCIPALE (STABLE)
+    # On définit les onglets
+    liste_onglets = [
         "🏠 Tableau de Bord", 
         "🗺️ Protocole", 
         "📅 Agendas", 
@@ -58,12 +59,33 @@ def afficher_vue_patient(patient_id):
         "📊 Échelles", 
         "📚 Psychoéducation",
         "📤 Export"
-    ])
+    ]
+    
+    # Gestion du retour forcé (depuis un exercice par exemple)
+    cible = st.session_state.get("target_tab", None)
+    if cible and cible in liste_onglets:
+        st.session_state["nav_patient_main"] = cible
+        st.session_state["target_tab"] = None 
+
+    # Initialisation de la session si besoin
+    if "nav_patient_main" not in st.session_state:
+        st.session_state["nav_patient_main"] = liste_onglets[0]
+
+    # LE MENU RADIO (C'est lui qui contrôle la page active)
+    # L'argument 'key' est CRUCIAL pour ne pas revenir à l'accueil
+    onglet_actif = st.radio(
+        "Menu Principal", 
+        liste_onglets, 
+        horizontal=True, 
+        label_visibility="collapsed",
+        key="nav_patient_main" 
+    )
+    st.divider()
     
     # ======================================================
     # VUE 1 : TABLEAU DE BORD (Modifié)
     # ======================================================
-    with tab_dash:
+    if onglet_actif == "🏠 Tableau de Bord":
         
         # 1. MESSAGE THÉRAPEUTE
         # On force le chargement pour voir si ça marche
@@ -154,7 +176,7 @@ def afficher_vue_patient(patient_id):
     # ======================================================
     # VUE 2 : PROTOCOLE (SOUS-ONGLETS SLIDE)
     # ======================================================
-    with tab_proto:
+    if onglet_actif == "🗺️ Protocole":
         st.header("🗺️ Mon Parcours TCC")
         
         # 1. CRÉATION DES 4 SOUS-ONGLETS (Type Slide)
@@ -323,7 +345,7 @@ def afficher_vue_patient(patient_id):
     # ======================================================
     # VUE 3 : AGENDAS
     # ======================================================
-    with tab_agenda:
+    if onglet_actif == "📅 Agendas":
         st.header("📅 Mes Agendas de suivi")
         col_a1, col_a2 = st.columns(2)
         with col_a1:
@@ -340,7 +362,7 @@ def afficher_vue_patient(patient_id):
     # ======================================================
     # VUE 4 : OUTILS
     # ======================================================
-    with tab_outils:
+    if onglet_actif == "🛠️ Outils & Exos":
         st.header("🛠️ Boîte à outils")
         c1, c2, c3 = st.columns(3)
         with c1:
@@ -362,7 +384,7 @@ def afficher_vue_patient(patient_id):
     # ======================================================
     # VUE 5 : ÉCHELLES
     # ======================================================
-    with tab_echelles:
+    if onglet_actif == "📊 Échelles":
         st.header("📊 Mesures")
         liste_ech = [("phq9", "PHQ-9"), ("gad7", "GAD-7"), ("who5", "WHO-5"), ("isi", "ISI"), ("peg", "PEG"), ("wsas", "WSAS")]
         cols = st.columns(3)
@@ -376,7 +398,7 @@ def afficher_vue_patient(patient_id):
     # ======================================================
     # ONGLET 6 : PSYCHOÉDUCATION (HYBRIDE LOCAL + CLOUD)
     # ======================================================
-    with tab_psycho:
+    if onglet_actif == "📚 Psychoéducation":
         st.header("📚 Ressources Psycho-éducatives")
         st.write("Consultez les fiches de référence ou accédez à la bibliothèque partagée.")
 
@@ -450,6 +472,6 @@ def afficher_vue_patient(patient_id):
     # ======================================================
     # VUE 6 : EXPORT
     # ======================================================
-    with tab_export:
+    if onglet_actif == "📤 Export":
         st.header("📤 Export")
         if st.button("Générer PDF", type="primary"): st.switch_page("pages/08_Export_Rapport.py")
