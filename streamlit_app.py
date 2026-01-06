@@ -185,9 +185,12 @@ elif st.session_state.user_type == "therapeute":
             
             # CRÉATION PATIENT
             with st.expander("➕ Créer un Nouveau Patient"):
-                nb_pats = len(st.session_state.liste_patients_cache)
-                prochain_id = f"PAT-{nb_pats+1:03d}"
-                id_dossier = st.text_input("Identifiant Dossier", value=prochain_id)
+                # 1. On charge TOUS les patients de la base pour avoir le vrai total
+                tous_les_codes = load_data("Codes_Patients") # Cette fonction charge tout le JSON
+                nb_total_absolu = len(tous_les_codes) if tous_les_codes else 0
+                # 2. On génère l'ID basé sur le total global
+                prochain_id = f"PAT-{nb_total_absolu + 1:03d}"
+                id_dossier = st.text_input("Dossier", value=prochain_id)
                 if st.button("Générer accès"):
                     ac_code = generer_code_securise("TCC")
                     from connect_db import save_data 
