@@ -226,31 +226,7 @@ elif st.session_state.user_type == "therapeute":
             st.info("Veuillez sélectionner un patient dans l'onglet 'Tableau de Bord'.")
         else:
             st.markdown(f"### Gestion du Protocole : **{patient_sel}**")
-            
-            # --- 1. DÉBLOCAGE DES OUTILS (Moved here) ---
-            outils_autorises = charger_outils_autorises(patient_sel)
-            MAP_OUTILS = {
-                "🌙 Agenda Sommeil": "sommeil", "📝 Registre Activités": "activites",
-                "🍷 Agenda Consos": "conso", "🛑 Agenda Compulsions": "compulsions",
-                "🧩 Colonnes de Beck": "beck", "🔍 Analyse SORC": "sorc",
-                "💡 Résolution Problème": "problemes", "⚖️ Balance Décisionnelle": "balance",
-                "🧗 Exposition": "expo", "🧘 Relaxation": "relax",
-                "📊 PHQ-9": "phq9", "📊 GAD-7": "gad7", "📊 ISI": "isi",
-                "📊 PEG": "peg", "📊 WHO-5": "who5", "📊 WSAS": "wsas"
-            }
-            
-            with st.expander("🛠️ Gérer les accès aux Outils & Échelles", expanded=False):
-                INV_MAP = {v: k for k, v in MAP_OUTILS.items()}
-                default_options = [INV_MAP[k] for k in outils_autorises if k in INV_MAP]
-                choix_ouverts = st.multiselect("Outils accessibles pour ce patient :", options=list(MAP_OUTILS.keys()), default=default_options)
-                if st.button("💾 Enregistrer les accès outils"):
-                    nouvelle_liste_cles = [MAP_OUTILS[nom] for nom in choix_ouverts]
-                    sauvegarder_outils_autorises(patient_sel, nouvelle_liste_cles)
-                    st.success("Accès outils mis à jour !")
-                    time.sleep(0.5)
-                    st.rerun()
 
-            st.divider()
 
             # --- 2. PILOTAGE MODULES BARLOW ---
             # --- CHARGEMENT DONNEES ---
@@ -375,6 +351,31 @@ elif st.session_state.user_type == "therapeute":
             st.info("Veuillez sélectionner un patient d'abord.")
         else:
             st.header(f"📝 Communication & Exercices : {patient_sel}")
+
+            # --- 1. DÉBLOCAGE DES OUTILS (Moved here) ---
+            outils_autorises = charger_outils_autorises(patient_sel)
+            MAP_OUTILS = {
+                "🌙 Agenda Sommeil": "sommeil", "📝 Registre Activités": "activites",
+                "🍷 Agenda Consos": "conso", "🛑 Agenda Compulsions": "compulsions",
+                "🧩 Colonnes de Beck": "beck", "🔍 Analyse SORC": "sorc",
+                "💡 Résolution Problème": "problemes", "⚖️ Balance Décisionnelle": "balance",
+                "🧗 Exposition": "expo", "🧘 Relaxation": "relax",
+                "📊 PHQ-9": "phq9", "📊 GAD-7": "gad7", "📊 ISI": "isi",
+                "📊 PEG": "peg", "📊 WHO-5": "who5", "📊 WSAS": "wsas"
+            }
+            
+            with st.expander("🛠️ Gérer les accès aux Outils & Échelles", expanded=False):
+                INV_MAP = {v: k for k, v in MAP_OUTILS.items()}
+                default_options = [INV_MAP[k] for k in outils_autorises if k in INV_MAP]
+                choix_ouverts = st.multiselect("Outils accessibles pour ce patient :", options=list(MAP_OUTILS.keys()), default=default_options)
+                if st.button("💾 Enregistrer les accès outils"):
+                    nouvelle_liste_cles = [MAP_OUTILS[nom] for nom in choix_ouverts]
+                    sauvegarder_outils_autorises(patient_sel, nouvelle_liste_cles)
+                    st.success("Accès outils mis à jour !")
+                    time.sleep(0.5)
+                    st.rerun()
+
+            st.divider()
             
             c_msg, c_assign = st.columns(2)
             
