@@ -78,7 +78,7 @@ def afficher_vue_patient(patient_id):
         taches = charger_taches_assignees(patient_id)
         
         if taches:
-            st.subheader("🔔 À faire cette semaine")
+            st.subheader("🔔 À faire")
             
             MAP_REDIRECTION = {
                 "sommeil": ("Agenda Sommeil", "pages/10_Agenda_Sommeil.py"),
