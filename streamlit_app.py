@@ -13,7 +13,9 @@ from connect_db import (
     charger_outils_autorises, sauvegarder_outils_autorises, 
     charger_progression, charger_etat_devoirs, charger_suivi_global,
     charger_donnees_specifiques, sauvegarder_progression, 
-    load_data, generer_code_securise, sauvegarder_etat_devoirs, sauvegarder_suivi_global
+    load_data, generer_code_securise, sauvegarder_etat_devoirs, sauvegarder_suivi_global,
+    charger_message_therapeute, sauvegarder_message_therapeute,
+    charger_taches_assignees, sauvegarder_taches_assignees
 )
 
 # Imports Visualisation & Config

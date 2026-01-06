@@ -12,7 +12,8 @@ from connect_db import (
     charger_progression, charger_etat_devoirs, charger_suivi_global,
     charger_outils_autorises, sauvegarder_progression,
     sauvegarder_etat_devoirs, sauvegarder_suivi_global,
-    sauvegarder_reponse_hebdo, supprimer_reponse, load_data
+    sauvegarder_reponse_hebdo, supprimer_reponse, load_data,
+    charger_message_therapeute, charger_taches_assignees
 )
 
 from connect_drive import lister_fichiers_drive, telecharger_fichier_drive
