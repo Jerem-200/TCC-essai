@@ -6,6 +6,8 @@ import json
 import pandas as pd
 import secrets
 
+SHEET_ID = "1xLf21h1C7Ej0tUsbnuKQSpHonlOAZ4bEvf90fSsmehI"
+
 # =========================================================
 # 1. CONNEXION BAS NIVEAU (CACHE RESOURCE)
 # =========================================================
@@ -42,7 +44,7 @@ def save_data(nom_onglet, donnees_liste):
     if not client: return False
     
     try:
-        sheet = client.open("TCC_Base_Donnees")
+        sheet = client.open_by_key(SHEET_ID)    
         try:
             worksheet = sheet.worksheet(nom_onglet)
         except:
@@ -61,7 +63,7 @@ def load_data(nom_onglet):
     if not client: return []
     
     try:
-        sheet = client.open("TCC_Base_Donnees")
+        sheet = client.open_by_key(SHEET_ID)
         ws = sheet.worksheet(nom_onglet)
         return ws.get_all_records()
     except:
@@ -73,7 +75,7 @@ def delete_data_flexible(nom_onglet, criteres_dict):
     if not client: return False
 
     try:
-        sheet = client.open("TCC_Base_Donnees")
+        sheet = client.open_by_key(SHEET_ID)
         ws = sheet.worksheet(nom_onglet)
         records = ws.get_all_records()
         row_index_to_delete = None
