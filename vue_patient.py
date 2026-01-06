@@ -15,6 +15,8 @@ from connect_db import (
     sauvegarder_reponse_hebdo, supprimer_reponse, load_data
 )
 
+from connect_drive import lister_fichiers_drive, telecharger_fichier_drive
+
 # Cache local pour l'historique
 @st.cache_data(ttl=300)
 def charger_historique_local(uid):
@@ -331,75 +333,78 @@ def afficher_vue_patient(patient_id):
                         st.switch_page(f"pages/{page_map[code]}_Echelle_{code.upper()}.py")
 
     # ======================================================
-    # ONGLET 5 : PSYCHOÉDUCATION (DOCUMENTS UNIQUEMENT)
+    # ONGLET 6 : PSYCHOÉDUCATION (HYBRIDE LOCAL + CLOUD)
     # ======================================================
     elif onglet_actif == "📚 Psychoéducation":
         st.header("📚 Ressources Psycho-éducatives")
-        st.write("Consultez les fiches et documents mis à disposition par votre thérapeute.")
-        
-        # Import des fonctions Drive
-        from connect_drive import lister_fichiers_drive, telecharger_fichier_drive
+        st.write("Consultez les fiches de référence ou accédez à la bibliothèque partagée.")
 
-        # --- RECUPERATION DYNAMIQUE DRIVE ---
-        # On récupère la liste une fois pour éviter de trop appeler l'API
-        tous_fichiers = lister_fichiers_drive()
+        # --- 1. FONCTION D'AFFICHAGE LOCAL (Pour les fichiers du code de base) ---
+        def afficher_ressource_locale(titre_pdf, nom_fichier_pdf, liste_images=[]):
+            if os.path.exists(nom_fichier_pdf):
+                with open(nom_fichier_pdf, "rb") as f:
+                    st.download_button(
+                        label=f"📥 Télécharger '{titre_pdf}' (PDF)",
+                        data=f,
+                        file_name=os.path.basename(nom_fichier_pdf),
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+            else:
+                st.warning(f"Fichier local introuvable : {nom_fichier_pdf}")
+            
+            for img in liste_images:
+                if os.path.exists(img):
+                    st.image(img, use_container_width=True)
 
-        # --- FONCTION D'AFFICHAGE INTELLIGENTE ---
-        def afficher_fichier_drive(file_info):
+        # --- 2. FONCTION D'AFFICHAGE CLOUD (Pour les fichiers ajoutés par le thérapeute) ---
+        def afficher_fichier_cloud(file_info):
             f_name = file_info['name']
             f_id = file_info['id']
             f_mime = file_info.get('mimeType', 'application/pdf')
-            
             with st.container(border=True):
                 icon = "📄" if "pdf" in f_mime else "🖼️"
                 st.write(f"**{icon} {f_name}**")
-                
-                # Bouton de téléchargement
-                # Note : Pour optimiser, on ne télécharge le contenu QUE si l'utilisateur clique (callback)
-                # Mais Streamlit st.download_button a besoin des data tout de suite.
-                # Pour éviter de ralentir l'app, on télécharge tout le monde ou on utilise un lien externe.
-                # Ici, méthode simple : on télécharge le contenu en mémoire.
-                
-                # OPTIMISATION : Si c'est lourd, on pourrait mettre un st.link_button vers le Drive direct
-                # Mais pour rester dans l'app, on télécharge :
                 content = telecharger_fichier_drive(f_id)
                 if content:
-                    st.download_button(
-                        label="Télécharger",
-                        data=content,
-                        file_name=f_name,
-                        mime=f_mime,
-                        key=f"dl_pat_{f_id}"
-                    )
-                    
-                    # Prévisualisation image
-                    if "image" in f_mime:
-                        st.image(content)
+                    st.download_button("Télécharger", content, file_name=f_name, mime=f_mime, key=f"dl_cloud_{f_id}")
+                    if "image" in f_mime: st.image(content)
 
-        # --- LES ONGLETS ---
-        t_pedago, t_vrac = st.tabs(["Fiches Clés", "📂 Bibliothèque Complète"])
+        # --- ONGLETS ---
+        t_emotions, t_roue, t_distorsions, t_vrac = st.tabs([
+            "Fonctions Émotions", 
+            "Roue Émotions", 
+            "Distorsions", 
+            "📂 Bibliothèque Complète"
+        ])
 
-        with t_pedago:
-            st.info("Ici vous pouvez filtrer manuellement par nom si vous voulez garder la structure pédagogique.")
-            # Exemple : on cherche le fichier "Roue..." dans la liste Drive
-            # C'est optionnel, si vous voulez garder votre belle structure
-            
-            # Exemple simple : On affiche tout ce qui contient "Roue" ou "Emotion" ici
-            cols = st.columns(2)
-            for i, f in enumerate(tous_fichiers):
-                if "roue" in f['name'].lower() or "emotion" in f['name'].lower() or "distorsion" in f['name'].lower():
-                    with cols[i % 2]:
-                        afficher_fichier_drive(f)
+        # A. Contenu LOCAL (Code de base)
+        with t_emotions:
+            st.subheader("À quoi servent nos émotions ?")
+            afficher_ressource_locale("Fiche Fonctions", "assets/Les fonctions des émotions.pdf", ["assets/fonctions.jpg"])
 
+        with t_roue:
+            st.subheader("La Roue de Plutchik")
+            afficher_ressource_locale("Roue des sentiments", "assets/Roue des sentiments de Plutchik.pdf", ["assets/roue.jpg"])
+
+        with t_distorsions:
+            st.subheader("Les Distorsions Cognitives")
+            afficher_ressource_locale("Liste Distorsions", "assets/Distorsions cognitives.pdf", ["assets/disto_1.jpg"])
+
+        # B. Contenu CLOUD (Dynamique)
         with t_vrac:
-            st.subheader("📂 Tous les documents")
-            if tous_fichiers:
+            st.subheader("📂 Documents additionnels (Cloud)")
+            # On va chercher les fichiers sur Google Cloud
+            tous_fichiers_cloud = lister_fichiers_drive()
+            
+            if tous_fichiers_cloud:
                 cols = st.columns(3)
-                for i, f in enumerate(tous_fichiers):
+                for i, f in enumerate(tous_fichiers_cloud):
                     with cols[i % 3]:
-                        afficher_fichier_drive(f)
+                        afficher_fichier_cloud(f)
             else:
-                st.info("Aucun document disponible pour le moment.")
+                st.info("Aucun document supplémentaire n'a été ajouté par le thérapeute.")
+
 
     # ======================================================
     # VUE 6 : EXPORT
