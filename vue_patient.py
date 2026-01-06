@@ -393,6 +393,7 @@ def afficher_vue_patient(patient_id):
     # ======================================================
     elif onglet_actif == "🛠️ Outils & Exos":
         outils_autorises = charger_outils_autorises(patient_id)
+        progression = charger_progression(patient_id)
         st.header("🛠️ Boîte à outils")
         c1, c2, c3 = st.columns(3)
         with c1:
