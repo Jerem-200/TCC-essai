@@ -499,3 +499,47 @@ elif st.session_state.user_type == "therapeute":
     
     else:
         st.warning("Aucun patient trouvé.")
+
+    # ... (Code existant avant) ...
+    st.divider()
+    
+    # --- GESTION DES RESSOURCES (GOOGLE DRIVE) ---
+    # Import des nouvelles fonctions
+    from connect_drive import uploader_fichier_drive, lister_fichiers_drive, supprimer_fichier_drive
+    
+    with st.expander("📚 Gestion des Ressources (Google Drive)"):
+        st.info("Les fichiers ajoutés ici sont stockés sur Google Drive et visibles par tous les patients.")
+        
+        # 1. Upload
+        uploaded_file = st.file_uploader("Téléverser un document", type=['pdf', 'png', 'jpg', 'jpeg'])
+        
+        if uploaded_file is not None:
+            if st.button(f"☁️ Envoyer '{uploaded_file.name}' sur le Drive"):
+                with st.spinner("Envoi en cours..."):
+                    # On passe l'objet fichier directement
+                    if uploader_fichier_drive(uploaded_file, uploaded_file.name):
+                        st.success("Fichier en ligne !")
+                        time.sleep(1)
+                        st.rerun()
+
+        st.divider()
+        st.write("**Fichiers sur le Drive :**")
+        
+        # 2. Liste depuis Drive
+        fichiers_drive = lister_fichiers_drive()
+        
+        if fichiers_drive:
+            for f in fichiers_drive:
+                c_nom, c_del = st.columns([0.8, 0.2])
+                with c_nom:
+                    # On ajoute une icône selon le type (basique)
+                    icon = "🖼️" if "image" in f.get('mimeType', '') else "📄"
+                    st.text(f"{icon} {f['name']}")
+                with c_del:
+                    if st.button("🗑️", key=f"del_drive_{f['id']}"):
+                        supprimer_fichier_drive(f['id'])
+                        st.toast("Fichier supprimé du Drive")
+                        time.sleep(1)
+                        st.rerun()
+        else:
+            st.info("Le dossier Drive est vide.")

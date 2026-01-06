@@ -335,65 +335,71 @@ def afficher_vue_patient(patient_id):
     # ======================================================
     elif onglet_actif == "📚 Psychoéducation":
         st.header("📚 Ressources Psycho-éducatives")
-        st.write("Consultez les fiches directement ci-dessous ou téléchargez-les pour les imprimer.")
-
-        # --- FONCTION LOCALE D'AFFICHAGE ---
-        def afficher_ressource(titre_pdf, nom_fichier_pdf, liste_images):
-            # 1. BOUTON DE TÉLÉCHARGEMENT
-            if os.path.exists(nom_fichier_pdf):
-                with open(nom_fichier_pdf, "rb") as f:
-                    st.download_button(
-                        label=f"📥 Télécharger la fiche '{titre_pdf}' (PDF)",
-                        data=f,
-                        file_name=os.path.basename(nom_fichier_pdf),
-                        mime="application/pdf",
-                        help="Idéal pour l'impression."
-                    )
-            else:
-                st.warning(f"Fichier PDF '{nom_fichier_pdf}' introuvable dans le dossier 'assets'.")
-
-            st.divider()
-
-            # 2. GALERIE D'IMAGES
-            # (Note: Les images s'afficheront seulement si elles existent dans 'assets/')
-            for image_name in liste_images:
-                if os.path.exists(image_name):
-                    st.image(image_name, use_container_width=True)
+        st.write("Consultez les fiches et documents mis à disposition par votre thérapeute.")
         
-        # --- LES SOUS-ONGLETS DE RESSOURCES ---
-        t_emotions, t_roue, t_distorsions = st.tabs(["Fonctions des Émotions", "Roue des Émotions", "Distorsions Cognitives"])
+        # Import des fonctions Drive
+        from connect_drive import lister_fichiers_drive, telecharger_fichier_drive
 
-        with t_emotions:
-            st.subheader("À quoi servent nos émotions ?")
-            
-            afficher_ressource(
-                titre_pdf="Fonctions des émotions",
-                nom_fichier_pdf="assets/Les fonctions des émotions.pdf",
-                liste_images=["assets/fonctions.jpg"]
-            )
+        # --- RECUPERATION DYNAMIQUE DRIVE ---
+        # On récupère la liste une fois pour éviter de trop appeler l'API
+        tous_fichiers = lister_fichiers_drive()
 
-        with t_roue:
-            st.subheader("La Roue de Plutchik")
-            st.caption("Un outil pour identifier précisément ce que vous ressentez.")
+        # --- FONCTION D'AFFICHAGE INTELLIGENTE ---
+        def afficher_fichier_drive(file_info):
+            f_name = file_info['name']
+            f_id = file_info['id']
+            f_mime = file_info.get('mimeType', 'application/pdf')
             
-            afficher_ressource(
-                titre_pdf="Roue des sentiments",
-                nom_fichier_pdf="assets/Roue des sentiments de Plutchik.pdf",
-                liste_images=["assets/roue.jpg"]
-            )
+            with st.container(border=True):
+                icon = "📄" if "pdf" in f_mime else "🖼️"
+                st.write(f"**{icon} {f_name}**")
+                
+                # Bouton de téléchargement
+                # Note : Pour optimiser, on ne télécharge le contenu QUE si l'utilisateur clique (callback)
+                # Mais Streamlit st.download_button a besoin des data tout de suite.
+                # Pour éviter de ralentir l'app, on télécharge tout le monde ou on utilise un lien externe.
+                # Ici, méthode simple : on télécharge le contenu en mémoire.
+                
+                # OPTIMISATION : Si c'est lourd, on pourrait mettre un st.link_button vers le Drive direct
+                # Mais pour rester dans l'app, on télécharge :
+                content = telecharger_fichier_drive(f_id)
+                if content:
+                    st.download_button(
+                        label="Télécharger",
+                        data=content,
+                        file_name=f_name,
+                        mime=f_mime,
+                        key=f"dl_pat_{f_id}"
+                    )
+                    
+                    # Prévisualisation image
+                    if "image" in f_mime:
+                        st.image(content)
 
-        with t_distorsions:
-            st.subheader("Les Distorsions Cognitives")
+        # --- LES ONGLETS ---
+        t_pedago, t_vrac = st.tabs(["Fiches Clés", "📂 Bibliothèque Complète"])
+
+        with t_pedago:
+            st.info("Ici vous pouvez filtrer manuellement par nom si vous voulez garder la structure pédagogique.")
+            # Exemple : on cherche le fichier "Roue..." dans la liste Drive
+            # C'est optionnel, si vous voulez garder votre belle structure
             
-            afficher_ressource(
-                titre_pdf="Liste des Distorsions",
-                nom_fichier_pdf="assets/Distorsions cognitives.pdf",
-                liste_images=[
-                    "assets/disto_1.jpg", 
-                    "assets/disto_2.jpg", 
-                    "assets/disto_3.jpg"
-                ]
-            )
+            # Exemple simple : On affiche tout ce qui contient "Roue" ou "Emotion" ici
+            cols = st.columns(2)
+            for i, f in enumerate(tous_fichiers):
+                if "roue" in f['name'].lower() or "emotion" in f['name'].lower() or "distorsion" in f['name'].lower():
+                    with cols[i % 2]:
+                        afficher_fichier_drive(f)
+
+        with t_vrac:
+            st.subheader("📂 Tous les documents")
+            if tous_fichiers:
+                cols = st.columns(3)
+                for i, f in enumerate(tous_fichiers):
+                    with cols[i % 3]:
+                        afficher_fichier_drive(f)
+            else:
+                st.info("Aucun document disponible pour le moment.")
 
     # ======================================================
     # VUE 6 : EXPORT

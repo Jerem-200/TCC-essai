@@ -5,3 +5,6 @@ gspread
 oauth2client
 fpdf
 mysql-connector-python
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
