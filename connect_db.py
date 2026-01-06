@@ -359,3 +359,37 @@ def sauvegarder_taches_assignees(patient_id, liste_codes):
     except Exception as e:
         st.error(f"Erreur save taches: {e}")
         return False
+    
+# --- GESTION DU JOURNAL DE BORD (SÉPARÉ DU PROTOCOLE) ---
+
+def charger_journal_patient(patient_id):
+    """Charge uniquement les notes du journal personnel"""
+    try:
+        data = load_data("Journal_Patient")
+        if data:
+            df = pd.DataFrame(data)
+            if "Patient" in df.columns:
+                df = df[df["Patient"] == patient_id]
+                # On trie par date de séance (la plus récente en haut)
+                if not df.empty and "Date_Seance" in df.columns:
+                    df["Date_Seance"] = pd.to_datetime(df["Date_Seance"])
+                    return df.sort_values("Date_Seance", ascending=False)
+                return df
+    except Exception as e:
+        print(f"Erreur chargement journal: {e}")
+    return pd.DataFrame()
+
+def sauvegarder_note_journal(patient_id, date_seance, contenu):
+    """Sauvegarde une note dans l'onglet Journal_Patient"""
+    try:
+        # Format : Patient, Date de la séance, Le texte, Timestamp technique
+        row = [
+            patient_id, 
+            str(date_seance), 
+            contenu, 
+            str(datetime.now().strftime("%Y-%m-%d %H:%M"))
+        ]
+        return save_data("Journal_Patient", row)
+    except Exception as e:
+        st.error(f"Erreur sauvegarde note: {e}")
+        return False

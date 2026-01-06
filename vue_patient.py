@@ -13,7 +13,8 @@ from connect_db import (
     charger_outils_autorises, sauvegarder_progression,
     sauvegarder_etat_devoirs, sauvegarder_suivi_global,
     sauvegarder_reponse_hebdo, supprimer_reponse, load_data,
-    charger_message_therapeute, charger_taches_assignees
+    charger_message_therapeute, charger_taches_assignees,
+    charger_journal_patient, sauvegarder_note_journal
 )
 
 from connect_drive import lister_fichiers_drive, telecharger_fichier_drive
@@ -113,19 +114,42 @@ def afficher_vue_patient(patient_id):
 
         st.divider()
 
-        # 3. JOURNAL DE SÉANCE (On garde l'existant)
+        # 3. MON JOURNAL DE BORD (Totalement indépendant du protocole)
         st.subheader("📒 Mon Journal de Séance")
-        with st.form("form_note_seance"):
-            col_d, col_t = st.columns([1, 3])
-            with col_d: date_note = st.date_input("Date", value=datetime.now())
-            with col_t: contenu_note = st.text_area("Résumé :", height=100)
+        st.caption("Espace personnel pour vos notes et réflexions (non lié aux exercices).")
+
+        # A. Formulaire d'ajout
+        with st.form("form_journal_perso"):
+            c_date, c_txt = st.columns([1, 4])
+            with c_date: 
+                date_note = st.date_input("Date de la séance", value=datetime.now())
+            with c_txt: 
+                contenu_note = st.text_area("Vos notes, pensées, résumé...", height=100)
             
-            if st.form_submit_button("💾 Enregistrer"):
-                payload = {"type": "note_personnelle", "contenu": contenu_note}
-                sauvegarder_reponse_hebdo(patient_id, f"Note Séance - {date_note}", "Perso", payload)
-                st.success("Note enregistrée !")
-                time.sleep(1)
-                st.rerun()
+            if st.form_submit_button("💾 Ajouter au journal"):
+                if contenu_note.strip():
+                    sauvegarder_note_journal(patient_id, date_note, contenu_note)
+                    st.success("Note ajoutée au journal !")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.warning("Le message ne peut pas être vide.")
+
+        # B. Affichage de l'historique du Journal (Uniquement ici)
+        df_journal = charger_journal_patient(patient_id)
+        
+        if not df_journal.empty:
+            st.markdown("##### 🕰️ Mes notes précédentes")
+            for index, row in df_journal.iterrows():
+                # Formatage de la date pour l'affichage (JJ/MM/AAAA)
+                d_aff = row['Date_Seance'].strftime("%d/%m/%Y") if hasattr(row['Date_Seance'], 'strftime') else str(row['Date_Seance'])
+                
+                with st.expander(f"🗓️ Séance du {d_aff}"):
+                    st.write(row['Contenu'])
+                    # Petit style pour la date d'enregistrement réelle
+                    st.caption(f"*Enregistré le {row.get('Date_Enregistrement', '?')}*")
+        else:
+            st.info("Votre journal est vide pour l'instant.")
 
     # ======================================================
     # VUE 2 : PROTOCOLE (SOUS-ONGLETS SLIDE)
