@@ -178,7 +178,7 @@ elif st.session_state.user_type == "therapeute":
     # --- STRUCTURE DES ONGLETS (AJOUT DE GESTION PATIENT) ---
     tab_dash, tab_gestion, tab_proto, tab_exos, tab_visu, tab_res = st.tabs([
         "🏠 Tableau de Bord", 
-        "👤 Gestion Patients", # NOUVEL ONGLET
+        "👤 Gestion Patients",
         "🗺️ Protocole & Accès", 
         "📝 Gestion Exercices",
         "📊 Visualisation",
@@ -435,7 +435,6 @@ elif st.session_state.user_type == "therapeute":
                                             st.download_button(f"📥 {os.path.basename(p)}", f, file_name=os.path.basename(p))
 
                 with col_btn:
-                    st.write("")
                     if code_mod in progression_patient:
                         if st.button("🔓", key=f"lk_{patient_sel}_{code_mod}", help="Bloquer"):
                             progression_patient.remove(code_mod)
