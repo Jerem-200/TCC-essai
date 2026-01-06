@@ -455,26 +455,75 @@ elif st.session_state.user_type == "therapeute":
                     st.success("Accès outils mis à jour !")
                     time.sleep(0.5)
                     st.rerun()
-
             
-            c_msg, c_assign = st.columns(2)
+            # Récupération des données existantes
+            msg_actuel = charger_message_therapeute(patient_sel)
+            taches_actuelles = charger_taches_assignees(patient_sel)
+
+            # --- COLONNE GAUCHE : MESSAGE THÉRAPEUTE ---
+            c_msg, c_assign = st.columns([1, 1.5], gap="large")
             
             with c_msg:
-                st.subheader("Envoyer un message")
-                st.caption("Le patient verra ce message sur son tableau de bord.")
-                msg_content = st.text_area("Votre message :", height=150, placeholder="Bonjour, n'oubliez pas de remplir votre agenda sommeil cette semaine...")
-                if st.button("📨 Envoyer le message"):
-                    st.toast("Message envoyé (Simulation)", icon="📨")
-            
+                st.subheader("💬 Message au patient")
+                with st.container(border=True):
+                    st.caption("Ce texte remplacera la section 'Situation Patient' sur son accueil.")
+                    nouveau_msg = st.text_area("Rédiger le message :", value=msg_actuel, height=200, placeholder="Bonjour, cette semaine nous allons nous concentrer sur...")
+                    
+                    if st.button("☁️ Mettre à jour le message", type="primary"):
+                        sauvegarder_message_therapeute(patient_sel, nouveau_msg)
+                        st.success("Message enregistré dans le cloud !")
+                        time.sleep(1)
+                        st.rerun()
+
+            # --- COLONNE DROITE : ASSIGNATION EXERCICES (Structure App) ---
             with c_assign:
-                st.subheader("Exercices à faire")
-                st.caption("Cochez les exercices prioritaires pour la semaine :")
-                exos_dispos = ["Agenda Sommeil", "Colonne de Beck", "Exposition (Hiérarchie)", "Relaxation Audio 1"]
-                with st.form("form_assign_exos"):
-                    for exo in exos_dispos:
-                        st.checkbox(exo)
-                    if st.form_submit_button("Mettre à jour les tâches"):
-                        st.success("Tâches mises à jour (Simulation)")
+                st.subheader("🔔 Exercices à faire (Alertes)")
+                st.caption("Cochez les éléments pour créer une alerte sur le tableau de bord du patient.")
+                
+                # Définition de la structure complète de l'App
+                # Clé = Code interne, Valeur = Nom affiché
+                STRUCTURE_COMPLETE = {
+                    "📅 Agendas": {
+                        "sommeil": "Agenda du Sommeil",
+                        "activites": "Registre des Activités",
+                        "conso": "Agenda Consommations",
+                        "compulsions": "Agenda Compulsions"
+                    },
+                    "🛠️ Outils TCC": {
+                        "beck": "Colonnes de Beck",
+                        "sorc": "Analyse SORC",
+                        "problemes": "Résolution de Problème",
+                        "balance": "Balance Décisionnelle",
+                        "expo": "Exercice d'Exposition",
+                        "relax": "Séance de Relaxation"
+                    },
+                    "📊 Échelles & Mesures": {
+                        "phq9": "Questionnaire PHQ-9 (Dépression)",
+                        "gad7": "Questionnaire GAD-7 (Anxiété)",
+                        "who5": "Indice Bien-être (WHO-5)",
+                        "isi": "Indice Insomnie (ISI)",
+                        "wsas": "Retentissement (WSAS)"
+                    }
+                }
+
+                with st.form("form_assignation_complete"):
+                    nouvelles_taches = []
+                    
+                    # On boucle sur les catégories pour créer les menus déroulants
+                    for categorie, outils in STRUCTURE_COMPLETE.items():
+                        with st.expander(categorie, expanded=False):
+                            for code_outil, label_outil in outils.items():
+                                # Est-ce que c'était déjà coché ?
+                                est_coche = (code_outil in taches_actuelles)
+                                if st.checkbox(label_outil, value=est_coche, key=f"chk_{code_outil}"):
+                                    nouvelles_taches.append(code_outil)
+                    
+                    st.write("")
+                    if st.form_submit_button("🔔 Mettre à jour les alertes"):
+                        sauvegarder_taches_assignees(patient_sel, nouvelles_taches)
+                        st.success("Alertes mises à jour pour le patient !")
+                        time.sleep(0.5)
+                        st.rerun()
 
     # =================================================
     # ONGLET 5 : VISUALISATION

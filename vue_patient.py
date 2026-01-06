@@ -80,23 +80,64 @@ def afficher_vue_patient(patient_id):
     )
     st.divider()
 
-    # ======================================================
-    # VUE 1 : TABLEAU DE BORD
+# ======================================================
+    # VUE 1 : TABLEAU DE BORD (Modifié)
     # ======================================================
     if onglet_actif == "🏠 Tableau de Bord":
-        st.markdown("### 📌 Ma situation aujourd'hui")
-        c1, c2, c3 = st.columns(3)
-        nb_valides = len(valides)
-        with c1: 
-            st.metric("Modules Terminés", f"{nb_valides} / {len(PROTOCOLE_BARLOW)}")
-            st.progress(nb_valides / len(PROTOCOLE_BARLOW))
-        with c2:
-            st.metric("Outils Débloqués", f"{len(outils_autorises)}")
-        with c3:
-            st.info("💡 **Conseil du jour** : Pensez à votre bilan hebdo.")
+        
+        # 1. MESSAGE DU THÉRAPEUTE (Remplace la "Situation Patient")
+        msg_therapeute = charger_message_therapeute(patient_id)
+        
+        if msg_therapeute:
+            st.info(f"👨‍⚕️ **Message de votre thérapeute :**\n\n{msg_therapeute}")
+        else:
+            # Fallback si pas de message
+            st.info("👋 Bienvenue sur votre espace personnel.")
 
         st.divider()
 
+        # 2. ZONE D'ALERTES (EXERCICES À FAIRE)
+        taches = charger_taches_assignees(patient_id)
+        
+        if taches:
+            st.subheader("🔔 À faire cette semaine")
+            
+            # Mapping pour rediriger vers les bonnes pages
+            # Format: code: (Nom affiché, Lien fichier page)
+            MAP_REDIRECTION = {
+                "sommeil": ("Agenda Sommeil", "pages/10_Agenda_Sommeil.py"),
+                "activites": ("Registre Activités", "pages/05_Registre_Activites.py"),
+                "conso": ("Agenda Consos", "pages/13_Agenda_Consos.py"),
+                "compulsions": ("Agenda Compulsions", "pages/14_Agenda_Compulsions.py"),
+                "beck": ("Colonnes de Beck", "pages/01_Colonnes_Beck.py"),
+                "sorc": ("Analyse SORC", "pages/12_Analyse_SORC.py"),
+                "problemes": ("Résolution Problème", "pages/06_Resolution_Probleme.py"),
+                "balance": ("Balance Décisionnelle", "pages/11_Balance_Decisionnelle.py"),
+                "expo": ("Exposition", "pages/09_Exposition.py"),
+                "relax": ("Relaxation", "pages/07_Relaxation.py"),
+                "phq9": ("PHQ-9", "pages/15_Echelle_PHQ9.py"),
+                "gad7": ("GAD-7", "pages/16_Echelle_GAD7.py"),
+                "who5": ("WHO-5", "pages/20_Echelle_WHO5.py"),
+                "isi": ("ISI", "pages/17_Echelle_ISI.py"),
+                "wsas": ("WSAS", "pages/19_Echelle_WSAS.py")
+            }
+
+            for t in taches:
+                if t in MAP_REDIRECTION:
+                    label, page = MAP_REDIRECTION[t]
+                    # Affichage style "Alerte"
+                    col_alert, col_go = st.columns([4, 1])
+                    with col_alert:
+                        st.warning(f"👉 **{label}**")
+                    with col_go:
+                        if st.button("Go", key=f"go_{t}"):
+                            st.switch_page(page)
+        else:
+            st.caption("✅ Aucune tâche spécifique assignée pour le moment.")
+
+        st.divider()
+
+        # 3. JOURNAL DE SÉANCE (On garde l'existant)
         st.subheader("📒 Mon Journal de Séance")
         with st.form("form_note_seance"):
             col_d, col_t = st.columns([1, 3])

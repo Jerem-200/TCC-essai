@@ -283,3 +283,44 @@ def generer_code_securise(prefix="PAT", length=6):
     chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" 
     suffix = ''.join(secrets.choice(chars) for _ in range(length))
     return f"{prefix}-{suffix}"
+
+
+#Pour message thérapeute
+
+def charger_message_therapeute(patient_id):
+    """Charge le message personnalisé du thérapeute"""
+    data = load_data("Messages_Therapeutes") # Simule le Cloud/DB
+    if data:
+        df = pd.DataFrame(data)
+        row = df[df["Patient"] == patient_id]
+        if not row.empty:
+            return row.iloc[0]["Message"]
+    return ""
+
+def sauvegarder_message_therapeute(patient_id, message):
+    """Sauvegarde le message dans le Cloud"""
+    # Note: Dans une vraie DB, on ferait un UPDATE. Ici on écrase pour l'exemple JSON.
+    data = load_data("Messages_Therapeutes") or []
+    # On retire l'ancienne entrée pour ce patient
+    data = [d for d in data if d["Patient"] != patient_id]
+    data.append({"Patient": patient_id, "Message": message, "Date": str(datetime.now())})
+    from connect_db import save_data # Assurez-vous d'importer votre fonction de save générique
+    save_data("Messages_Therapeutes", data)
+
+def charger_taches_assignees(patient_id):
+    """Retourne la liste des codes outils à faire (ex: ['sommeil', 'beck'])"""
+    data = load_data("Taches_Assignees")
+    if data:
+        df = pd.DataFrame(data)
+        row = df[df["Patient"] == patient_id]
+        if not row.empty:
+            return row.iloc[0]["Taches"]
+    return []
+
+def sauvegarder_taches_assignees(patient_id, liste_codes):
+    """Sauvegarde la liste des tâches"""
+    data = load_data("Taches_Assignees") or []
+    data = [d for d in data if d["Patient"] != patient_id]
+    data.append({"Patient": patient_id, "Taches": liste_codes, "Date": str(datetime.now())})
+    from connect_db import save_data
+    save_data("Taches_Assignees", data)
