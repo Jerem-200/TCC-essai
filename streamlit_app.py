@@ -224,11 +224,11 @@ elif st.session_state.user_type == "therapeute":
                 
                 patient_sel = st.session_state.patient_selectionne
                 
-                # --- BLOC INFOS SENSIBLES ---
+                # --- BLOC INFOS SENSIBLES (SÉCURISÉ) ---
                 with st.container(border=True):
                     st.markdown(f"#### ℹ️ Infos : {patient_sel}")
                     
-                    # Récupération du Mot de Passe (Code)
+                    # 1. Récupération du Code Patient (Comme avant)
                     code_patient = "Introuvable"
                     try:
                         all_codes = load_data("Codes_Patients")
@@ -239,18 +239,41 @@ elif st.session_state.user_type == "therapeute":
                                 code_patient = row.iloc[0]["Code"]
                     except: pass
                     
+                    # 2. Logique d'affichage sécurisé
+                    # On utilise une clé unique pour savoir si CE patient est déverrouillé
+                    key_reveal = f"reveal_state_{patient_sel}"
+                    if key_reveal not in st.session_state: st.session_state[key_reveal] = False
+
                     c_code, c_view = st.columns([1, 1])
+                    
                     with c_code:
-                        st.text_input("🔑 Code d'accès (Mot de passe)", value=code_patient, disabled=True, help="Donnez ce code au patient s'il l'a oublié.")
+                        if not st.session_state[key_reveal]:
+                            # CAS 1 : C'est masqué
+                            st.info("🔒 Code patient masqué")
+                            pwd_verif = st.text_input("Confirmez votre mot de passe pro :", type="password", key=f"input_pwd_{patient_sel}")
+                            
+                            if st.button("🔓 Révéler", key=f"btn_reveal_{patient_sel}"):
+                                # On vérifie l'identité du thérapeute
+                                if verifier_therapeute(st.session_state.user_id, pwd_verif):
+                                    st.session_state[key_reveal] = True
+                                    st.rerun()
+                                else:
+                                    st.error("Mot de passe incorrect.")
+                        else:
+                            # CAS 2 : C'est révélé
+                            st.text_input("🔑 Code d'accès (Mot de passe)", value=code_patient, disabled=True)
+                            if st.button("🔒 Masquer", key=f"btn_hide_{patient_sel}"):
+                                st.session_state[key_reveal] = False
+                                st.rerun()
                     
                     with c_view:
-                        st.write("") # Spacer
+                        # On aligne le bouton "Voir interface" vers le bas pour qu'il soit joli
                         st.write("") 
-                        # --- BOUTON MAGIQUE : VOIR COMME PATIENT ---
+                        st.write("") 
+                        if st.session_state[key_reveal]: st.write("") # Petit ajustement d'alignement si révélé
+                        
                         if st.button("👁️ Voir l'interface de ce patient", type="primary"):
-                            # 1. On sauvegarde qui on est vraiment
                             st.session_state.original_therapist_id = st.session_state.user_id
-                            # 2. On usurpe l'identité du patient
                             st.session_state.user_type = "patient"
                             st.session_state.user_id = patient_sel
                             st.rerun()
