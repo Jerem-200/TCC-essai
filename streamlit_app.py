@@ -198,6 +198,8 @@ elif st.session_state.user_type == "therapeute":
                 ac_code = generer_code_securise("TCC")
                 from connect_db import save_data 
                 save_data("Codes_Patients", [ac_code, st.session_state.user_id, id_dossier, str(datetime.now().date())])
+                # On initialise sa progression avec UNIQUEMENT le module 0
+                sauvegarder_progression(id_dossier, ["module0"])
                 st.success(f"Créé : {id_dossier} -> Code : {ac_code}")
                 if "liste_patients_cache" in st.session_state: del st.session_state.liste_patients_cache
                 recuperer_mes_patients.clear()
