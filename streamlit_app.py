@@ -41,21 +41,33 @@ if not st.session_state.authentifie:
     t_pat, t_pro = st.tabs(["👤 Accès Patient", "🩺 Accès Thérapeute"])
     
     with t_pat:
-        with st.form("login_p"):
-            code = st.text_input("Code Patient :", type="password")
-            if st.form_submit_button("Entrer"):
-                if verifier_code_patient(code):
-                    st.session_state.authentifie = True
-                    st.session_state.user_type = "patient"
-                    st.session_state.user_id = code 
+            with st.form("login_p"):
+                code_input = st.text_input("Code Patient :", type="password")
+                if st.form_submit_button("Entrer"):
+                    # Nettoyage du code saisi
+                    code_clean = code_input.strip()
                     
-                    # --- RESET NAVIGATION ---
-                    if "nav_patient_main" in st.session_state: del st.session_state["nav_patient_main"]
-                    if "nav_proto_sub" in st.session_state: del st.session_state["nav_proto_sub"]
-                    if "target_tab" in st.session_state: del st.session_state["target_tab"]
-                    
-                    st.rerun()
-                else: st.error("Code inconnu")
+                    # Vérification basique
+                    if verifier_code_patient(code_clean):
+                        
+                        # --- CORRECTION ICI : RÉCUPÉRER LE VRAI ID (PAT-001) ---
+                        real_id = code_clean # Par défaut
+                        try:
+                            data_codes = load_data("Codes_Patients")
+                            if data_codes:
+                                df_codes = pd.DataFrame(data_codes)
+                                # On cherche la ligne qui correspond au code
+                                match = df_codes[df_codes["Code"].astype(str).str.strip() == code_clean]
+                                if not match.empty:
+                                    # On prend l'identifiant (ex: PAT-001) au lieu du code
+                                    real_id = match.iloc[0]["Identifiant"]
+                        except:
+                            pass
+                        # -------------------------------------------------------
+
+                        st.session_state.authentifie = True
+                        st.session_state.user_type = "patient"
+                        st.session_state.user_id = real_id # On stocke PAT-001
                 
     with t_pro:
         with st.form("login_t"):
