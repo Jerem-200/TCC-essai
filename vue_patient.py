@@ -345,30 +345,87 @@ def afficher_vue_patient(patient_id):
                             st.rerun()
 
         # -------------------------------------------------
-        # D. SOUS-ONGLET : HISTORIQUE
+        # D. SOUS-ONGLET : HISTORIQUE (Refondu)
         # -------------------------------------------------
         with sub_tab_histo:
-            st.subheader("Historique")
-            if not df_history.empty:
+            st.subheader("📜 Historique de vos suivis")
+            
+            if df_history.empty:
+                st.info("📭 Aucun historique pour le moment. Commencez par remplir un bilan !")
+            else:
+                # 1. Graphique d'évolution (inchangé car c'est déjà visuel)
                 df_charts = df_history[~df_history["Questionnaire"].str.contains("Exercice", na=False)]
                 if not df_charts.empty:
-                    st.markdown("#### 📈 Évolution")
-                    chart = alt.Chart(df_charts).mark_line(point=True).encode(x='Date', y='Score_Global', color='Type').interactive()
-                    st.altair_chart(chart, use_container_width=True)
+                    with st.expander("📈 Voir la courbe d'évolution", expanded=True):
+                        chart = alt.Chart(df_charts).mark_line(point=True, strokeWidth=3).encode(
+                            x=alt.X('Date', axis=alt.Axis(format='%d/%m', title='Date')),
+                            y=alt.Y('Score_Global', title='Score'),
+                            color=alt.Color('Type', legend=alt.Legend(title="Type de suivi")),
+                            tooltip=['Date', 'Type', 'Score_Global']
+                        ).properties(height=300).interactive()
+                        st.altair_chart(chart, use_container_width=True)
                 
-                st.markdown("#### 🛠️ Journal")
+                st.divider()
+                st.write("##### 🗓️ Entrées détaillées")
+
+                # 2. Liste des cartes (Design amélioré)
+                # On trie pour avoir le plus récent en haut
                 for idx, row in df_history.sort_values("Date", ascending=False).iterrows():
-                    with st.expander(f"{row['Date'].strftime('%d/%m')} - {row['Questionnaire']}"):
-                        c_del, c_cont = st.columns([1, 5])
-                        with c_del:
-                            if st.button("🗑️", key=f"del_h_proto_{idx}"):
+                    
+                    # Parsing sécurisé du JSON
+                    try:
+                        details = json.loads(row["Details_Json"])
+                    except:
+                        details = {"Données brutes": row["Details_Json"]}
+                    
+                    # Préparation des variables d'affichage
+                    date_str = row['Date'].strftime("📅 %d/%m/%Y à %H:%M")
+                    titre_card = f"{row['Questionnaire']}"
+                    score = row.get("Score_Global", None)
+                    
+                    # --- DÉBUT DE LA CARTE ---
+                    with st.container(border=True):
+                        # En-tête de la carte : Titre + Bouton Supprimer
+                        c_head_txt, c_head_del = st.columns([6, 1])
+                        with c_head_txt:
+                            st.markdown(f"**{titre_card}**")
+                            st.caption(date_str)
+                        with c_head_del:
+                            if st.button("🗑️", key=f"del_{idx}", help="Supprimer cette entrée"):
                                 supprimer_reponse(patient_id, row["Date"], row["Questionnaire"])
                                 charger_historique_local.clear()
                                 st.rerun()
-                        with c_cont:
-                            try: st.json(json.loads(row["Details_Json"]))
-                            except: st.write(row["Details_Json"])
-            else: st.info("Historique vide.")
+
+                        # Corps de la carte
+                        c_score, c_details = st.columns([1, 3])
+                        
+                        # Colonne gauche : Le Score (si applicable)
+                        with c_score:
+                            if pd.notna(score) and score != 0:
+                                st.metric("Score", f"{int(score)}")
+                            
+                            # Si on trouve une "Emotion" dans les détails, on l'affiche ici en gros
+                            if "Emotion" in details and details["Emotion"]:
+                                st.markdown(f"**Ressenti :**")
+                                st.pills("Emotion", [details["Emotion"]], selection_mode="single", default=[details["Emotion"]], disabled=True, key=f"pill_{idx}")
+                                # On retire l'émotion de la liste des détails pour ne pas faire doublon
+                                details = {k: v for k, v in details.items() if k != "Emotion"}
+
+                        # Colonne droite : Les réponses détaillées
+                        with c_details:
+                            with st.expander("Voir les réponses détaillées"):
+                                for q, r in details.items():
+                                    # Nettoyage visuel de la question (enlève les underscores si besoin)
+                                    q_clean = q.replace("_", " ").strip()
+                                    
+                                    # Affichage Question / Réponse propre
+                                    # Si la réponse est longue, on la met en dessous, sinon à côté
+                                    if isinstance(r, str) and len(r) > 50:
+                                        st.markdown(f"**{q_clean}**")
+                                        st.info(r)
+                                    else:
+                                        # Petite ligne avec point puce
+                                        st.markdown(f"• **{q_clean}** : {r}")
 
     # ======================================================
     # VUE 3 : AGENDAS
