@@ -42,7 +42,7 @@ def uploader_fichier_drive(file_obj, filename):
         'parents': [DRIVE_FOLDER_ID]
     }
     
-    media = MediaIoBaseUpload(file_obj, mimetype=file_obj.type, resumable=True)
+    media = MediaIoBaseUpload(file_obj, mimetype=file_obj.type, resumable=False)
     
     try:
         file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
