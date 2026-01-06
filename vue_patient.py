@@ -75,94 +75,127 @@ def afficher_vue_patient(patient_id):
     st.divider()
     
     # ======================================================
-    # VUE 1 : TABLEAU DE BORD (Modifié)
+    # VUE 1 : TABLEAU DE BORD (DESIGN AÉRÉ)
     # ======================================================
     if onglet_actif == "🏠 Tableau de Bord":
         
-        # 1. MESSAGE THÉRAPEUTE
-        msg_therapeute = charger_message_therapeute(patient_id)
-        if msg_therapeute and msg_therapeute != "":
-            st.info(f"👨‍⚕️ **Message du Thérapeute :**\n\n{msg_therapeute}")
-        else:
-            st.info("👋 Bienvenue sur votre espace personnel.")
+        # CHARGEMENT CIBLÉ (LAZY LOADING)
+        with st.spinner("Chargement de l'accueil..."):
+            msg_therapeute = charger_message_therapeute(patient_id)
+            taches = charger_taches_assignees(patient_id)
+            df_journal = charger_journal_patient(patient_id)
 
+        # --- EN-TÊTE : BIENVENUE & MESSAGE ---
+        # On utilise des colonnes pour ne pas prendre toute la largeur si le message est court
+        c_header, c_date = st.columns([3, 1])
+        with c_header:
+            st.markdown(f"### 👋 Bonjour, **{patient_id}**")
+        with c_date:
+            st.caption(f"📅 {datetime.now().strftime('%d/%m/%Y')}")
+
+        st.write("") # Espace vide pour aérer
+
+        # LE MESSAGE DU THÉRAPEUTE (Style "Citation" ou "Notification")
+        if msg_therapeute and msg_therapeute.strip():
+            with st.container(border=True):
+                c_icon, c_msg = st.columns([1, 15])
+                with c_icon: st.markdown("💬")
+                with c_msg:
+                    st.markdown("**Message de votre thérapeute :**")
+                    st.info(msg_therapeute, icon="👨‍⚕️")
+        
+        st.write("") # Espace vide
         st.divider()
-            
-        # 2. ZONE D'ALERTES (EXERCICES À FAIRE)
-        taches = charger_taches_assignees(patient_id)
+
+        # --- SECTION ALERTES (GRID LAYOUT) ---
+        # Au lieu d'une liste, on fait des "Cartes" sur 3 colonnes
         
         if taches:
-            st.subheader("🔔 À faire")
+            st.subheader("🔔 À faire cette semaine")
             
             MAP_REDIRECTION = {
-                "sommeil": ("Agenda Sommeil", "pages/10_Agenda_Sommeil.py"),
-                "activites": ("Registre Activités", "pages/05_Registre_Activites.py"),
-                "conso": ("Agenda Consos", "pages/13_Agenda_Consos.py"),
-                "compulsions": ("Agenda Compulsions", "pages/14_Agenda_Compulsions.py"),
-                "beck": ("Colonnes de Beck", "pages/01_Colonnes_Beck.py"),
-                "sorc": ("Analyse SORC", "pages/12_Analyse_SORC.py"),
-                "problemes": ("Résolution Problème", "pages/06_Resolution_Probleme.py"),
-                "balance": ("Balance Décisionnelle", "pages/11_Balance_Decisionnelle.py"),
-                "expo": ("Exposition", "pages/09_Exposition.py"),
-                "relax": ("Relaxation", "pages/07_Relaxation.py"),
-                "phq9": ("PHQ-9", "pages/15_Echelle_PHQ9.py"),
-                "gad7": ("GAD-7", "pages/16_Echelle_GAD7.py"),
-                "who5": ("WHO-5", "pages/20_Echelle_WHO5.py"),
-                "isi": ("ISI", "pages/17_Echelle_ISI.py"),
-                "wsas": ("WSAS", "pages/19_Echelle_WSAS.py")
+                "sommeil": ("🌙 Sommeil", "pages/10_Agenda_Sommeil.py", "Remplir l'agenda"),
+                "activites": ("📝 Activités", "pages/05_Registre_Activites.py", "Noter une activité"),
+                "conso": ("🍷 Consos", "pages/13_Agenda_Consos.py", "Déclarer conso"),
+                "compulsions": ("🛑 Compulsions", "pages/14_Agenda_Compulsions.py", "Noter un épisode"),
+                "beck": ("🧩 Beck", "pages/01_Colonnes_Beck.py", "Nouvelle fiche"),
+                "sorc": ("🔍 SORC", "pages/12_Analyse_SORC.py", "Analyser"),
+                "problemes": ("💡 Problèmes", "pages/06_Resolution_Probleme.py", "Résoudre"),
+                "balance": ("⚖️ Balance", "pages/11_Balance_Decisionnelle.py", "Décider"),
+                "expo": ("🧗 Exposition", "pages/09_Exposition.py", "S'exercer"),
+                "relax": ("🧘 Relaxation", "pages/07_Relaxation.py", "Écouter"),
+                "phq9": ("📊 PHQ-9", "pages/15_Echelle_PHQ9.py", "S'évaluer"),
+                "gad7": ("📊 GAD-7", "pages/16_Echelle_GAD7.py", "S'évaluer"),
+                "who5": ("📊 WHO-5", "pages/20_Echelle_WHO5.py", "S'évaluer"),
+                "isi": ("📊 ISI", "pages/17_Echelle_ISI.py", "S'évaluer"),
+                "wsas": ("📊 WSAS", "pages/19_Echelle_WSAS.py", "S'évaluer")
             }
 
-            for t in taches:
+            # On crée une grille de 3 colonnes pour afficher les cartes
+            cols = st.columns(3)
+            
+            for index, t in enumerate(taches):
                 if t in MAP_REDIRECTION:
-                    label, page = MAP_REDIRECTION[t]
-                    # Affichage style "Alerte"
-                    col_alert, col_go = st.columns([4, 1])
-                    with col_alert:
-                        st.warning(f"👉 **{label}**")
-                    with col_go:
-                        if st.button("Go", key=f"go_{t}"):
-                            st.switch_page(page)
+                    titre_outil, page, action_text = MAP_REDIRECTION[t]
+                    
+                    # On place chaque tâche dans une colonne (modulo 3)
+                    with cols[index % 3]:
+                        with st.container(border=True):
+                            st.markdown(f"**{titre_outil}**")
+                            st.caption("Priorité haute")
+                            if st.button(f"👉 {action_text}", key=f"go_{t}", use_container_width=True):
+                                st.switch_page(page)
         else:
-            st.caption("✅ Aucune tâche spécifique assignée pour le moment.")
+            # Si rien à faire, on affiche une carte verte centrée
+            c_vide, _ = st.columns([2,1])
+            with c_vide:
+                st.success("✅ Aucune tâche assignée. Profitez-en pour parcourir la psychoéducation !")
 
+        st.write("")
         st.divider()
 
-        # 3. MON JOURNAL DE BORD (Totalement indépendant du protocole)
-        st.subheader("📒 Mon Journal de Séance")
-        st.caption("Espace personnel pour vos notes et réflexions (non lié aux exercices).")
-
-        # A. Formulaire d'ajout
-        with st.form("form_journal_perso"):
-            c_date, c_txt = st.columns([1, 4])
-            with c_date: 
-                date_note = st.date_input("Date de la séance", value=datetime.now())
-            with c_txt: 
-                contenu_note = st.text_area("Vos notes, pensées, résumé...", height=100)
-            
-            if st.form_submit_button("💾 Ajouter au journal"):
-                if contenu_note.strip():
-                    sauvegarder_note_journal(patient_id, date_note, contenu_note)
-                    st.success("Note ajoutée au journal !")
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.warning("Le message ne peut pas être vide.")
-
-        # B. Affichage de l'historique du Journal (Uniquement ici)
-        df_journal = charger_journal_patient(patient_id)
+        # --- SECTION JOURNAL (FOCUS MODE) ---
         
-        if not df_journal.empty:
-            st.markdown("##### 🕰️ Mes notes précédentes")
-            for index, row in df_journal.iterrows():
-                # Formatage de la date pour l'affichage (JJ/MM/AAAA)
-                d_aff = row['Date_Seance'].strftime("%d/%m/%Y") if hasattr(row['Date_Seance'], 'strftime') else str(row['Date_Seance'])
-                
-                with st.expander(f"🗓️ Séance du {d_aff}"):
-                    st.write(row['Contenu'])
-                    # Petit style pour la date d'enregistrement réelle
-                    st.caption(f"*Enregistré le {row.get('Date_Enregistrement', '?')}*")
-        else:
-            st.info("Votre journal est vide pour l'instant.")
+        c_journal_gauche, c_journal_droite = st.columns([2, 1], gap="large")
+        
+        with c_journal_gauche:
+            st.subheader("📒 Journal de bord")
+            st.caption("Une pensée ? Une réussite ? Notez-le ici.")
+            
+            with st.container(border=True):
+                with st.form("form_journal_perso", border=False):
+                    date_note = st.date_input("Date", value=datetime.now(), label_visibility="collapsed")
+                    contenu_note = st.text_area("Écrivez ici...", height=120, placeholder="Aujourd'hui, je me suis senti...")
+                    
+                    col_submit, _ = st.columns([1, 2])
+                    with col_submit:
+                        if st.form_submit_button("💾 Enregistrer la note", use_container_width=True, type="primary"):
+                            if contenu_note.strip():
+                                with st.spinner("Sauvegarde..."):
+                                    sauvegarder_note_journal(patient_id, date_note, contenu_note)
+                                st.success("Note ajoutée !")
+                                time.sleep(1)
+                                st.rerun()
+                            else:
+                                st.warning("Note vide.")
+
+        with c_journal_droite:
+            st.markdown("###### 🕰️ Dernières notes")
+            if not df_journal.empty:
+                # On affiche les 3 dernières notes max en style "Timeline" compacte
+                for index, row in df_journal.head(3).iterrows():
+                    d_aff = row['Date_Seance'].strftime("%d/%m") if hasattr(row['Date_Seance'], 'strftime') else str(row['Date_Seance'])[:5]
+                    
+                    with st.container(border=True):
+                        st.markdown(f"**{d_aff}**")
+                        # On coupe le texte s'il est trop long pour l'aperçu
+                        apercu = row['Contenu'][:60] + "..." if len(row['Contenu']) > 60 else row['Contenu']
+                        st.caption(apercu)
+                        with st.popover("Lire"):
+                            st.markdown(f"**Séance du {d_aff}**")
+                            st.write(row['Contenu'])
+            else:
+                st.caption("Rien pour l'instant.")
 
     # ======================================================
     # VUE 2 : PROTOCOLE (SOUS-ONGLETS SLIDE)
