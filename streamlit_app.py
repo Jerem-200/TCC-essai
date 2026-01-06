@@ -241,7 +241,7 @@ elif st.session_state.user_type == "therapeute":
                     
                     c_code, c_view = st.columns([1, 1])
                     with c_code:
-                        st.text_input("🔑 Code d'accès (Mot de passe)", value=code_patient, read_only=True, help="Donnez ce code au patient s'il l'a oublié.")
+                        st.text_input("🔑 Code d'accès (Mot de passe)", value=code_patient, disabled=True, help="Donnez ce code au patient s'il l'a oublié.")
                     
                     with c_view:
                         st.write("") # Spacer
