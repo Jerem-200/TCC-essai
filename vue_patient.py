@@ -14,7 +14,13 @@ from connect_db import (
     sauvegarder_etat_devoirs, sauvegarder_suivi_global,
     sauvegarder_reponse_hebdo, supprimer_reponse, load_data,
     charger_message_therapeute, charger_taches_assignees,
-    charger_journal_patient, sauvegarder_note_journal
+    charger_journal_patient, sauvegarder_note_journal, 
+    charger_donnees_specifiques
+)
+
+from visualisations import (
+    afficher_activites, afficher_sommeil, afficher_conso, afficher_compulsions,
+    afficher_phq9, afficher_gad7, afficher_isi, afficher_peg, afficher_who5, afficher_wsas
 )
 
 from connect_drive import lister_fichiers_drive, telecharger_fichier_drive
@@ -558,99 +564,100 @@ def afficher_vue_patient(patient_id):
             else:
                 st.info("Aucun document supplémentaire n'a été ajouté par le thérapeute.")
 
-    # ======================================================
-    # VUE 7 : VISUALISATIONS (Nouvel Onglet)
+# ======================================================
+    # VUE 7 : VISUALISATIONS (Version Miroir Thérapeute)
     # ======================================================
     elif onglet_actif == "📈 Visualisations":
-        st.header("📈 Mes Progrès en graphiques")
-        st.caption("Visualisez l'évolution de vos scores et de votre bien-être au fil du temps.")
+        st.header("📈 Mes Analyses Graphiques")
+        st.caption("Retrouvez ici les courbes détaillées de vos outils et agendas.")
 
-        df_visu = charger_historique_local(patient_id)
+        # 1. On récupère ce à quoi le patient a accès
+        outils_autorises = charger_outils_autorises(patient_id)
 
-        # Nettoyage et préparation des données pour les graphiques
-        if not df_visu.empty:
-            # On exclut les exercices purement qualitatifs (textes) qui n'ont pas de score ou score=0
-            # On garde ce qui a un "Score_Global" numérique
-            df_charts = df_visu.copy()
-            df_charts["Score_Global"] = pd.to_numeric(df_charts["Score_Global"], errors='coerce')
-            df_charts = df_charts[df_charts["Score_Global"] > 0]
+        # 2. Construction dynamique du menu déroulant
+        # Structure : ("Nom affiché", "code_interne")
+        liste_options = [("Choisir...", None)]
+        
+        if "activites" in outils_autorises: liste_options.append(("📝 Activités & Humeur", "activites"))
+        if "sommeil" in outils_autorises:   liste_options.append(("🌙 Sommeil", "sommeil"))
+        if "conso" in outils_autorises:     liste_options.append(("🍷 Consommations", "conso"))
+        if "compulsions" in outils_autorises: liste_options.append(("🛑 Compulsions", "compulsions"))
+        if "phq9" in outils_autorises:      liste_options.append(("📉 Dépression (PHQ-9)", "phq9"))
+        if "gad7" in outils_autorises:      liste_options.append(("😰 Anxiété (GAD-7)", "gad7"))
+        if "who5" in outils_autorises:      liste_options.append(("🌿 Bien-être (WHO-5)", "who5"))
+        if "isi" in outils_autorises:       liste_options.append(("😴 Insomnie (ISI)", "isi"))
+        if "peg" in outils_autorises:       liste_options.append(("🤕 Douleur (PEG)", "peg"))
+        if "wsas" in outils_autorises:      liste_options.append(("🧩 Impact (WSAS)", "wsas"))
+        
+        # On ajoute aussi les outils textuels si besoin, pour lecture seule
+        if "problemes" in outils_autorises: liste_options.append(("💡 Résolution Problème", "problemes"))
+        if "expo" in outils_autorises:      liste_options.append(("🧗 Exposition", "expo"))
+        if "balance" in outils_autorises:   liste_options.append(("⚖️ Balance Décisionnelle", "balance"))
+        if "sorc" in outils_autorises:      liste_options.append(("🔍 Analyse SORC", "sorc"))
+
+        # Affichage du Selectbox
+        # On extrait juste les labels pour l'affichage
+        labels = [x[0] for x in liste_options]
+        choix_label = st.selectbox("Outil à analyser :", labels)
+
+        # Retrouver le code interne associé au label choisi
+        choix_code = next((x[1] for x in liste_options if x[0] == choix_label), None)
+
+        st.divider()
+
+        # 3. Affichage conditionnel (Logique identique au Thérapeute)
+        if choix_code:
+            if choix_code == "activites":
+                df_act = charger_donnees_specifiques("Activites", patient_id)
+                df_hum = charger_donnees_specifiques("Humeur", patient_id)
+                afficher_activites(df_act, df_hum, patient_id)
             
-            # On exclut les titres contenant "Exercice" pour ne garder que les Echelles/Bilans
-            df_charts = df_charts[~df_charts["Questionnaire"].str.contains("Exercice", case=False, na=False)]
+            elif choix_code == "sommeil":
+                afficher_sommeil(charger_donnees_specifiques("Sommeil", patient_id), patient_id)
+            
+            elif choix_code == "conso":
+                 afficher_conso(charger_donnees_specifiques("Consos", patient_id), patient_id)
 
-            if not df_charts.empty:
-                # --- SÉLECTEURS DE FILTRES ---
-                col_filt1, col_filt2 = st.columns([1, 3])
-                with col_filt1:
-                    periode = st.selectbox("Période", ["Tout", "30 derniers jours", "3 derniers mois"])
-                
-                with col_filt2:
-                    # Liste unique des questionnaires disponibles
-                    types_dispo = df_charts["Type"].unique().tolist()
-                    choix_types = st.multiselect("Filtrer par mesure", types_dispo, default=types_dispo)
-
-                # --- APPLICATION DES FILTRES ---
-                # 1. Filtre Type
-                if choix_types:
-                    df_filtered = df_charts[df_charts["Type"].isin(choix_types)]
-                else:
-                    df_filtered = df_charts # Si rien sélectionné, on montre tout (ou rien, au choix)
-
-                # 2. Filtre Date
-                if periode == "30 derniers jours":
-                    cutoff = datetime.now() - pd.Timedelta(days=30)
-                    df_filtered = df_filtered[df_filtered["Date"] >= cutoff]
-                elif periode == "3 derniers mois":
-                    cutoff = datetime.now() - pd.Timedelta(days=90)
-                    df_filtered = df_filtered[df_filtered["Date"] >= cutoff]
-
-                # --- AFFICHAGE DU GRAPHIQUE ---
-                if not df_filtered.empty:
-                    st.divider()
-                    
-                    # Graphique ALTAIR interactif
-                    chart = alt.Chart(df_filtered).mark_line(point=True, strokeWidth=3).encode(
-                        x=alt.X('Date', axis=alt.Axis(format='%d/%m', title='Date')),
-                        y=alt.Y('Score_Global', title='Score'),
-                        color=alt.Color('Type', legend=alt.Legend(title="Indicateur", orient="bottom")),
-                        tooltip=[
-                            alt.Tooltip('Date', format='%d/%m/%Y', title='Date'),
-                            alt.Tooltip('Type', title='Mesure'),
-                            alt.Tooltip('Score_Global', title='Score')
-                        ]
-                    ).properties(
-                        height=400
-                    ).interactive()
-
-                    st.altair_chart(chart, use_container_width=True)
-
-                    # --- PETITES STATS ---
-                    st.subheader("📊 Moyennes sur la période")
-                    col_stats = st.columns(4)
-                    for i, t in enumerate(choix_types):
-                        sub_df = df_filtered[df_filtered["Type"] == t]
-                        if not sub_df.empty:
-                            moyenne = sub_df["Score_Global"].mean()
-                            dernier = sub_df.sort_values("Date").iloc[-1]["Score_Global"]
-                            delta = dernier - moyenne
-                            
-                            with col_stats[i % 4]:
-                                st.metric(
-                                    label=t,
-                                    value=f"{int(dernier)}",
-                                    delta=f"{delta:.1f} / moy",
-                                    delta_color="inverse" # Inverse car souvent en psycho, score bas = mieux (ex: anxiété)
-                                )
-                else:
-                    st.warning("Aucune donnée pour les filtres sélectionnés.")
-            else:
-                st.info("Vous n'avez pas encore rempli de questionnaires scorés (type PHQ-9, GAD-7, ou Bilan Hebdo chiffré).")
+            elif choix_code == "compulsions":
+                 afficher_compulsions(charger_donnees_specifiques("Compulsions", patient_id), patient_id)
+            
+            elif choix_code == "phq9":
+                afficher_phq9(charger_donnees_specifiques("PHQ9", patient_id), patient_id)
+            
+            elif choix_code == "gad7":
+                afficher_gad7(charger_donnees_specifiques("GAD7", patient_id), patient_id)
+            
+            elif choix_code == "isi":
+                afficher_isi(charger_donnees_specifiques("ISI", patient_id), patient_id)
+            
+            elif choix_code == "who5":
+                afficher_who5(charger_donnees_specifiques("WHO5", patient_id), patient_id)
+            
+            elif choix_code == "peg":
+                afficher_peg(charger_donnees_specifiques("PEG", patient_id), patient_id)
+            
+            elif choix_code == "wsas":
+                afficher_wsas(charger_donnees_specifiques("WSAS", patient_id), patient_id)
+            
+            # Pour les outils textuels/tableaux (lecture seule)
+            elif choix_code == "problemes":
+                st.dataframe(charger_donnees_specifiques("Resolution_Probleme", patient_id), use_container_width=True)
+            
+            elif choix_code == "expo":
+                st.dataframe(charger_donnees_specifiques("Exposition", patient_id), use_container_width=True)
+            
+            elif choix_code == "balance":
+                st.dataframe(charger_donnees_specifiques("Balance_Decisionnelle", patient_id), use_container_width=True)
+            
+            elif choix_code == "sorc":
+                st.dataframe(charger_donnees_specifiques("SORC", patient_id), use_container_width=True)
+        
         else:
-            st.info("Aucune donnée disponible pour générer des graphiques.")
+            st.info("Sélectionnez un outil ci-dessus pour voir vos données.")
 
 
     # ======================================================
-    # VUE 6 : EXPORT
+    # VUE 8 : EXPORT
     # ======================================================
     elif onglet_actif == "📤 Export":
         st.header("📤 Export")
