@@ -76,6 +76,7 @@ if not st.session_state.authentifie:
                     st.session_state.authentifie = True
                     st.session_state.user_type = "therapeute"
                     st.session_state.user_id = tid
+                    st.session_state.username_pro = u
                     st.rerun()
                 else: st.error("Erreur d'identification")
     st.stop()
@@ -253,8 +254,9 @@ elif st.session_state.user_type == "therapeute":
                             pwd_verif = st.text_input("Confirmez votre mot de passe pro :", type="password", key=f"input_pwd_{patient_sel}")
                             
                             if st.button("🔓 Révéler", key=f"btn_reveal_{patient_sel}"):
-                                # On vérifie l'identité du thérapeute
-                                if verifier_therapeute(st.session_state.user_id, pwd_verif):
+                                # On utilise l'identifiant de connexion (u) et pas l'ID interne (tid)
+                                login_a_verifier = st.session_state.get("username_pro", st.session_state.user_id)
+                                if verifier_therapeute(login_a_verifier, pwd_verif):
                                     st.session_state[key_reveal] = True
                                     st.rerun()
                                 else:
