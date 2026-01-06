@@ -7,7 +7,7 @@ import io
 # --- CONFIGURATION ---
 # Mettez ici l'ID de votre dossier Drive (copié à l'étape 1)
 # Ou mieux : mettez-le dans st.secrets["drive"]["folder_id"]
-DRIVE_FOLDER_ID = "VOTRE_ID_DE_DOSSIER_ICI_A_REMPLACER" 
+DRIVE_FOLDER_ID = "https://drive.google.com/drive/my-drive?fbclid=IwAR1MD1wYKJFgwpxvE2M4DY7SHN7pUrGTB4dD7IwpMle0OWn1jr-QOTpIAyY" 
 
 # Fonction d'authentification (Même logique que pour GSheets)
 def get_drive_service():
