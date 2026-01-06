@@ -39,14 +39,6 @@ def charger_historique_local(uid):
     return pd.DataFrame()
 
 def afficher_vue_patient(patient_id):
-    
-    # 1. CHARGEMENT DES DONNÉES
-    outils_autorises = charger_outils_autorises(patient_id)
-    progression = charger_progression(patient_id)
-    devoirs = charger_etat_devoirs(patient_id)
-    valides, notes_therapeute = charger_suivi_global(patient_id)
-    df_history = charger_historique_local(patient_id)
-    
     st.title(f"👋 Espace de {patient_id}")
 
     # 2. NAVIGATION PRINCIPALE (STABLE)
@@ -88,7 +80,6 @@ def afficher_vue_patient(patient_id):
     if onglet_actif == "🏠 Tableau de Bord":
         
         # 1. MESSAGE THÉRAPEUTE
-        # On force le chargement pour voir si ça marche
         msg_therapeute = charger_message_therapeute(patient_id)
         if msg_therapeute and msg_therapeute != "":
             st.info(f"👨‍⚕️ **Message du Thérapeute :**\n\n{msg_therapeute}")
@@ -176,7 +167,11 @@ def afficher_vue_patient(patient_id):
     # ======================================================
     # VUE 2 : PROTOCOLE (SOUS-ONGLETS SLIDE)
     # ======================================================
-    if onglet_actif == "🗺️ Protocole":
+    elif onglet_actif == "🗺️ Protocole":
+        progression = charger_progression(patient_id)
+        valides, notes_therapeute = charger_suivi_global(patient_id)
+        devoirs = charger_etat_devoirs(patient_id)
+        df_history = charger_historique_local(patient_id)
         st.header("🗺️ Mon Parcours TCC")
         
         # 1. CRÉATION DES 4 SOUS-ONGLETS (Type Slide)
@@ -345,7 +340,8 @@ def afficher_vue_patient(patient_id):
     # ======================================================
     # VUE 3 : AGENDAS
     # ======================================================
-    if onglet_actif == "📅 Agendas":
+    elif onglet_actif == "📅 Agendas":
+        outils_autorises = charger_outils_autorises(patient_id)
         st.header("📅 Mes Agendas de suivi")
         col_a1, col_a2 = st.columns(2)
         with col_a1:
@@ -362,7 +358,8 @@ def afficher_vue_patient(patient_id):
     # ======================================================
     # VUE 4 : OUTILS
     # ======================================================
-    if onglet_actif == "🛠️ Outils & Exos":
+    elif onglet_actif == "🛠️ Outils & Exos":
+        outils_autorises = charger_outils_autorises(patient_id)
         st.header("🛠️ Boîte à outils")
         c1, c2, c3 = st.columns(3)
         with c1:
@@ -384,7 +381,8 @@ def afficher_vue_patient(patient_id):
     # ======================================================
     # VUE 5 : ÉCHELLES
     # ======================================================
-    if onglet_actif == "📊 Échelles":
+    elif onglet_actif == "📊 Échelles":
+        outils_autorises = charger_outils_autorises(patient_id)
         st.header("📊 Mesures")
         liste_ech = [("phq9", "PHQ-9"), ("gad7", "GAD-7"), ("who5", "WHO-5"), ("isi", "ISI"), ("peg", "PEG"), ("wsas", "WSAS")]
         cols = st.columns(3)
@@ -398,7 +396,7 @@ def afficher_vue_patient(patient_id):
     # ======================================================
     # ONGLET 6 : PSYCHOÉDUCATION (HYBRIDE LOCAL + CLOUD)
     # ======================================================
-    if onglet_actif == "📚 Psychoéducation":
+    elif onglet_actif == "📚 Psychoéducation":
         st.header("📚 Ressources Psycho-éducatives")
         st.write("Consultez les fiches de référence ou accédez à la bibliothèque partagée.")
 
@@ -472,6 +470,6 @@ def afficher_vue_patient(patient_id):
     # ======================================================
     # VUE 6 : EXPORT
     # ======================================================
-    if onglet_actif == "📤 Export":
+    elif onglet_actif == "📤 Export":
         st.header("📤 Export")
         if st.button("Générer PDF", type="primary"): st.switch_page("pages/08_Export_Rapport.py")
