@@ -4,6 +4,8 @@ from datetime import datetime
 import pandas as pd
 import json
 import os
+import random
+import string
 
 # Imports DB
 from connect_db import (
@@ -33,6 +35,9 @@ if "authentifie" not in st.session_state: st.session_state.authentifie = False
 if "user_type" not in st.session_state: st.session_state.user_type = None 
 if "user_id" not in st.session_state: st.session_state.user_id = "" 
 if "patient_selectionne" not in st.session_state: st.session_state.patient_selectionne = None
+
+# Variable pour stocker l'identité du thérapeute quand il "espionne" un patient
+if "original_therapist_id" not in st.session_state: st.session_state.original_therapist_id = None
 
 # =========================================================
 # 1. ÉCRAN DE CONNEXION
@@ -79,15 +84,19 @@ if not st.session_state.authentifie:
 # 2. LOGIQUE PATIENT
 # =========================================================
 if st.session_state.user_type == "patient":
+    # Si c'est un thérapeute qui regarde, on met un bandeau d'avertissement
+    if st.session_state.original_therapist_id:
+        st.warning(f"👀 Mode Aperçu : Vous voyez l'interface de {st.session_state.user_id}")
+
     afficher_vue_patient(st.session_state.user_id)
     
     with st.sidebar:
         display_id = st.session_state.user_id 
         try:
-            from connect_db import load_data
             infos = load_data("Codes_Patients")
             if infos:
                 df_infos = pd.DataFrame(infos)
+                # Recherche insensible à la casse et espaces
                 code_actuel = str(st.session_state.user_id).strip().upper()
                 match = df_infos[df_infos["Identifiant"].astype(str).str.strip().str.upper() == code_actuel]
                 if not match.empty:
@@ -98,9 +107,22 @@ if st.session_state.user_type == "patient":
         outils_autorises = charger_outils_autorises(st.session_state.user_id)
 
         st.write(f"👤 ID: **{display_id}**")
-        if st.button("Se déconnecter", key="logout_pat_sidebar"):
-            st.session_state.authentifie = False
-            st.rerun()
+        
+        # --- LOGIQUE DE RETOUR THÉRAPEUTE ---
+        if st.session_state.original_therapist_id:
+            st.divider()
+            if st.button("⬅️ Retour Espace Pro", type="primary"):
+                # On restaure l'identité du thérapeute
+                st.session_state.user_type = "therapeute"
+                st.session_state.user_id = st.session_state.original_therapist_id
+                st.session_state.original_therapist_id = None # On vide la mémoire
+                st.rerun()
+        else:
+            # Déconnexion classique pour un vrai patient
+            if st.button("Se déconnecter", key="logout_pat_sidebar"):
+                st.session_state.authentifie = False
+                st.rerun()
+        
         st.divider()
         
         st.title("Navigation")
@@ -134,11 +156,10 @@ if st.session_state.user_type == "patient":
         st.page_link("pages/08_Export_Rapport.py", label="Export PDF")
 
 # =========================================================
-# 3. LOGIQUE THÉRAPEUTE (REFONDUE AVEC ONGLETS)
+# 3. LOGIQUE THÉRAPEUTE
 # =========================================================
 elif st.session_state.user_type == "therapeute":
     
-    # Header minimaliste
     c1, c2 = st.columns([6, 1])
     with c1: st.title("🩺 Espace Thérapeute")
     with c2: 
@@ -146,16 +167,17 @@ elif st.session_state.user_type == "therapeute":
             st.session_state.authentifie = False
             st.rerun()
 
-    # --- LISTE PATIENTS (CACHE) ---
+    # --- CHARGEMENT LISTE PATIENTS ---
     if "liste_patients_cache" not in st.session_state:
         df_pats = recuperer_mes_patients(st.session_state.user_id)
         if not df_pats.empty:
             st.session_state.liste_patients_cache = df_pats["Identifiant"].unique().tolist()
         else: st.session_state.liste_patients_cache = []
 
-    # --- STRUCTURE DES ONGLETS ---
-    tab_dash, tab_proto, tab_exos, tab_visu, tab_res = st.tabs([
+    # --- STRUCTURE DES ONGLETS (AJOUT DE GESTION PATIENT) ---
+    tab_dash, tab_gestion, tab_proto, tab_exos, tab_visu, tab_res = st.tabs([
         "🏠 Tableau de Bord", 
+        "👤 Gestion Patients", # NOUVEL ONGLET
         "🗺️ Protocole & Accès", 
         "📝 Gestion Exercices",
         "📊 Visualisation",
@@ -163,73 +185,144 @@ elif st.session_state.user_type == "therapeute":
     ])
 
     # =================================================
-    # ONGLET 1 : TABLEAU DE BORD (SÉLECTION + KPI)
+    # ONGLET 1 : TABLEAU DE BORD (STATS & MEMO)
     # =================================================
     with tab_dash:
-        col_select, col_kpi = st.columns([1, 2])
+        st.header("🏠 Tableau de bord")
         
-        with col_select:
-            st.subheader("👤 Sélection Patient")
-            # Liste déroulante principale
-            if st.session_state.liste_patients_cache:
-                # On utilise session_state pour que la sélection persiste entre les onglets
-                st.session_state.patient_selectionne = st.selectbox(
-                    "Dossier Patient :", 
-                    st.session_state.liste_patients_cache,
-                    index=0 if st.session_state.patient_selectionne is None else st.session_state.liste_patients_cache.index(st.session_state.patient_selectionne) if st.session_state.patient_selectionne in st.session_state.liste_patients_cache else 0
-                )
-            else:
-                st.warning("Aucun patient.")
+        # NOTE : J'ai retiré la création et la sélection d'ici pour les mettre dans "Gestion"
+        # Mais on garde une KPI rapide
+        k1, k2, k3 = st.columns(3)
+        with k1: st.metric("Patients suivis", len(st.session_state.liste_patients_cache))
+        with k2: st.metric("Séances cette semaine", "4") # Placeholder
+        with k3: st.metric("Messages non lus", "0") # Placeholder
+        
+        st.divider()
+        st.markdown("#### 📝 Mémo Personnel (To-Do)")
+        if "therapeute_memo" not in st.session_state: st.session_state.therapeute_memo = ""
+        nouvelle_note = st.text_area("À faire :", value=st.session_state.therapeute_memo, height=150, placeholder="Ex: Relancer PAT-003 pour son agenda sommeil...")
+        st.session_state.therapeute_memo = nouvelle_note
 
-            st.divider()
+    # =================================================
+    # ONGLET 2 : GESTION PATIENTS (CRÉATION & INFOS)
+    # =================================================
+    with tab_gestion:
+        col_select, col_create = st.columns([1, 1])
+        
+        # A. SÉLECTION ET INFORMATIONS DU PATIENT
+        with col_select:
+            st.subheader("📂 Consulter un dossier")
             
-            # CRÉATION PATIENT
-            with st.expander("➕ Créer un Nouveau Patient"):
-                # 1. On charge TOUS les patients de la base pour avoir le vrai total
-                tous_les_codes = load_data("Codes_Patients") # Cette fonction charge tout le JSON
+            if st.session_state.liste_patients_cache:
+                # Sélection principale qui pilote toute l'app
+                patient_precedent = st.session_state.patient_selectionne
+                st.session_state.patient_selectionne = st.selectbox(
+                    "Sélectionner le patient actif :", 
+                    st.session_state.liste_patients_cache,
+                    index=st.session_state.liste_patients_cache.index(patient_precedent) if patient_precedent in st.session_state.liste_patients_cache else 0
+                )
+                
+                patient_sel = st.session_state.patient_selectionne
+                
+                # --- BLOC INFOS SENSIBLES ---
+                with st.container(border=True):
+                    st.markdown(f"#### ℹ️ Infos : {patient_sel}")
+                    
+                    # Récupération du Mot de Passe (Code)
+                    code_patient = "Introuvable"
+                    try:
+                        all_codes = load_data("Codes_Patients")
+                        if all_codes:
+                            df_c = pd.DataFrame(all_codes)
+                            row = df_c[df_c["Identifiant"] == patient_sel]
+                            if not row.empty:
+                                code_patient = row.iloc[0]["Code"]
+                    except: pass
+                    
+                    c_code, c_view = st.columns([1, 1])
+                    with c_code:
+                        st.text_input("🔑 Code d'accès (Mot de passe)", value=code_patient, read_only=True, help="Donnez ce code au patient s'il l'a oublié.")
+                    
+                    with c_view:
+                        st.write("") # Spacer
+                        st.write("") 
+                        # --- BOUTON MAGIQUE : VOIR COMME PATIENT ---
+                        if st.button("👁️ Voir l'interface de ce patient", type="primary"):
+                            # 1. On sauvegarde qui on est vraiment
+                            st.session_state.original_therapist_id = st.session_state.user_id
+                            # 2. On usurpe l'identité du patient
+                            st.session_state.user_type = "patient"
+                            st.session_state.user_id = patient_sel
+                            st.rerun()
+
+            else:
+                st.info("Vous n'avez pas encore de patients.")
+
+        # B. CRÉATION NOUVEAU PATIENT (DÉPLACÉ ICI)
+        with col_create:
+            st.subheader("➕ Créer un Nouveau Patient")
+            with st.container(border=True):
+                # Calcul de l'ID avec la méthode Globale (pour unicité)
+                tous_les_codes = load_data("Codes_Patients")
                 nb_total_absolu = len(tous_les_codes) if tous_les_codes else 0
-                # 2. On génère l'ID basé sur le total global
                 prochain_id = f"PAT-{nb_total_absolu + 1:03d}"
-                id_dossier = st.text_input("Dossier", value=prochain_id)
-                if st.button("Générer accès"):
+                
+                st.info(f"Prochain ID suggéré : **{prochain_id}**")
+                id_dossier = st.text_input("Identifiant Dossier", value=prochain_id)
+                
+                if st.button("Générer l'accès maintenant"):
                     ac_code = generer_code_securise("TCC")
                     from connect_db import save_data 
+                    
+                    # Sauvegarde Code
                     save_data("Codes_Patients", [ac_code, st.session_state.user_id, id_dossier, str(datetime.now().date())])
+                    # Init Progression (Module 0 uniquement)
                     sauvegarder_progression(id_dossier, ["module0"])
-                    st.success(f"Créé : {id_dossier} -> Code : {ac_code}")
-                    del st.session_state.liste_patients_cache
+                    
+                    st.success(f"Patient créé ! Code : {ac_code}")
+                    # Refresh cache
+                    if "liste_patients_cache" in st.session_state: del st.session_state.liste_patients_cache
                     recuperer_mes_patients.clear()
                     time.sleep(1)
                     st.rerun()
 
-        with col_kpi:
-            st.subheader("📊 Aperçu de l'activité")
-            k1, k2, k3 = st.columns(3)
-            with k1: st.metric("Patients suivis", len(st.session_state.liste_patients_cache))
-            with k2: st.metric("Séances cette semaine", "4") # Placeholder
-            with k3: st.metric("Messages non lus", "0") # Placeholder
-            
-            st.divider()
-            st.markdown("#### 📝 Mémo Personnel (To-Do)")
-            # Ceci est un mémo simple stocké en session pour l'instant
-            if "therapeute_memo" not in st.session_state: st.session_state.therapeute_memo = ""
-            nouvelle_note = st.text_area("À faire :", value=st.session_state.therapeute_memo, height=150, placeholder="Ex: Relancer PAT-003 pour son agenda sommeil...")
-            st.session_state.therapeute_memo = nouvelle_note
-
     # =================================================
-    # ONGLET 2 : PROTOCOLE (MODULES + OUTILS)
+    # ONGLET 3 : PROTOCOLE (MODULES + OUTILS)
     # =================================================
     with tab_proto:
         patient_sel = st.session_state.patient_selectionne
         
         if not patient_sel:
-            st.info("Veuillez sélectionner un patient dans l'onglet 'Tableau de Bord'.")
+            st.info("Veuillez sélectionner un patient dans l'onglet 'Gestion Patients'.")
         else:
             st.markdown(f"### Gestion du Protocole : **{patient_sel}**")
+            
+            # --- 1. DÉBLOCAGE DES OUTILS ---
+            outils_autorises = charger_outils_autorises(patient_sel)
+            MAP_OUTILS = {
+                "🌙 Agenda Sommeil": "sommeil", "📝 Registre Activités": "activites",
+                "🍷 Agenda Consos": "conso", "🛑 Agenda Compulsions": "compulsions",
+                "🧩 Colonnes de Beck": "beck", "🔍 Analyse SORC": "sorc",
+                "💡 Résolution Problème": "problemes", "⚖️ Balance Décisionnelle": "balance",
+                "🧗 Exposition": "expo", "🧘 Relaxation": "relax",
+                "📊 PHQ-9": "phq9", "📊 GAD-7": "gad7", "📊 ISI": "isi",
+                "📊 PEG": "peg", "📊 WHO-5": "who5", "📊 WSAS": "wsas"
+            }
+            
+            with st.expander("🛠️ Gérer les accès aux Outils & Échelles", expanded=False):
+                INV_MAP = {v: k for k, v in MAP_OUTILS.items()}
+                default_options = [INV_MAP[k] for k in outils_autorises if k in INV_MAP]
+                choix_ouverts = st.multiselect("Outils accessibles pour ce patient :", options=list(MAP_OUTILS.keys()), default=default_options)
+                if st.button("💾 Enregistrer les accès outils"):
+                    nouvelle_liste_cles = [MAP_OUTILS[nom] for nom in choix_ouverts]
+                    sauvegarder_outils_autorises(patient_sel, nouvelle_liste_cles)
+                    st.success("Accès outils mis à jour !")
+                    time.sleep(0.5)
+                    st.rerun()
 
+            st.divider()
 
             # --- 2. PILOTAGE MODULES BARLOW ---
-            # --- CHARGEMENT DONNEES ---
             cache_key = f"cache_data_{patient_sel}"
             if cache_key not in st.session_state:
                 st.session_state[cache_key] = {
@@ -248,12 +341,10 @@ elif st.session_state.user_type == "therapeute":
             if "last_active_module" not in st.session_state: st.session_state.last_active_module = "module0"
 
             st.markdown("#### 🗺️ Modules Barlow")
-            # Barre de progression
             nb_total = len(PROTOCOLE_BARLOW)
             nb_fait = len(modules_valides_db)
             st.progress(min(nb_fait / nb_total, 1.0), text=f"Avancement : {nb_fait}/{nb_total} modules terminés")
 
-            # Boucle des modules
             for code_mod, data in PROTOCOLE_BARLOW.items():
                 if code_mod in modules_valides_db: icon = "✅"
                 elif code_mod in progression_patient: icon = "🟦"
@@ -261,37 +352,29 @@ elif st.session_state.user_type == "therapeute":
                 
                 should_be_expanded = (code_mod == st.session_state.last_active_module)
                 
-                # Layout Module
                 col_mod, col_btn = st.columns([0.85, 0.15])
                 with col_mod:
                     with st.expander(f"{icon} {data['titre']}", expanded=should_be_expanded):
                         t_act, t_doc = st.tabs(["⚡ Séance", "📂 Docs"])
                         with t_act:
-                            # FORMULAIRE SEANCE
                             with st.form(key=f"form_{patient_sel}_{code_mod}"):
-                                # ... (Logique checkbox et notes identique à votre code) ...
                                 check_list = []
-                                # A. Taches précédentes
                                 if data['examen_devoirs']:
                                     st.caption("Examen tâches")
                                     for idx, d in enumerate(data['examen_devoirs']):
                                         check_list.append(st.checkbox(d['titre'], key=f"ex_{patient_sel}_{code_mod}_{idx}"))
-                                # B. Etapes
                                 st.caption("Étapes Séance")
                                 for idx_e, etape in enumerate(data['etapes_seance']):
                                     check_list.append(st.checkbox(etape['titre'], key=f"st_{patient_sel}_{code_mod}_{idx_e}", help=etape.get('details')))
-                                # C. Devoirs assignation
                                 dev_temp = []
                                 if data['taches_domicile']:
                                     st.caption("Assignation Devoirs")
                                     excl = devoirs_exclus_memoire.get(code_mod, [])
                                     for j, dev in enumerate(data['taches_domicile']):
                                         dev_temp.append(st.checkbox(dev['titre'], value=(j not in excl), key=f"dv_{patient_sel}_{code_mod}_{j}"))
-                                # Note
                                 note = st.text_area("Note", value=notes_seance_db.get(code_mod, ""), height=80)
                                 
                                 if st.form_submit_button("💾 Enregistrer"):
-                                    # Logique de sauvegarde (simplifiée pour lisibilité ici mais fonctionnelle)
                                     notes_seance_db[code_mod] = note
                                     st.session_state[cache_key]["notes"] = notes_seance_db
                                     
@@ -326,24 +409,23 @@ elif st.session_state.user_type == "therapeute":
                                         with open(p, "rb") as f:
                                             st.download_button(f"📥 {os.path.basename(p)}", f, file_name=os.path.basename(p))
 
-                # Bouton Lock/Unlock
                 with col_btn:
-                    st.write("") # Spacer
+                    st.write("")
                     if code_mod in progression_patient:
-                        if st.button("🔓", key=f"lk_{patient_sel}_{code_mod}", help="Bloquer ce module"):
+                        if st.button("🔓", key=f"lk_{patient_sel}_{code_mod}", help="Bloquer"):
                             progression_patient.remove(code_mod)
                             sauvegarder_progression(patient_sel, progression_patient)
                             st.session_state[cache_key]["progression"] = progression_patient
                             st.rerun()
                     else:
-                        if st.button("🔒", key=f"ulk_{patient_sel}_{code_mod}", type="primary", help="Débloquer ce module"):
+                        if st.button("🔒", key=f"ulk_{patient_sel}_{code_mod}", type="primary", help="Débloquer"):
                             progression_patient.append(code_mod)
                             sauvegarder_progression(patient_sel, progression_patient)
                             st.session_state[cache_key]["progression"] = progression_patient
                             st.rerun()
 
     # =================================================
-    # ONGLET 3 : GESTION EXERCICES (NOUVEAU)
+    # ONGLET 4 : GESTION EXERCICES
     # =================================================
     with tab_exos:
         patient_sel = st.session_state.patient_selectionne
@@ -351,31 +433,6 @@ elif st.session_state.user_type == "therapeute":
             st.info("Veuillez sélectionner un patient d'abord.")
         else:
             st.header(f"📝 Communication & Exercices : {patient_sel}")
-
-            # --- 1. DÉBLOCAGE DES OUTILS (Moved here) ---
-            outils_autorises = charger_outils_autorises(patient_sel)
-            MAP_OUTILS = {
-                "🌙 Agenda Sommeil": "sommeil", "📝 Registre Activités": "activites",
-                "🍷 Agenda Consos": "conso", "🛑 Agenda Compulsions": "compulsions",
-                "🧩 Colonnes de Beck": "beck", "🔍 Analyse SORC": "sorc",
-                "💡 Résolution Problème": "problemes", "⚖️ Balance Décisionnelle": "balance",
-                "🧗 Exposition": "expo", "🧘 Relaxation": "relax",
-                "📊 PHQ-9": "phq9", "📊 GAD-7": "gad7", "📊 ISI": "isi",
-                "📊 PEG": "peg", "📊 WHO-5": "who5", "📊 WSAS": "wsas"
-            }
-            
-            with st.expander("🛠️ Gérer les accès aux Outils & Échelles", expanded=False):
-                INV_MAP = {v: k for k, v in MAP_OUTILS.items()}
-                default_options = [INV_MAP[k] for k in outils_autorises if k in INV_MAP]
-                choix_ouverts = st.multiselect("Outils accessibles pour ce patient :", options=list(MAP_OUTILS.keys()), default=default_options)
-                if st.button("💾 Enregistrer les accès outils"):
-                    nouvelle_liste_cles = [MAP_OUTILS[nom] for nom in choix_ouverts]
-                    sauvegarder_outils_autorises(patient_sel, nouvelle_liste_cles)
-                    st.success("Accès outils mis à jour !")
-                    time.sleep(0.5)
-                    st.rerun()
-
-            st.divider()
             
             c_msg, c_assign = st.columns(2)
             
@@ -384,26 +441,20 @@ elif st.session_state.user_type == "therapeute":
                 st.caption("Le patient verra ce message sur son tableau de bord.")
                 msg_content = st.text_area("Votre message :", height=150, placeholder="Bonjour, n'oubliez pas de remplir votre agenda sommeil cette semaine...")
                 if st.button("📨 Envoyer le message"):
-                    # TODO: Relier à la base de données (ex: sauvegarder_message(patient_sel, msg_content))
                     st.toast("Message envoyé (Simulation)", icon="📨")
             
             with c_assign:
                 st.subheader("Exercices à faire")
                 st.caption("Cochez les exercices prioritaires pour la semaine :")
-                
-                # Liste statique pour l'instant (mise en forme)
                 exos_dispos = ["Agenda Sommeil", "Colonne de Beck", "Exposition (Hiérarchie)", "Relaxation Audio 1"]
-                
                 with st.form("form_assign_exos"):
                     for exo in exos_dispos:
                         st.checkbox(exo)
-                    
                     if st.form_submit_button("Mettre à jour les tâches"):
-                        # TODO: Relier à la DB
                         st.success("Tâches mises à jour (Simulation)")
 
     # =================================================
-    # ONGLET 4 : VISUALISATION
+    # ONGLET 5 : VISUALISATION
     # =================================================
     with tab_visu:
         patient_sel = st.session_state.patient_selectionne
@@ -413,7 +464,6 @@ elif st.session_state.user_type == "therapeute":
             st.header(f"📊 Données cliniques : {patient_sel}")
             outils_actuels = charger_outils_autorises(patient_sel)
             
-            # Fonction helper pour l'affichage
             def T(titre, cle): return f"{titre} 🔒" if cle not in outils_actuels else titre
 
             options = [
@@ -428,7 +478,6 @@ elif st.session_state.user_type == "therapeute":
             
             choix_vue = st.selectbox("Outil à analyser :", options)
 
-            # Logique d'affichage identique
             if "Activités" in choix_vue:
                 df_act = charger_donnees_specifiques("Activites", patient_sel)
                 df_hum = charger_donnees_specifiques("Humeur", patient_sel)
@@ -457,7 +506,7 @@ elif st.session_state.user_type == "therapeute":
                 st.dataframe(charger_donnees_specifiques("SORC", patient_sel), use_container_width=True)
 
     # =================================================
-    # ONGLET 5 : RESSOURCES
+    # ONGLET 6 : RESSOURCES
     # =================================================
     with tab_res:
         st.header("📚 Ressources Partagées (Cloud)")
