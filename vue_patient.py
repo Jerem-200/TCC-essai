@@ -95,24 +95,13 @@ def afficher_vue_patient(patient_id):
             st.info("👋 Bienvenue sur votre espace personnel.")
 
         st.divider()
-
-        # 2. ALERTES TÂCHES
-        taches = charger_taches_assignees(patient_id)
-        # st.write(f"DEBUG TACHES: {taches}") # A décommenter pour tester
-        
-        if taches:
-            st.subheader("🔔 À faire cette semaine")
             
-        # --- FIN MODIFICATION ---
-
         # 2. ZONE D'ALERTES (EXERCICES À FAIRE)
         taches = charger_taches_assignees(patient_id)
         
         if taches:
             st.subheader("🔔 À faire cette semaine")
             
-            # Mapping pour rediriger vers les bonnes pages
-            # Format: code: (Nom affiché, Lien fichier page)
             MAP_REDIRECTION = {
                 "sommeil": ("Agenda Sommeil", "pages/10_Agenda_Sommeil.py"),
                 "activites": ("Registre Activités", "pages/05_Registre_Activites.py"),
