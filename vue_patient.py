@@ -50,7 +50,7 @@ def afficher_vue_patient(patient_id):
         "🛠️ Outils & Exos", 
         "📊 Échelles", 
         "📚 Psychoéducation",
-        "📈 Visualisations
+        "📈 Visualisations,
         "📤 Export"
     ]
     
