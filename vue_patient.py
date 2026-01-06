@@ -355,21 +355,12 @@ def afficher_vue_patient(patient_id):
             if "compulsions" in outils_autorises:
                 if st.button("🛑 Agenda Compulsions", use_container_width=True): st.switch_page("pages/14_Agenda_Compulsions.py")
 
-# ======================================================
-    # VUE 4 : OUTILS & EXERCICES (LOGIQUE HYBRIDE)
+    # ======================================================
+    # VUE 4 : OUTILS
     # ======================================================
     elif onglet_actif == "🛠️ Outils & Exos":
-        
-        # 1. Chargement des permissions
-        outils_autorises = charger_outils_autorises(patient_id) # Pour les outils généraux
-        progression = charger_progression(patient_id)           # Pour les exercices liés aux modules
-        
+        outils_autorises = charger_outils_autorises(patient_id)
         st.header("🛠️ Boîte à outils")
-
-        # --- SECTION A : OUTILS TRANSVERSAUX (Gérés par "Gestion Exercices") ---
-        st.subheader("🧰 Outils Libres")
-        st.caption("Outils activés manuellement par votre thérapeute.")
-        
         c1, c2, c3 = st.columns(3)
         with c1:
             if "beck" in outils_autorises:
@@ -382,59 +373,10 @@ def afficher_vue_patient(patient_id):
             if "balance" in outils_autorises:
                 if st.button("⚖️ Balance", use_container_width=True): st.switch_page("pages/11_Balance_Decisionnelle.py")
         with c3:
-            # On garde ici les outils qui ne sont pas forcément liés à un module précis
-            if "relax" in outils_autorises: # Si vous avez des relaxations hors protocole
-                if st.button("🧘 Relaxation (Libre)", use_container_width=True): st.switch_page("pages/07_Relaxation.py")
-
-        st.divider()
-
-        # --- SECTION B : EXERCICES DU PROTOCOLE (Gérés par les Modules) ---
-        st.subheader("📍 Exercices du Parcours")
-        st.caption("Ces exercices se débloquent automatiquement lorsque vous avancez dans les modules.")
-
-        # On prépare une grille pour l'affichage
-        cols_proto = st.columns(3)
-        idx_card = 0
-
-        # On parcourt tout le protocole pour trouver les exercices
-        for code_mod, data in PROTOCOLE_BARLOW.items():
-            # Si le module contient des exercices
-            if "exercices" in data and data["exercices"]:
-                
-                # EST-CE QUE CE MODULE EST DÉBLOQUÉ ?
-                est_debloque = (code_mod in progression)
-                
-                for i, exo in enumerate(data["exercices"]):
-                    # On affiche la carte dans la colonne adéquate (modulo 3)
-                    with cols_proto[idx_card % 3]:
-                        
-                        # Style visuel : Grisé si bloqué, Normal si débloqué
-                        border_style = True
-                        
-                        with st.container(border=border_style):
-                            # Titre de l'exercice
-                            prefixe = "" if est_debloque else "🔒 "
-                            st.markdown(f"**{prefixe}{exo['titre']}**")
-                            
-                            # Nom du module associé (en petit)
-                            st.caption(f"Module : {data['titre']}")
-                            
-                            key_btn = f"btn_ex_list_{code_mod}_{i}"
-                            
-                            if est_debloque:
-                                # BOUTON ACTIF
-                                if st.button("Commencer", key=key_btn, use_container_width=True, type="secondary"):
-                                    # On configure la session pour la page d'exercice générique
-                                    st.session_state["exercice_actif"] = {"mod_code": code_mod, "exo_data": exo}
-                                    st.switch_page("pages/21_Barlow_Exercice.py")
-                            else:
-                                # BOUTON INACTIF (GRISÉ)
-                                st.button("Verrouillé", key=key_btn, disabled=True, use_container_width=True)
-                    
-                    idx_card += 1
-        
-        if idx_card == 0:
-            st.info("Aucun exercice spécifique n'est paramétré dans le protocole pour l'instant.")
+            if "expo" in outils_autorises:
+                if st.button("🧗 Exposition", use_container_width=True): st.switch_page("pages/09_Exposition.py")
+            if "relax" in outils_autorises:
+                if st.button("🧘 Relaxation", use_container_width=True): st.switch_page("pages/07_Relaxation.py")
 
     # ======================================================
     # VUE 5 : ÉCHELLES
