@@ -50,6 +50,7 @@ def afficher_vue_patient(patient_id):
         "🛠️ Outils & Exos", 
         "📊 Échelles", 
         "📚 Psychoéducation",
+        "📈 Visualisations
         "📤 Export"
     ]
     
@@ -556,6 +557,96 @@ def afficher_vue_patient(patient_id):
                         afficher_fichier_cloud(f)
             else:
                 st.info("Aucun document supplémentaire n'a été ajouté par le thérapeute.")
+
+    # ======================================================
+    # VUE 7 : VISUALISATIONS (Nouvel Onglet)
+    # ======================================================
+    elif onglet_actif == "📈 Visualisations":
+        st.header("📈 Mes Progrès en graphiques")
+        st.caption("Visualisez l'évolution de vos scores et de votre bien-être au fil du temps.")
+
+        df_visu = charger_historique_local(patient_id)
+
+        # Nettoyage et préparation des données pour les graphiques
+        if not df_visu.empty:
+            # On exclut les exercices purement qualitatifs (textes) qui n'ont pas de score ou score=0
+            # On garde ce qui a un "Score_Global" numérique
+            df_charts = df_visu.copy()
+            df_charts["Score_Global"] = pd.to_numeric(df_charts["Score_Global"], errors='coerce')
+            df_charts = df_charts[df_charts["Score_Global"] > 0]
+            
+            # On exclut les titres contenant "Exercice" pour ne garder que les Echelles/Bilans
+            df_charts = df_charts[~df_charts["Questionnaire"].str.contains("Exercice", case=False, na=False)]
+
+            if not df_charts.empty:
+                # --- SÉLECTEURS DE FILTRES ---
+                col_filt1, col_filt2 = st.columns([1, 3])
+                with col_filt1:
+                    periode = st.selectbox("Période", ["Tout", "30 derniers jours", "3 derniers mois"])
+                
+                with col_filt2:
+                    # Liste unique des questionnaires disponibles
+                    types_dispo = df_charts["Type"].unique().tolist()
+                    choix_types = st.multiselect("Filtrer par mesure", types_dispo, default=types_dispo)
+
+                # --- APPLICATION DES FILTRES ---
+                # 1. Filtre Type
+                if choix_types:
+                    df_filtered = df_charts[df_charts["Type"].isin(choix_types)]
+                else:
+                    df_filtered = df_charts # Si rien sélectionné, on montre tout (ou rien, au choix)
+
+                # 2. Filtre Date
+                if periode == "30 derniers jours":
+                    cutoff = datetime.now() - pd.Timedelta(days=30)
+                    df_filtered = df_filtered[df_filtered["Date"] >= cutoff]
+                elif periode == "3 derniers mois":
+                    cutoff = datetime.now() - pd.Timedelta(days=90)
+                    df_filtered = df_filtered[df_filtered["Date"] >= cutoff]
+
+                # --- AFFICHAGE DU GRAPHIQUE ---
+                if not df_filtered.empty:
+                    st.divider()
+                    
+                    # Graphique ALTAIR interactif
+                    chart = alt.Chart(df_filtered).mark_line(point=True, strokeWidth=3).encode(
+                        x=alt.X('Date', axis=alt.Axis(format='%d/%m', title='Date')),
+                        y=alt.Y('Score_Global', title='Score'),
+                        color=alt.Color('Type', legend=alt.Legend(title="Indicateur", orient="bottom")),
+                        tooltip=[
+                            alt.Tooltip('Date', format='%d/%m/%Y', title='Date'),
+                            alt.Tooltip('Type', title='Mesure'),
+                            alt.Tooltip('Score_Global', title='Score')
+                        ]
+                    ).properties(
+                        height=400
+                    ).interactive()
+
+                    st.altair_chart(chart, use_container_width=True)
+
+                    # --- PETITES STATS ---
+                    st.subheader("📊 Moyennes sur la période")
+                    col_stats = st.columns(4)
+                    for i, t in enumerate(choix_types):
+                        sub_df = df_filtered[df_filtered["Type"] == t]
+                        if not sub_df.empty:
+                            moyenne = sub_df["Score_Global"].mean()
+                            dernier = sub_df.sort_values("Date").iloc[-1]["Score_Global"]
+                            delta = dernier - moyenne
+                            
+                            with col_stats[i % 4]:
+                                st.metric(
+                                    label=t,
+                                    value=f"{int(dernier)}",
+                                    delta=f"{delta:.1f} / moy",
+                                    delta_color="inverse" # Inverse car souvent en psycho, score bas = mieux (ex: anxiété)
+                                )
+                else:
+                    st.warning("Aucune donnée pour les filtres sélectionnés.")
+            else:
+                st.info("Vous n'avez pas encore rempli de questionnaires scorés (type PHQ-9, GAD-7, ou Bilan Hebdo chiffré).")
+        else:
+            st.info("Aucune donnée disponible pour générer des graphiques.")
 
 
     # ======================================================
