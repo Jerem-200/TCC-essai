@@ -322,7 +322,7 @@ elif st.session_state.user_type == "therapeute":
         else:
             st.markdown(f"### Gestion du Protocole : **{patient_sel}**")
 
-            # --- 2. PILOTAGE MODULES BARLOW ---
+            # --- 1. PILOTAGE MODULES ---
             cache_key = f"cache_data_{patient_sel}"
             if cache_key not in st.session_state:
                 st.session_state[cache_key] = {
@@ -456,7 +456,6 @@ elif st.session_state.user_type == "therapeute":
                     time.sleep(0.5)
                     st.rerun()
 
-            st.divider()
             
             c_msg, c_assign = st.columns(2)
             
