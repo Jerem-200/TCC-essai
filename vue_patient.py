@@ -355,29 +355,74 @@ def afficher_vue_patient(patient_id):
             if "compulsions" in outils_autorises:
                 if st.button("🛑 Agenda Compulsions", use_container_width=True): st.switch_page("pages/14_Agenda_Compulsions.py")
 
-    # ======================================================
-    # VUE 4 : OUTILS
+# ======================================================
+    # VUE 4 : OUTILS & EXERCICES (VERROUILLAGE PAR MODULE)
     # ======================================================
     elif onglet_actif == "🛠️ Outils & Exos":
-        outils_autorises = charger_outils_autorises(patient_id)
+        
+        # 1. On charge la progression pour savoir quels modules sont ouverts
+        progression = charger_progression(patient_id) 
+        # (progression contient la liste des codes modules débloqués, ex: ['module0', 'module1'])
+        
         st.header("🛠️ Boîte à outils")
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            if "beck" in outils_autorises:
-                if st.button("🧩 Beck", use_container_width=True): st.switch_page("pages/01_Colonnes_Beck.py")
-            if "sorc" in outils_autorises:
-                if st.button("🔍 SORC", use_container_width=True): st.switch_page("pages/12_Analyse_SORC.py")
-        with c2:
-            if "problemes" in outils_autorises:
-                if st.button("💡 Résolution", use_container_width=True): st.switch_page("pages/06_Resolution_Probleme.py")
-            if "balance" in outils_autorises:
-                if st.button("⚖️ Balance", use_container_width=True): st.switch_page("pages/11_Balance_Decisionnelle.py")
-        with c3:
-            if "expo" in outils_autorises:
-                if st.button("🧗 Exposition", use_container_width=True): st.switch_page("pages/09_Exposition.py")
-            if "relax" in outils_autorises:
-                if st.button("🧘 Relaxation", use_container_width=True): st.switch_page("pages/07_Relaxation.py")
+        st.caption("Les exercices se débloquent au fur et à mesure de votre progression dans les modules.")
 
+        # On utilise une grille pour un affichage aéré
+        cols = st.columns(3)
+        idx_card = 0
+        exos_trouves = False
+
+        # 2. On parcourt CHAQUE module du protocole
+        for code_mod, data in PROTOCOLE_BARLOW.items():
+            
+            # On vérifie s'il y a des exercices configurés dans ce module
+            if "exercices" in data and data["exercices"]:
+                
+                # --- LA CLÉ DU SYSTÈME ---
+                # L'exercice est débloqué SI le module est dans la liste 'progression'
+                est_debloque = (code_mod in progression)
+                # -------------------------
+
+                for i, exo in enumerate(data["exercices"]):
+                    exos_trouves = True
+                    
+                    # On place la carte dans la colonne suivante (1, 2, 3, 1, 2...)
+                    with cols[idx_card % 3]:
+                        
+                        # Cadre visuel : Grisé/Simple si bloqué, plus net si débloqué (Optionnel)
+                        with st.container(border=True):
+                            
+                            # En-tête de la carte
+                            c_titre, c_lock = st.columns([5, 1])
+                            with c_titre:
+                                st.markdown(f"**{exo['titre']}**")
+                            with c_lock:
+                                if not est_debloque:
+                                    st.write("🔒") # Petit cadenas visuel
+                            
+                            # Sous-titre pour situer l'exercice
+                            st.caption(f"📍 {data['titre']}")
+                            
+                            st.write("") # Petit espace
+
+                            # --- LE BOUTON D'ACTION ---
+                            key_btn = f"btn_ex_lock_{code_mod}_{i}"
+                            
+                            if est_debloque:
+                                # CAS 1 : MODULE OUVERT -> BOUTON ACTIF
+                                if st.button("👉 Ouvrir", key=key_btn, use_container_width=True, type="secondary"):
+                                    # On charge l'exercice et on redirige
+                                    st.session_state["exercice_actif"] = {"mod_code": code_mod, "exo_data": exo}
+                                    st.switch_page("pages/21_Barlow_Exercice.py")
+                            else:
+                                # CAS 2 : MODULE FERMÉ -> BOUTON DÉSACTIVÉ
+                                st.button("Verrouillé", key=key_btn, disabled=True, use_container_width=True)
+
+                    idx_card += 1
+
+        if not exos_trouves:
+            st.info("Aucun exercice n'est encore configuré dans le protocole.")
+            
     # ======================================================
     # VUE 5 : ÉCHELLES
     # ======================================================
