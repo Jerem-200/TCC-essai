@@ -1,77 +1,88 @@
 import streamlit as st
+from google.cloud import storage
 from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 import io
 
 # --- CONFIGURATION ---
-# Mettez ici l'ID de votre dossier Drive (copié à l'étape 1)
-# Ou mieux : mettez-le dans st.secrets["drive"]["folder_id"]
-DRIVE_FOLDER_ID = "16q9tWGTHu39_UXsGajKhsWwhrCiZEGd5" 
+# 👇 METTEZ ICI LE NOM EXACT DE VOTRE BUCKET (sans gs://, juste le nom)
+BUCKET_NAME = "tcc-app-assets-jeremy" 
 
-# Fonction d'authentification (Même logique que pour GSheets)
-def get_drive_service():
-    # On vérifie si les secrets sont disponibles
+# --- AUTHENTIFICATION ---
+def get_storage_client():
+    # On réutilise vos secrets existants (le même robot !)
     if "gcp_service_account" in st.secrets:
         creds_dict = dict(st.secrets["gcp_service_account"])
-        creds = service_account.Credentials.from_service_account_info(
-            creds_dict,
-            scopes=["https://www.googleapis.com/auth/drive"]
-        )
-        return build('drive', 'v3', credentials=creds)
+        creds = service_account.Credentials.from_service_account_info(creds_dict)
+        return storage.Client(credentials=creds, project=creds_dict["project_id"])
     else:
-        st.error("Secrets GCP introuvables. Vérifiez .streamlit/secrets.toml")
+        st.error("Secrets introuvables. Vérifiez .streamlit/secrets.toml")
         return None
 
-def lister_fichiers_drive():
-    """Retourne une liste de dict : [{'id': '...', 'name': '...'}, ...]"""
-    service = get_drive_service()
-    if not service: return []
-    
-    query = f"'{DRIVE_FOLDER_ID}' in parents and trashed=false"
-    results = service.files().list(q=query, fields="files(id, name, mimeType)").execute()
-    return results.get('files', [])
+# --- FONCTIONS COMPATIBLES (Mêmes noms qu'avant pour ne rien casser) ---
 
-def uploader_fichier_drive(file_obj, filename):
-    """Envoie un fichier Streamlit (BytesIO) vers Drive"""
-    service = get_drive_service()
-    if not service: return False
-    
-    file_metadata = {
-        'name': filename,
-        'parents': [DRIVE_FOLDER_ID]
-    }
-    
-    media = MediaIoBaseUpload(file_obj, mimetype=file_obj.type, resumable=False)
+def lister_fichiers_drive():
+    """Liste les fichiers du Bucket Cloud Storage"""
+    client = get_storage_client()
+    if not client: return []
     
     try:
-        file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        bucket = client.bucket(BUCKET_NAME)
+        # On récupère tous les objets (blobs) du bucket
+        blobs = bucket.list_blobs()
+        
+        # On transforme ça en liste de dictionnaires comme le faisait l'ancien code
+        # id = le nom du fichier dans le bucket
+        return [{'id': b.name, 'name': b.name, 'mimeType': b.content_type} for b in blobs]
+    except Exception as e:
+        st.error(f"Erreur connexion Storage : {e}")
+        return []
+
+def uploader_fichier_drive(file_obj, filename):
+    """Envoie un fichier vers le Bucket"""
+    client = get_storage_client()
+    if not client: return False
+    
+    try:
+        bucket = client.bucket(BUCKET_NAME)
+        blob = bucket.blob(filename)
+        
+        # On s'assure d'être au début du fichier
+        file_obj.seek(0)
+        
+        # Upload direct (plus simple et robuste que Drive)
+        blob.upload_from_file(file_obj, content_type=file_obj.type)
         return True
     except Exception as e:
-        st.error(f"Erreur Upload Drive : {e}")
+        st.error(f"Erreur Upload : {e}")
         return False
 
 def telecharger_fichier_drive(file_id):
-    """Récupère le contenu binaire d'un fichier Drive pour le bouton download"""
-    service = get_drive_service()
-    if not service: return None
+    """Télécharge un fichier depuis le Bucket"""
+    # Note: Dans GCS, l'ID est le nom du fichier
+    client = get_storage_client()
+    if not client: return None
     
-    request = service.files().get_media(fileId=file_id)
-    file_stream = io.BytesIO()
-    downloader = MediaIoBaseDownload(file_stream, request)
-    
-    done = False
-    while done is False:
-        status, done = downloader.next_chunk()
+    try:
+        bucket = client.bucket(BUCKET_NAME)
+        blob = bucket.blob(file_id)
         
-    file_stream.seek(0)
-    return file_stream
+        # On télécharge en mémoire RAM
+        file_stream = io.BytesIO()
+        blob.download_to_file(file_stream)
+        file_stream.seek(0)
+        return file_stream
+    except Exception as e:
+        st.error(f"Erreur Téléchargement : {e}")
+        return None
 
 def supprimer_fichier_drive(file_id):
-    service = get_drive_service()
-    if not service: return False
+    """Supprime un fichier du Bucket"""
+    client = get_storage_client()
+    if not client: return False
     try:
-        service.files().delete(fileId=file_id).execute()
+        bucket = client.bucket(BUCKET_NAME)
+        blob = bucket.blob(file_id)
+        blob.delete()
         return True
     except:
         return False
