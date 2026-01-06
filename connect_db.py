@@ -285,42 +285,77 @@ def generer_code_securise(prefix="PAT", length=6):
     return f"{prefix}-{suffix}"
 
 
-#Pour message thérapeute
+# =========================================================
+# 4. NOUVELLES FONCTIONS (MESSAGES & TACHES) - VERSION CORRIGÉE
+# =========================================================
+
+# --- GESTION DU MESSAGE THÉRAPEUTE ---
 
 def charger_message_therapeute(patient_id):
-    """Charge le message personnalisé du thérapeute"""
-    data = load_data("Messages_Therapeutes") # Simule le Cloud/DB
-    if data:
-        df = pd.DataFrame(data)
-        row = df[df["Patient"] == patient_id]
-        if not row.empty:
-            return row.iloc[0]["Message"]
+    """Récupère le message depuis l'onglet Messages_Therapeutes"""
+    try:
+        data = load_data("Messages_Therapeutes")
+        if data:
+            df = pd.DataFrame(data)
+            # On vérifie que les colonnes existent
+            if "Patient" in df.columns and "Message" in df.columns:
+                row = df[df["Patient"] == patient_id]
+                if not row.empty:
+                    # On prend le dernier message trouvé
+                    return str(row.iloc[-1]["Message"])
+    except Exception as e:
+        print(f"Erreur chargement message: {e}")
     return ""
 
 def sauvegarder_message_therapeute(patient_id, message):
-    """Sauvegarde le message dans le Cloud"""
-    # Note: Dans une vraie DB, on ferait un UPDATE. Ici on écrase pour l'exemple JSON.
-    data = load_data("Messages_Therapeutes") or []
-    # On retire l'ancienne entrée pour ce patient
-    data = [d for d in data if d["Patient"] != patient_id]
-    data.append({"Patient": patient_id, "Message": message, "Date": str(datetime.now())})
-    from connect_db import save_data # Assurez-vous d'importer votre fonction de save générique
-    save_data("Messages_Therapeutes", data)
+    """Supprime l'ancien message et sauvegarde le nouveau"""
+    try:
+        # 1. On nettoie : on supprime les anciens messages de ce patient
+        # pour éviter d'accumuler des lignes inutiles.
+        delete_data_flexible("Messages_Therapeutes", {"Patient": patient_id})
+        
+        # 2. On prépare la nouvelle ligne
+        date_str = str(datetime.now().strftime("%Y-%m-%d %H:%M"))
+        nouvelle_ligne = [patient_id, message, date_str]
+        
+        # 3. On utilise votre fonction save_data existante (append_row)
+        return save_data("Messages_Therapeutes", nouvelle_ligne)
+    except Exception as e:
+        st.error(f"Erreur save message: {e}")
+        return False
+
+# --- GESTION DES TACHES (ALERTES) ---
 
 def charger_taches_assignees(patient_id):
-    """Retourne la liste des codes outils à faire (ex: ['sommeil', 'beck'])"""
-    data = load_data("Taches_Assignees")
-    if data:
-        df = pd.DataFrame(data)
-        row = df[df["Patient"] == patient_id]
-        if not row.empty:
-            return row.iloc[0]["Taches"]
+    """Récupère la liste des tâches (convertit le JSON textuel en liste Python)"""
+    try:
+        data = load_data("Taches_Assignees")
+        if data:
+            df = pd.DataFrame(data)
+            if "Patient" in df.columns and "Taches_JSON" in df.columns:
+                row = df[df["Patient"] == patient_id]
+                if not row.empty:
+                    json_text = row.iloc[-1]["Taches_JSON"]
+                    # On transforme le texte "[beck, sommeil]" en vraie liste Python
+                    return json.loads(str(json_text))
+    except Exception:
+        pass # Retourne vide si erreur ou pas trouvé
     return []
 
 def sauvegarder_taches_assignees(patient_id, liste_codes):
-    """Sauvegarde la liste des tâches"""
-    data = load_data("Taches_Assignees") or []
-    data = [d for d in data if d["Patient"] != patient_id]
-    data.append({"Patient": patient_id, "Taches": liste_codes, "Date": str(datetime.now())})
-    from connect_db import save_data
-    save_data("Taches_Assignees", data)
+    """Sauvegarde la liste des codes outils sous forme de JSON"""
+    try:
+        # 1. On nettoie l'existant
+        delete_data_flexible("Taches_Assignees", {"Patient": patient_id})
+        
+        # 2. On prépare la donnée (Conversion Liste -> Texte JSON pour Google Sheet)
+        taches_str = json.dumps(liste_codes) # Ex: "['beck', 'sommeil']"
+        date_str = str(datetime.now().strftime("%Y-%m-%d %H:%M"))
+        
+        nouvelle_ligne = [patient_id, taches_str, date_str]
+        
+        # 3. On sauvegarde
+        return save_data("Taches_Assignees", nouvelle_ligne)
+    except Exception as e:
+        st.error(f"Erreur save taches: {e}")
+        return False
