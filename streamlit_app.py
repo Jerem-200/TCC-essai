@@ -485,6 +485,7 @@ elif st.session_state.user_type == "therapeute":
             st.info("Veuillez sélectionner un patient.")
         else:
             st.header(f"📊 Données cliniques : {patient_sel}")
+            charger_outils_autorises.clear() 
             outils_actuels = charger_outils_autorises(patient_sel)
             
             def T(titre, cle): return f"{titre} 🔒" if cle not in outils_actuels else titre
