@@ -81,21 +81,29 @@ def afficher_vue_patient(patient_id):
     )
     st.divider()
 
-# ======================================================
+    # ======================================================
     # VUE 1 : TABLEAU DE BORD (Modifié)
     # ======================================================
     if onglet_actif == "🏠 Tableau de Bord":
         
-        # 1. MESSAGE DU THÉRAPEUTE (Remplace la "Situation Patient")
+        # 1. MESSAGE THÉRAPEUTE
+        # On force le chargement pour voir si ça marche
         msg_therapeute = charger_message_therapeute(patient_id)
-        
-        if msg_therapeute:
-            st.info(f"👨‍⚕️ **Message de votre thérapeute :**\n\n{msg_therapeute}")
+        if msg_therapeute and msg_therapeute != "":
+            st.info(f"👨‍⚕️ **Message du Thérapeute :**\n\n{msg_therapeute}")
         else:
-            # Fallback si pas de message
             st.info("👋 Bienvenue sur votre espace personnel.")
 
         st.divider()
+
+        # 2. ALERTES TÂCHES
+        taches = charger_taches_assignees(patient_id)
+        # st.write(f"DEBUG TACHES: {taches}") # A décommenter pour tester
+        
+        if taches:
+            st.subheader("🔔 À faire cette semaine")
+            
+        # --- FIN MODIFICATION ---
 
         # 2. ZONE D'ALERTES (EXERCICES À FAIRE)
         taches = charger_taches_assignees(patient_id)
