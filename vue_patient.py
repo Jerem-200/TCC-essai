@@ -188,7 +188,7 @@ def afficher_vue_patient(patient_id):
         with sub_tab_prog:
             st.markdown("### 📍 Mon cheminement")
             if "last_active_module" not in st.session_state: 
-                st.session_state.last_active_module = "module0"
+                st.session_state.last_active_module = None
 
             for code_mod, data in PROTOCOLE_BARLOW.items():
                 if code_mod in progression:
