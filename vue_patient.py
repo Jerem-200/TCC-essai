@@ -183,10 +183,10 @@ def afficher_vue_patient(patient_id):
         
         # 1. CRÉATION DES 4 SOUS-ONGLETS (Type Slide)
         sub_tab_prog, sub_tab_outils, sub_tab_bilan, sub_tab_histo = st.tabs([
-            "📍 Progression", 
-            "🚀 Lanceur Rapide", 
-            "📝 Bilan Hebdo", 
-            "📜 Historique"
+            "📍 Ma Progression", 
+            "🚀 Mes Exercices", 
+            "📝 Mes échelles", 
+            "📜 Mon Historique"
         ])
 
         # -------------------------------------------------
