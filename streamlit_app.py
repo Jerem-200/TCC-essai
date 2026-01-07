@@ -304,60 +304,19 @@ elif st.session_state.user_type == "therapeute":
                 st.info(f"Prochain ID suggéré : **{prochain_id}**")
                 id_dossier = st.text_input("Identifiant Dossier", value=prochain_id)
                 
-
-                # NOUVEAU BLOC DE SÉLECTION DU PROTOCOLE
-                from protocoles import CATALOGUE # Import du registre
-                
-                # 1. On récupère les licences du thérapeute connecté
-                mes_droits = st.session_state.get("licences_actives", [])
-                
-                # 2. On filtre le catalogue
-                # On ne garde que les protocoles dont la clé est dans mes_droits
-                options_filtrees = {
-                    code: data["nom"] 
-                    for code, data in CATALOGUE.items() 
-                    if code in mes_droits
-                }
-                
-                if not options_filtrees:
-                    st.error("Vous n'avez les droits sur aucun protocole.")
-                else:
-                    # 3. Le Selectbox dynamique
-                    choix_proto = st.selectbox(
-                        "Protocole à assigner :",
-                        options=list(options_filtrees.keys()),
-                        format_func=lambda x: options_filtrees[x]
-                    )
+                if st.button("Générer l'accès maintenant"):
+                    ac_code = generer_code_securise("TCC")
+                    from connect_db import save_data 
                     
-                    id_dossier = st.text_input("Identifiant Dossier (ex: DUPONT-J)", value=prochain_id)
-                
-                    if st.button("Générer l'accès maintenant"):
-                        ac_code = generer_code_securise("TCC")
-                        from connect_db import save_data 
-                        
-                        # MODIFICATION ICI : On ajoute 'choix_proto' à la sauvegarde
-                        # Structure : [Code, ID_Therapeute, ID_Dossier, Date, Type_Protocole]
-                        save_data("Codes_Patients", [
-                            ac_code, 
-                            st.session_state.user_id, 
-                            id_dossier, 
-                            str(datetime.now().date()),
-                            choix_proto  # <--- Ajouté à la fin
-                        ])
-
-                        # Init Progression (Module 0 uniquement)
-                        sauvegarder_progression(id_dossier, ["module0"])
-                        
-                        st.success(f"Patient créé ! Code : {ac_code}")
-                        # Refresh cache
-                        if "liste_patients_cache" in st.session_state: del st.session_state.liste_patients_cache
-                        recuperer_mes_patients.clear()
-                        # Note : sauvegarder_progression devra peut-être être adaptée plus tard
-                        # mais pour l'instant ça marchera pour Barlow (module0 existe dans les deux).
-                        
-                        st.success(f"Patient créé ! Code : {ac_code}")
-                        time.sleep(1)
-                        st.rerun()
+                    # Sauvegarde Code
+                    save_data("Codes_Patients", [ac_code, st.session_state.user_id, id_dossier, str(datetime.now().date())])
+                    
+                    st.success(f"Patient créé ! Code : {ac_code}")
+                    # Refresh cache
+                    if "liste_patients_cache" in st.session_state: del st.session_state.liste_patients_cache
+                    recuperer_mes_patients.clear()
+                    time.sleep(1)
+                    st.rerun()
 
     # =================================================
     # ONGLET 3 : PROTOCOLE (MODULES + OUTILS)
