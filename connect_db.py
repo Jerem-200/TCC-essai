@@ -435,18 +435,21 @@ def charger_permissions_patient(patient_id):
     """
     filepath = "data/Permissions_Patients.json"
     
-    # Si le fichier n'existe pas encore, on renvoie une liste vide
+    # Par défaut, on veut que le patient ait accès à Barlow 
+    # (sauf si tu veux vraiment qu'il n'ait rien au début)
+    default_access = ["barlow"] 
+
     if not os.path.exists(filepath):
-        return []
+        return default_access # <--- Modifié ici
 
     try:
         with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
-            # On retourne la liste pour ce patient, ou vide si pas trouvé
-            return data.get(patient_id, [])
+            # Si le patient n'est pas dans la liste, on lui donne l'accès par défaut
+            return data.get(patient_id, default_access) # <--- Modifié ici
     except Exception as e:
         print(f"Erreur lecture permissions : {e}")
-        return []
+        return default_access
 
 def sauvegarder_permissions_patient(patient_id, liste_codes):
     """
