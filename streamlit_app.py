@@ -653,7 +653,7 @@ elif st.session_state.user_type == "therapeute":
             elif "SORC" in choix_vue:
                 st.dataframe(charger_donnees_specifiques("SORC", patient_sel), use_container_width=True)
 
-    # =================================================
+    # ================================================
     # ONGLET 6 : RESSOURCES
     # =================================================
     with tab_res:
