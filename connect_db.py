@@ -425,3 +425,28 @@ def sauvegarder_note_journal(patient_id, date_seance, contenu):
     except Exception as e:
         st.error(f"Erreur sauvegarde note: {e}")
         return False
+    
+# Gestion des licences protocoles par patient
+
+def charger_permissions_patient(patient_id):
+    """
+    Retourne la liste des codes protocoles autorisés pour ce patient.
+    Ex: ["barlow"]
+    """
+    data = load_data("Permissions_Patients") # Ce fichier sera créé automatiquement
+    if data and patient_id in data:
+        return data[patient_id]
+    return [] # Par défaut, aucun accès tant que le thérapeute n'a pas assigné
+
+def sauvegarder_permissions_patient(patient_id, liste_codes):
+    """
+    Enregistre les droits. Ex: patient_id="PAT-01", liste_codes=["barlow", "estime"]
+    """
+    data = load_data("Permissions_Patients")
+    if not data: data = {}
+    
+    data[patient_id] = liste_codes
+    
+    # Petite fonction interne pour sauver le JSON (adapte si tu as déjà une fonction générique)
+    with open("data/Permissions_Patients.json", "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)

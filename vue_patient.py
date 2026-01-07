@@ -8,8 +8,6 @@ from datetime import datetime
 
 # Imports Configuration & DB
 from protocoles import CATALOGUE
-PROTOCOLE_BARLOW = CATALOGUE["barlow"]["modules"]
-QUESTIONS_HEBDO = CATALOGUE["barlow"]["questions"]
 from connect_db import (
     charger_progression, charger_etat_devoirs, charger_suivi_global,
     charger_outils_autorises, sauvegarder_progression,
@@ -17,7 +15,7 @@ from connect_db import (
     sauvegarder_reponse_hebdo, supprimer_reponse, load_data,
     charger_message_therapeute, charger_taches_assignees,
     charger_journal_patient, sauvegarder_note_journal, 
-    charger_donnees_specifiques
+    charger_donnees_specifiques, charger_permissions_patient
 )
 
 from visualisations import (
@@ -48,6 +46,41 @@ def charger_historique_local(uid):
 
 def afficher_vue_patient(patient_id):
     st.title(f"👋 Espace de {patient_id}")
+
+    # 1. Récupération des droits
+    droits = charger_permissions_patient(patient_id)
+    
+    if not droits:
+        st.warning("Votre thérapeute ne vous a pas encore assigné de parcours de soin.")
+        return # On arrête l'affichage ici si rien n'est assigné
+
+    # 2. Gestion du protocole actif (Session)
+    # Si on n'a pas de protocole actif OU si le protocole actif n'est plus dans mes droits
+    if "proto_patient_actif" not in st.session_state or st.session_state.proto_patient_actif not in droits:
+        st.session_state.proto_patient_actif = droits[0] # On prend le premier par défaut
+
+    # 3. Sélecteur (Si plusieurs choix)
+    if len(droits) > 1:
+        # On le met dans la Sidebar pour qu'il soit toujours accessible
+        st.sidebar.divider()
+        st.sidebar.header("📚 Mon Programme")
+        
+        choix = st.sidebar.radio(
+            "Changer de protocole :",
+            droits,
+            format_func=lambda x: CATALOGUE[x]["nom"],
+            key="radio_proto_patient" # Le changement mettra à jour la session via le key binding ? Non, mieux vaut le faire manuellement
+        )
+        st.session_state.proto_patient_actif = choix
+    else:
+        # Juste pour info dans la sidebar
+        st.sidebar.divider()
+        st.sidebar.caption(f"Programme : {CATALOGUE[droits[0]]['nom']}")
+
+    # 4. Définition de la CONFIGURATION pour toute la page
+    code_actif = st.session_state.proto_patient_actif
+    CONFIG_ACTIVE = CATALOGUE[code_actif]["modules"]
+    QUESTIONS_ACTIVE = CATALOGUE[code_actif]["questions"]
 
     # 2. NAVIGATION PRINCIPALE (STABLE)
     # On définit les onglets
@@ -181,7 +214,7 @@ def afficher_vue_patient(patient_id):
         valides, notes_therapeute = charger_suivi_global(patient_id)
         devoirs = charger_etat_devoirs(patient_id)
         df_history = charger_historique_local(patient_id)
-        st.header("🗺️ Mon Parcours TCC")
+        st.header(f"🗺️ Parcours : {CATALOGUE[code_actif]['nom']}")
         
         # 1. CRÉATION DES 4 SOUS-ONGLETS (Type Slide)
         sub_tab_prog, sub_tab_outils, sub_tab_bilan, sub_tab_histo = st.tabs([
@@ -199,7 +232,7 @@ def afficher_vue_patient(patient_id):
             if "last_active_module" not in st.session_state: 
                 st.session_state.last_active_module = None
 
-            for code_mod, data in PROTOCOLE_BARLOW.items():
+            for code_mod, data in CONFIG_ACTIVE.items():
                 if code_mod in progression:
                     icon_valid = "✅" if code_mod in valides else ""
                     is_expanded = (code_mod == st.session_state.last_active_module)
@@ -265,7 +298,7 @@ def afficher_vue_patient(patient_id):
             exos_trouves = False
 
             # On parcourt TOUS les modules (sans filtrer par progression au début)
-            for code_mod, data in PROTOCOLE_BARLOW.items():
+            for code_mod, data in CONFIG_ACTIVE.items():
                 
                 # S'il y a des exercices dans ce module
                 if "exercices" in data and data["exercices"]:
@@ -319,10 +352,10 @@ def afficher_vue_patient(patient_id):
             st.subheader("Bilan Hebdomadaire")
             
             # Ajout d'une clé (key) pour stabiliser le selectbox
-            choix_q = st.selectbox("Questionnaire :", list(QUESTIONS_HEBDO.keys()), key="sb_bilan_hebdo")
+            choix_q = st.selectbox("Questionnaire :", list(QUESTIONS_ACTIVE.keys()), key="sb_bilan_hebdo")
             
             if choix_q:
-                cfg = QUESTIONS_HEBDO[choix_q]
+                cfg = QUESTIONS_ACTIVE[choix_q]
                 with st.container(border=True):
                     st.markdown(f"**{cfg['titre']}**")
                     st.caption(cfg['description'])
