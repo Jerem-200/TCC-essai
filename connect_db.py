@@ -431,59 +431,121 @@ def sauvegarder_note_journal(patient_id, date_seance, contenu):
     except Exception as e:
         st.error(f"Erreur sauvegarde note: {e}")
         return False
+
+   
     
-# Gestion des licences protocoles par patient
+# =========================================================
+# GESTION PROTOCOLES VIA GOOGLE SHEET (Suivi_Protocoles)
+# =========================================================
+
+# 1. GESTION DES MODULES (VOTRE CODE : C'EST OK)
+def charger_etat_protocole_sheet(patient_id, code_proto):
+    # ... (Gardez votre code exact ici) ...
+    # C'est parfait, ne changez rien.
+    data = load_data("Suivi_Protocoles") 
+    if not data: return []
+    df = pd.DataFrame(data)
+    df["PatientID"] = df["PatientID"].astype(str).str.strip()
+    df["Code_Protocole"] = df["Code_Protocole"].astype(str).str.strip()
+    match = df[(df["PatientID"] == patient_id) & (df["Code_Protocole"] == code_proto)]
+    if match.empty: return []
+    chaine_modules = str(match.iloc[0]["Modules_Debloques"])
+    if not chaine_modules or chaine_modules.lower() == "nan": return []
+    return [m.strip() for m in chaine_modules.split(",") if m.strip()]
+
+def sauvegarder_etat_protocole_sheet(patient_id, code_proto, liste_modules):
+    # ... (Gardez votre code exact ici) ...
+    # C'est parfait aussi.
+    chaine_modules = ",".join(liste_modules)
+    all_data = load_data("Suivi_Protocoles")
+    if not all_data: all_data = []
+    maj_faite = False
+    for row in all_data:
+        if str(row.get("PatientID")).strip() == patient_id and str(row.get("Code_Protocole")).strip() == code_proto:
+            row["Modules_Debloques"] = chaine_modules
+            row["Date_Update"] = str(datetime.now())
+            maj_faite = True
+            break
+    if not maj_faite:
+        all_data.append({
+            "PatientID": patient_id,
+            "Code_Protocole": code_proto,
+            "Modules_Debloques": chaine_modules,
+            "Date_Update": str(datetime.now())
+        })
+    from connect_db import save_data
+    save_data("Suivi_Protocoles", all_data)
+
+
+# 2. GESTION DES PERMISSIONS GLOBALES (À AJOUTER IMPÉRATIVEMENT)
+# Ces fonctions font le lien entre l'App et le Sheet
 
 def charger_permissions_patient(patient_id):
     """
-    Retourne la liste des codes protocoles autorisés pour ce patient.
+    Regarde dans le Google Sheet quels protocoles existent pour ce patient.
+    Retourne ex: ['barlow', 'estime']
     """
-    filepath = "data/Permissions_Patients.json"
+    data = load_data("Suivi_Protocoles")
+    if not data: return [] # Ou return ["barlow"] par défaut si vous préférez
+
+    df = pd.DataFrame(data)
+    # Nettoyage
+    df["PatientID"] = df["PatientID"].astype(str).str.strip()
     
-    # Par défaut, on veut que le patient ait accès à Barlow 
-    # (sauf si tu veux vraiment qu'il n'ait rien au début)
-    default_access = ["barlow"] 
+    # On filtre les lignes de ce patient
+    lignes_patient = df[df["PatientID"] == patient_id]
+    
+    if lignes_patient.empty:
+        return []
+        
+    # On retourne la liste des protocoles trouvés
+    return lignes_patient["Code_Protocole"].unique().tolist()
 
-    if not os.path.exists(filepath):
-        return default_access # <--- Modifié ici
-
-    try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            # Si le patient n'est pas dans la liste, on lui donne l'accès par défaut
-            return data.get(patient_id, default_access) # <--- Modifié ici
-    except Exception as e:
-        print(f"Erreur lecture permissions : {e}")
-        return default_access
-
-def sauvegarder_permissions_patient(patient_id, liste_codes):
+def sauvegarder_permissions_patient(patient_id, liste_codes_actives):
     """
-    Enregistre les droits. Crée le dossier et le fichier si nécessaires.
+    Met à jour le Sheet quand le thérapeute coche/décoche un protocole entier.
     """
-    filepath = "data/Permissions_Patients.json"
+    all_data = load_data("Suivi_Protocoles")
+    if not all_data: all_data = []
     
-    # --- CORRECTION ICI : CRÉATION AUTOMATIQUE DU DOSSIER ---
-    # On vérifie si le dossier 'data' existe, sinon on le crée
-    dossier = os.path.dirname(filepath)
-    if dossier and not os.path.exists(dossier):
-        os.makedirs(dossier, exist_ok=True)
-    # --------------------------------------------------------
+    # On convertit en DataFrame pour manipuler
+    if all_data:
+        df = pd.DataFrame(all_data)
+        df["PatientID"] = df["PatientID"].astype(str).str.strip()
+        df["Code_Protocole"] = df["Code_Protocole"].astype(str).str.strip()
+    else:
+        df = pd.DataFrame(columns=["PatientID", "Code_Protocole", "Modules_Debloques", "Date_Update"])
 
-    # 1. On charge l'existant pour ne pas écraser les autres patients
-    data = {}
-    if os.path.exists(filepath):
-        try:
-            with open(filepath, "r", encoding="utf-8") as f:
-                # Si le fichier est vide ou corrompu, on gère l'erreur
-                content = f.read()
-                if content:
-                    data = json.loads(content)
-        except:
-            data = {} # Repart de zéro en cas de fichier corrompu
+    # 1. On garde tout ce qui n'est PAS ce patient (pour ne rien perdre des autres)
+    df_autres = df[df["PatientID"] != patient_id].copy()
     
-    # 2. On met à jour pour CE patient
-    data[patient_id] = liste_codes
+    # 2. On traite ce patient
+    # On regarde ce qu'il avait avant
+    df_patient_avant = df[df["PatientID"] == patient_id].copy()
     
-    # 3. On sauvegarde le tout
-    with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4)
+    nouvelles_lignes = []
+    
+    for code in liste_codes_actives:
+        # Si le protocole existait déjà, on garde sa progression (modules débloqués)
+        existant = df_patient_avant[df_patient_avant["Code_Protocole"] == code]
+        
+        if not existant.empty:
+            nouvelles_lignes.append(existant.iloc[0].to_dict())
+        else:
+            # Nouveau protocole activé : on crée une ligne vide
+            nouvelles_lignes.append({
+                "PatientID": patient_id,
+                "Code_Protocole": code,
+                "Modules_Debloques": "", # Rien débloqué au début
+                "Date_Update": str(datetime.now())
+            })
+            
+    # 3. On reconstruit le tout
+    # (Note : si un protocole a été décoché, il n'est pas ajouté dans 'nouvelles_lignes', donc il est supprimé)
+    if not df_autres.empty:
+        df_final = pd.concat([df_autres, pd.DataFrame(nouvelles_lignes)], ignore_index=True)
+    else:
+        df_final = pd.DataFrame(nouvelles_lignes)
+        
+    from connect_db import save_data
+    save_data("Suivi_Protocoles", df_final.to_dict(orient="records"))
