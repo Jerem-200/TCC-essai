@@ -6,7 +6,7 @@ import altair as alt
 import json
 from datetime import datetime
 
-from protocole_config import PROTOCOLE_BARLOW, QUESTIONS_HEBDO 
+from protocole_config_OLD import PROTOCOLE_BARLOW, QUESTIONS_HEBDO 
 from connect_db import (
     load_data, 
     sauvegarder_reponse_hebdo, 

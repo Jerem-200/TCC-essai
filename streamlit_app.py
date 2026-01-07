@@ -23,7 +23,9 @@ from visualisations import (
     afficher_activites, afficher_sommeil, afficher_conso, afficher_compulsions,
     afficher_phq9, afficher_gad7, afficher_isi, afficher_peg, afficher_who5, afficher_wsas
 )
-from protocole_config import PROTOCOLE_BARLOW
+from protocoles import CATALOGUE
+PROTOCOLE_BARLOW = CATALOGUE["barlow"]["modules"]
+QUESTIONS_HEBDO = CATALOGUE["barlow"]["questions"]
 
 # IMPORT DE LA VUE PATIENT
 from vue_patient import afficher_vue_patient

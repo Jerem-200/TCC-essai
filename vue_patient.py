@@ -7,7 +7,9 @@ import altair as alt
 from datetime import datetime
 
 # Imports Configuration & DB
-from protocole_config import PROTOCOLE_BARLOW, QUESTIONS_HEBDO
+from protocoles import CATALOGUE
+PROTOCOLE_BARLOW = CATALOGUE["barlow"]["modules"]
+QUESTIONS_HEBDO = CATALOGUE["barlow"]["questions"]
 from connect_db import (
     charger_progression, charger_etat_devoirs, charger_suivi_global,
     charger_outils_autorises, sauvegarder_progression,
