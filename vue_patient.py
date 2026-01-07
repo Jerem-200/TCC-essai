@@ -352,25 +352,27 @@ def afficher_vue_patient(patient_id):
                             st.rerun()
 
 # -------------------------------------------------
-        # D. SOUS-ONGLET : HISTORIQUE (Avec Visualisation Émotionnelle)
+        # D. SOUS-ONGLET : HISTORIQUE (Fusion Graphique Précis + Cartes)
         # -------------------------------------------------
         with sub_tab_histo:
-            st.subheader("📜 Historique & Évolution Émotionnelle")
+            st.subheader("📜 Historique de vos suivis")
             
-            # --- 1. PRÉPARATION DES DONNÉES ---
             if df_history.empty:
-                st.info("📭 Aucun historique. Commencez par remplir un bilan hebdomadaire !")
+                st.info("📭 Aucun historique pour le moment. Commencez par remplir un bilan !")
             else:
-                # On ne garde que les bilans (pas les exercices textuels)
+                # =========================================================
+                # PARTIE 1 : VISUALISATION DES ÉMOTIONS (LOGIQUE INTELLIGENTE)
+                # =========================================================
+                
+                # 1. Préparation des données pour le graphique
+                # On exclut les exercices textuels
                 df_clean = df_history[~df_history["Questionnaire"].str.contains("Exercice", na=False)].copy()
-                
-                # On va "éclater" le JSON pour créer une ligne par émotion mesurée
                 rows_emotions = []
-                
-                # Mots-clés pour classer les émotions (Tu peux adapter ces listes selon tes questions exactes)
+
+                # Mots-clés pour classer les émotions automatiquement
                 CAT_ANXIETE = ["anxiété", "peur", "stress", "nervosité", "inquiétude", "panique"]
                 CAT_DEPRESSION = ["tristesse", "déprime", "découragement", "désespoir", "vide"]
-                CAT_POSITIF = ["joie", "bonheur", "satisfaction", "calme", "fierté", "enthousiasme"]
+                CAT_POSITIF = ["joie", "bonheur", "satisfaction", "calme", "fierté", "enthousiasme", "énergie"]
                 CAT_NEGATIF_AUTRE = ["colère", "honte", "culpabilité", "frustration", "irritabilité"]
 
                 for _, row in df_clean.iterrows():
@@ -378,9 +380,8 @@ def afficher_vue_patient(patient_id):
                         details = json.loads(row["Details_Json"])
                         date_entry = row["Date"]
                         
-                        # On parcourt chaque paire Question/Réponse du JSON
                         for question, valeur in details.items():
-                            # On ne garde que ce qui est numérique (les échelles 0-8)
+                            # On cherche des valeurs numériques (0-8)
                             try:
                                 val_num = float(valeur)
                                 q_lower = question.lower()
@@ -391,82 +392,107 @@ def afficher_vue_patient(patient_id):
                                 elif any(x in q_lower for x in CAT_POSITIF): category = "Émotions Positives"
                                 elif any(x in q_lower for x in CAT_NEGATIF_AUTRE): category = "Autres Négatives"
                                 
-                                # On ajoute la donnée si elle rentre dans une catégorie pertinente
                                 if category != "Autre":
                                     rows_emotions.append({
                                         "Date": date_entry,
-                                        "Emotion": question, # Le nom précis (ex: "Tristesse")
+                                        "Emotion": question, # Ex: "Tristesse"
                                         "Score": val_num,
-                                        "Categorie": category
+                                        "Categorie": category # Ex: "Dépression"
                                     })
-                            except:
-                                pass # Ce n'était pas un chiffre (ex: un champ texte "Commentaire")
-                    except:
-                        pass
+                            except: pass
+                    except: pass
 
-                # Création du DataFrame pour le graphique
                 df_emotions = pd.DataFrame(rows_emotions)
 
-                # --- 2. ZONE GRAPHIQUE INTERACTIVE ---
+                # 2. Affichage du Graphique
                 if not df_emotions.empty:
-                    with st.container(border=True):
-                        st.markdown("##### 📈 Courbes d'humeur")
+                    with st.expander("📈 Voir les courbes d'évolution émotionnelle", expanded=True):
                         
-                        # Sélecteur de catégorie (Logique "Visualisations")
+                        # Filtres (Pills)
                         options_cat = ["Anxiété", "Dépression", "Émotions Positives", "Autres Négatives"]
-                        choix_cat = st.pills("Afficher :", options_cat, default=["Anxiété", "Dépression"], selection_mode="multi")
+                        choix_cat = st.pills("Filtrer par famille d'émotions :", options_cat, default=["Anxiété", "Dépression"], selection_mode="multi", key="pills_histo_proto")
                         
                         if choix_cat:
-                            # Filtrage
                             df_chart = df_emotions[df_emotions["Categorie"].isin(choix_cat)]
                             
                             if not df_chart.empty:
-                                # Graphique Altair
-                                base = alt.Chart(df_chart).encode(
+                                chart = alt.Chart(df_chart).mark_line(point=True, strokeWidth=3).encode(
                                     x=alt.X('Date', axis=alt.Axis(format='%d/%m', title='Date')),
                                     y=alt.Y('Score', title='Intensité (0-8)', scale=alt.Scale(domain=[0, 8])),
-                                    tooltip=['Date', 'Emotion', 'Score']
-                                )
-
-                                # Lignes colorées par Émotion spécifique (pas juste la catégorie)
-                                chart = base.mark_line(point=True, strokeWidth=3).encode(
-                                    color=alt.Color('Emotion', legend=alt.Legend(title="Émotion", orient="bottom"))
+                                    color=alt.Color('Emotion', legend=alt.Legend(title="Émotion spécifique")),
+                                    tooltip=['Date', 'Emotion', 'Score', 'Categorie']
                                 ).properties(height=350).interactive()
-
+                                
                                 st.altair_chart(chart, use_container_width=True)
                             else:
-                                st.warning("Aucune donnée trouvée pour les catégories sélectionnées.")
+                                st.warning("Pas de données pour ces catégories.")
                         else:
-                            st.info("Sélectionnez au moins une catégorie ci-dessus.")
-
-                # --- 3. LISTE DÉTAILLÉE (CARTE) ---
+                            st.info("Sélectionnez une catégorie ci-dessus.")
+                
                 st.divider()
-                st.write("##### 🗓️ Journal des entrées")
+
+                # =========================================================
+                # PARTIE 2 : ENTRÉES DÉTAILLÉES (TON CODE ORIGINAL)
+                # =========================================================
+                st.write("##### 🗓️ Entrées détaillées")
 
                 # On trie pour avoir le plus récent en haut
-                for idx, row in df_clean.sort_values("Date", ascending=False).iterrows():
+                for idx, row in df_history.sort_values("Date", ascending=False).iterrows():
                     
                     # Parsing sécurisé du JSON
-                    try: details = json.loads(row["Details_Json"])
-                    except: details = {"Données": row["Details_Json"]}
+                    try:
+                        details = json.loads(row["Details_Json"])
+                    except:
+                        details = {"Données brutes": row["Details_Json"]}
                     
-                    date_str = row['Date'].strftime("📅 %d/%m/%Y")
+                    # Préparation des variables d'affichage
+                    date_str = row['Date'].strftime("📅 %d/%m/%Y à %H:%M")
                     titre_card = f"{row['Questionnaire']}"
+                    score = row.get("Score_Global", None)
                     
-                    # CARTE
+                    # --- DÉBUT DE LA CARTE ---
                     with st.container(border=True):
-                        # En-tête
-                        c1, c2 = st.columns([6, 1])
-                        c1.markdown(f"**{titre_card}** - {date_str}")
-                        if c2.button("🗑️", key=f"del_{idx}", help="Supprimer"):
-                            supprimer_reponse(patient_id, row["Date"], row["Questionnaire"])
-                            charger_historique_local.clear()
-                            st.rerun()
+                        # En-tête de la carte : Titre + Bouton Supprimer
+                        c_head_txt, c_head_del = st.columns([6, 1])
+                        with c_head_txt:
+                            st.markdown(f"**{titre_card}**")
+                            st.caption(date_str)
+                        with c_head_del:
+                            if st.button("🗑️", key=f"del_{idx}", help="Supprimer cette entrée"):
+                                supprimer_reponse(patient_id, row["Date"], row["Questionnaire"])
+                                charger_historique_local.clear()
+                                st.rerun()
 
-                        # Contenu (Liste propre)
-                        with st.expander("Voir les réponses"):
-                            for q, r in details.items():
-                                st.write(f"• **{q}** : {r}")
+                        # Corps de la carte
+                        c_score, c_details = st.columns([1, 3])
+                        
+                        # Colonne gauche : Le Score (si applicable)
+                        with c_score:
+                            if pd.notna(score) and score != 0:
+                                st.metric("Score", f"{int(score)}")
+                            
+                            # Si on trouve une "Emotion" dans les détails, on l'affiche ici en gros
+                            if "Emotion" in details and details["Emotion"]:
+                                st.markdown(f"**Ressenti :**")
+                                st.pills("Emotion", [details["Emotion"]], selection_mode="single", default=[details["Emotion"]], disabled=True, key=f"pill_{idx}")
+                                # On retire l'émotion de la liste des détails pour ne pas faire doublon
+                                details = {k: v for k, v in details.items() if k != "Emotion"}
+
+                        # Colonne droite : Les réponses détaillées
+                        with c_details:
+                            with st.expander("Voir les réponses détaillées"):
+                                for q, r in details.items():
+                                    # Nettoyage visuel de la question (enlève les underscores si besoin)
+                                    q_clean = q.replace("_", " ").strip()
+                                    
+                                    # Affichage Question / Réponse propre
+                                    # Si la réponse est longue, on la met en dessous, sinon à côté
+                                    if isinstance(r, str) and len(r) > 50:
+                                        st.markdown(f"**{q_clean}**")
+                                        st.info(r)
+                                    else:
+                                        # Petite ligne avec point puce
+                                        st.markdown(f"• **{q_clean}** : {r}")
 
     # ======================================================
     # VUE 3 : AGENDAS
