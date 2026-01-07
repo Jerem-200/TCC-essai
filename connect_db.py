@@ -57,6 +57,7 @@ def save_data(nom_onglet, donnees_liste):
     except Exception as e:
         st.error(f"Erreur sauvegarde : {e}")
         return False
+    load_data.clear()
 
 @st.cache_data(ttl=60)
 def load_data(nom_onglet):
