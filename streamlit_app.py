@@ -304,19 +304,6 @@ elif st.session_state.user_type == "therapeute":
                 st.info(f"Prochain ID suggéré : **{prochain_id}**")
                 id_dossier = st.text_input("Identifiant Dossier", value=prochain_id)
                 
-                if st.button("Générer l'accès maintenant"):
-                    ac_code = generer_code_securise("TCC")
-                    from connect_db import save_data 
-                    
-                    # Sauvegarde Code
-                    save_data("Codes_Patients", [ac_code, st.session_state.user_id, id_dossier, str(datetime.now().date())])
-                    # Init Progression (Module 0 uniquement)
-                    sauvegarder_progression(id_dossier, ["module0"])
-                    
-                    st.success(f"Patient créé ! Code : {ac_code}")
-                    # Refresh cache
-                    if "liste_patients_cache" in st.session_state: del st.session_state.liste_patients_cache
-                    recuperer_mes_patients.clear()
 
                 # NOUVEAU BLOC DE SÉLECTION DU PROTOCOLE
                 from protocoles import CATALOGUE # Import du registre
@@ -345,8 +332,7 @@ elif st.session_state.user_type == "therapeute":
                     id_dossier = st.text_input("Identifiant Dossier (ex: DUPONT-J)", value=prochain_id)
                 
                     if st.button("Générer l'accès maintenant"):
-                        # ... (Génération du code ac_code) ...
-                        
+                        ac_code = generer_code_securise("TCC")
                         from connect_db import save_data 
                         
                         # MODIFICATION ICI : On ajoute 'choix_proto' à la sauvegarde
@@ -358,8 +344,14 @@ elif st.session_state.user_type == "therapeute":
                             str(datetime.now().date()),
                             choix_proto  # <--- Ajouté à la fin
                         ])
+
+                        # Init Progression (Module 0 uniquement)
+                        sauvegarder_progression(id_dossier, ["module0"])
                         
-                        # ... (Reste de la sauvegarde progression inchangé) ...
+                        st.success(f"Patient créé ! Code : {ac_code}")
+                        # Refresh cache
+                        if "liste_patients_cache" in st.session_state: del st.session_state.liste_patients_cache
+                        recuperer_mes_patients.clear()
                         # Note : sauvegarder_progression devra peut-être être adaptée plus tard
                         # mais pour l'instant ça marchera pour Barlow (module0 existe dans les deux).
                         
