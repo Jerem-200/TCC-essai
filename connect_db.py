@@ -58,6 +58,7 @@ def save_data(nom_onglet, donnees_liste):
         st.error(f"Erreur sauvegarde : {e}")
         return False
 
+@st.cache_data(ttl=60)
 def load_data(nom_onglet):
     """Récupère toutes les données d'un onglet."""
     client = get_client()
@@ -67,8 +68,11 @@ def load_data(nom_onglet):
         sheet = client.open_by_key(SHEET_ID)
         ws = sheet.worksheet(nom_onglet)
         return ws.get_all_records()
-    except:
+    except Exception as e:
+        # C'est utile d'imprimer l'erreur dans la console pour le débogage
+        print(f"❌ Erreur chargement onglet '{nom_onglet}': {e}")
         return []
+    
 
 def delete_data_flexible(nom_onglet, criteres_dict):
     """Supprime une ligne spécifique selon des critères."""
