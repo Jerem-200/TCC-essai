@@ -67,6 +67,7 @@ if not st.session_state.authentifie:
                         st.session_state.authentifie = True
                         st.session_state.user_type = "patient"
                         st.session_state.user_id = real_id
+                        st.rerun()
                 
     with t_pro:
         with st.form("login_t"):
