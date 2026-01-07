@@ -352,7 +352,7 @@ def afficher_vue_patient(patient_id):
                             st.rerun()
 
 # -------------------------------------------------
-        # D. SOUS-ONGLET : HISTORIQUE (Structure "Visualisations")
+        # D. SOUS-ONGLET : HISTORIQUE (Basé sur la configuration stricte)
         # -------------------------------------------------
         with sub_tab_histo:
             st.subheader("📜 Historique de vos suivis")
@@ -361,93 +361,93 @@ def afficher_vue_patient(patient_id):
                 st.info("📭 Aucun historique pour le moment. Commencez par remplir un bilan !")
             else:
                 # =========================================================
-                # PARTIE 1 : VISUALISATIONS GRAPHIQUES (Style Onglet "Visualisations")
+                # PARTIE 1 : VISUALISATIONS GRAPHIQUES (4 ÉCHELLES)
                 # =========================================================
                 
-                # 1. Parsing des données pour extraire les courbes
-                # On exclut les exercices textuels pour ne garder que les questionnaires chiffrés
-                df_clean = df_history[~df_history["Questionnaire"].str.contains("Exercice", na=False)].copy()
-                rows_emotions = []
+                # 1. On prépare les données proprement
+                # On exclut les exercices (qui ne sont pas des bilans hebdo)
+                df_clean = df_history[~df_history["Questionnaire"].str.contains("Exercice", case=False, na=False)].copy()
+                
+                # 2. Fonction pour catégoriser selon VOTRE configuration
+                def trouver_categorie(nom_questionnaire):
+                    nom = str(nom_questionnaire)
+                    if "Anxiété" in nom: return "Anxiété"
+                    if "Dépression" in nom: return "Dépression"
+                    if "Positives" in nom: return "Émotions Positives"
+                    if "Autres" in nom: return "Autres Émotions Négatives"
+                    return None # Cas non géré (ex: ancien test)
 
-                # Mots-clés pour classer les questions automatiquement
-                CAT_ANXIETE = ["anxiété", "peur", "stress", "nervosité", "inquiétude", "panique"]
-                CAT_DEPRESSION = ["tristesse", "déprime", "découragement", "désespoir", "vide"]
-                CAT_POSITIF = ["joie", "bonheur", "satisfaction", "calme", "fierté", "enthousiasme", "énergie"]
-                CAT_NEGATIF_AUTRE = ["colère", "honte", "culpabilité", "frustration", "irritabilité"]
+                df_clean["Categorie"] = df_clean["Questionnaire"].apply(trouver_categorie)
+                
+                # On ne garde que les lignes qui correspondent à l'une des 4 catégories
+                df_graph = df_clean.dropna(subset=["Categorie"]).copy()
+                
+                # S'assurer que le Score est bien numérique
+                df_graph["Score_Global"] = pd.to_numeric(df_graph["Score_Global"], errors='coerce')
 
-                for _, row in df_clean.iterrows():
-                    try:
-                        details = json.loads(row["Details_Json"])
-                        date_entry = row["Date"]
-                        
-                        for question, valeur in details.items():
-                            # On ne garde que les valeurs numériques (échelles 0-8)
-                            try:
-                                val_num = float(valeur)
-                                q_lower = question.lower()
-                                
-                                category = None
-                                if any(x in q_lower for x in CAT_ANXIETE): category = "Anxiété"
-                                elif any(x in q_lower for x in CAT_DEPRESSION): category = "Dépression"
-                                elif any(x in q_lower for x in CAT_POSITIF): category = "Émotions Positives"
-                                elif any(x in q_lower for x in CAT_NEGATIF_AUTRE): category = "Autres Négatives"
-                                
-                                if category:
-                                    rows_emotions.append({
-                                        "Date": date_entry,
-                                        "Emotion": question,    # Ex: "Tristesse"
-                                        "Score": val_num,       # Ex: 6
-                                        "Categorie": category   # Ex: "Dépression"
-                                    })
-                            except: pass
-                    except: pass
-
-                df_emotions = pd.DataFrame(rows_emotions)
-
-                # 2. Interface de sélection (Comme l'onglet Visualisations)
-                if not df_emotions.empty:
+                # 3. Affichage du Graphique interactif
+                if not df_graph.empty:
                     with st.container(border=True):
-                        st.markdown("##### 📊 Analyse des courbes")
+                        st.markdown("##### 📈 Courbes d'évolution")
                         
-                        c_filtre_per, c_filtre_type = st.columns([1, 2])
-                        
-                        with c_filtre_per:
-                            choix_periode = st.selectbox("Période :", ["Tout", "30 derniers jours", "3 derniers mois"], key="hist_per")
-                        
-                        with c_filtre_type:
-                            options_cat = ["Anxiété", "Dépression", "Émotions Positives", "Autres Négatives"]
-                            # On ne montre que les catégories qui ont des données
-                            cat_dispo = [c for c in options_cat if c in df_emotions["Categorie"].unique()]
-                            choix_cat = st.selectbox("Indicateur à visualiser :", cat_dispo, key="hist_cat")
-
-                        # 3. Application des filtres
-                        df_chart = df_emotions[df_emotions["Categorie"] == choix_cat].copy()
-                        
-                        if choix_periode == "30 derniers jours":
-                            cutoff = datetime.now() - pd.Timedelta(days=30)
-                            df_chart = df_chart[df_chart["Date"] >= cutoff]
-                        elif choix_periode == "3 derniers mois":
-                            cutoff = datetime.now() - pd.Timedelta(days=90)
-                            df_chart = df_chart[df_chart["Date"] >= cutoff]
-
-                        # 4. Affichage du Graphique
-                        if not df_chart.empty:
-                            st.divider()
-                            chart = alt.Chart(df_chart).mark_line(point=True, strokeWidth=3).encode(
-                                x=alt.X('Date', axis=alt.Axis(format='%d/%m', title='Date')),
-                                y=alt.Y('Score', title='Intensité (0-8)', scale=alt.Scale(domain=[0, 8])),
-                                color=alt.Color('Emotion', legend=alt.Legend(title="Détail", orient="bottom")),
-                                tooltip=['Date', 'Emotion', 'Score']
-                            ).properties(height=350).interactive()
+                        # --- A. FILTRES ---
+                        c_per, c_cat = st.columns([1, 2])
+                        with c_per:
+                            choix_periode = st.selectbox("Période :", ["Tout", "30 derniers jours", "3 derniers mois"], key="hist_per_fix")
+                        with c_cat:
+                            # On liste les catégories disponibles dans les données du patient
+                            cats_dispo = df_graph["Categorie"].unique().tolist()
+                            # On met un ordre logique si possible
+                            ordre_prefere = ["Anxiété", "Dépression", "Autres Émotions Négatives", "Émotions Positives"]
+                            cats_triees = [c for c in ordre_prefere if c in cats_dispo]
                             
-                            st.altair_chart(chart, use_container_width=True)
+                            if cats_triees:
+                                choix_cat = st.selectbox("Échelle à visualiser :", cats_triees, key="hist_cat_fix")
+                            else:
+                                choix_cat = None
+
+                        if choix_cat:
+                            # --- B. FILTRAGE DES DONNÉES ---
+                            df_final = df_graph[df_graph["Categorie"] == choix_cat].copy()
+                            
+                            # Filtre Date
+                            if choix_periode == "30 derniers jours":
+                                cutoff = datetime.now() - pd.Timedelta(days=30)
+                                df_final = df_final[df_final["Date"] >= cutoff]
+                            elif choix_periode == "3 derniers mois":
+                                cutoff = datetime.now() - pd.Timedelta(days=90)
+                                df_final = df_final[df_final["Date"] >= cutoff]
+
+                            # --- C. GRAPHIQUE ---
+                            if not df_final.empty:
+                                st.divider()
+                                
+                                # Création du graphique Altair
+                                # Axe Y : Score Global (Somme des items du questionnaire)
+                                chart = alt.Chart(df_final).mark_line(point=True, strokeWidth=3).encode(
+                                    x=alt.X('Date', axis=alt.Axis(format='%d/%m', title='Date')),
+                                    y=alt.Y('Score_Global', title='Score Total'),
+                                    # La couleur change selon l'émotion précise (utile pour "Autres" qui peut varier ex: Colère, Honte...)
+                                    color=alt.Color('Questionnaire', legend=None), 
+                                    tooltip=[
+                                        alt.Tooltip('Date', format='%d/%m/%Y', title='Date'),
+                                        alt.Tooltip('Questionnaire', title='Mesure'),
+                                        alt.Tooltip('Score_Global', title='Score Total')
+                                    ]
+                                ).properties(height=300).interactive()
+                                
+                                st.altair_chart(chart, use_container_width=True)
+                            else:
+                                st.warning("Pas de données sur cette période.")
                         else:
-                            st.warning("Pas assez de données sur cette période pour afficher le graphique.")
+                            st.warning("Aucune donnée d'échelle trouvée.")
+                else:
+                    st.info("Remplissez votre premier Bilan Hebdo pour voir apparaître vos courbes ici.")
 
                 st.divider()
 
                 # =========================================================
-                # PARTIE 2 : ENTRÉES DÉTAILLÉES (TON CODE ORIGINAL PRÉSERVÉ)
+                # PARTIE 2 : ENTRÉES DÉTAILLÉES (Code préservé à l'identique)
                 # =========================================================
                 st.write("##### 🗓️ Entrées détaillées")
 
@@ -456,7 +456,8 @@ def afficher_vue_patient(patient_id):
                     
                     # Parsing sécurisé du JSON
                     try:
-                        details = json.loads(row["Details_Json"])
+                        if isinstance(row["Details_Json"], dict): details = row["Details_Json"]
+                        else: details = json.loads(row["Details_Json"])
                     except:
                         details = {"Données brutes": row["Details_Json"]}
                     
@@ -509,7 +510,7 @@ def afficher_vue_patient(patient_id):
                                         # Petite ligne avec point puce
                                         st.markdown(f"• **{q_clean}** : {r}")
 
-                                        
+
     # ======================================================
     # VUE 3 : AGENDAS
     # ======================================================
