@@ -47,43 +47,49 @@ def charger_historique_local(uid):
 def afficher_vue_patient(patient_id):
     st.title(f"👋 Espace de {patient_id}")
 
-    # 1. Récupération des droits
+    # --- 1. RECUPERATION DES DROITS & PROTOCOLE ACTIF ---
+    from protocoles import CATALOGUE
+    from connect_db import charger_permissions_patient
+
     droits = charger_permissions_patient(patient_id)
     
-    if not droits:
-        st.warning("Votre thérapeute ne vous a pas encore assigné de parcours de soin.")
-        return # On arrête l'affichage ici si rien n'est assigné
+    # Variables par défaut (si aucun protocole assigné)
+    CONFIG_ACTIVE = {}
+    QUESTIONS_ACTIVE = {}
+    code_actif = None
+    nom_proto = "Aucun parcours actif"
 
-    # 2. Gestion du protocole actif (Session)
-    # Si on n'a pas de protocole actif OU si le protocole actif n'est plus dans mes droits
-    if "proto_patient_actif" not in st.session_state or st.session_state.proto_patient_actif not in droits:
-        st.session_state.proto_patient_actif = droits[0] # On prend le premier par défaut
+    # Si le patient a des droits, on charge la config
+    if droits:
+        # Gestion de la session pour le choix du protocole
+        if "proto_patient_actif" not in st.session_state or st.session_state.proto_patient_actif not in droits:
+            st.session_state.proto_patient_actif = droits[0]
+        
+        code_actif = st.session_state.proto_patient_actif
+        
+        # Chargement des données du protocole actif
+        if code_actif in CATALOGUE:
+            CONFIG_ACTIVE = CATALOGUE[code_actif]["modules"]
+            QUESTIONS_ACTIVE = CATALOGUE[code_actif]["questions"]
+            nom_proto = CATALOGUE[code_actif]["nom"]
 
-    # 3. Sélecteur (Si plusieurs choix)
-    if len(droits) > 1:
-        # On le met dans la Sidebar pour qu'il soit toujours accessible
+    # --- 2. SIDEBAR (Sélecteur de protocole) ---
+    if droits:
         st.sidebar.divider()
         st.sidebar.header("📚 Mon Programme")
-        
-        choix = st.sidebar.radio(
-            "Changer de protocole :",
-            droits,
-            format_func=lambda x: CATALOGUE[x]["nom"],
-            key="radio_proto_patient" # Le changement mettra à jour la session via le key binding ? Non, mieux vaut le faire manuellement
-        )
-        st.session_state.proto_patient_actif = choix
-    else:
-        # Juste pour info dans la sidebar
-        st.sidebar.divider()
-        st.sidebar.caption(f"Programme : {CATALOGUE[droits[0]]['nom']}")
-
-    # 4. Définition de la CONFIGURATION pour toute la page
-    code_actif = st.session_state.proto_patient_actif
-    CONFIG_ACTIVE = CATALOGUE[code_actif]["modules"]
-    QUESTIONS_ACTIVE = CATALOGUE[code_actif]["questions"]
-
-    # 2. NAVIGATION PRINCIPALE (STABLE)
-    # On définit les onglets
+        if len(droits) > 1:
+            choix = st.sidebar.radio(
+                "Changer de protocole :",
+                droits,
+                format_func=lambda x: CATALOGUE[x]["nom"] if x in CATALOGUE else x,
+                key="radio_proto_patient"
+            )
+            st.session_state.proto_patient_actif = choix
+            st.rerun() # Recharger la page si on change
+        else:
+            st.sidebar.caption(f"Programme : {nom_proto}")
+    
+    # --- 3. NAVIGATION PRINCIPALE ---
     liste_onglets = [
         "🏠 Tableau de Bord", 
         "🗺️ Protocole", 
@@ -210,19 +216,25 @@ def afficher_vue_patient(patient_id):
     # VUE 2 : PROTOCOLE (SOUS-ONGLETS SLIDE)
     # ======================================================
     elif onglet_actif == "🗺️ Protocole":
-        progression = charger_progression(patient_id)
-        valides, notes_therapeute = charger_suivi_global(patient_id)
-        devoirs = charger_etat_devoirs(patient_id)
-        df_history = charger_historique_local(patient_id)
-        st.header(f"🗺️ Parcours : {CATALOGUE[code_actif]['nom']}")
+        if not droits or not CONFIG_ACTIVE:
+            st.info("🚧 Votre thérapeute ne vous a pas encore assigné de modules de protocole.")
+            st.caption("Vous pouvez tout de même utiliser les Agendas et le Journal dans les autres onglets.")
+        else:
+            # --- LE CODE NORMAL DU PROTOCOLE S'EXÉCUTE ICI ---
+            progression = charger_progression(patient_id)
+            valides, notes_therapeute = charger_suivi_global(patient_id)
+            devoirs = charger_etat_devoirs(patient_id)
+            df_history = charger_historique_local(patient_id)
+            
+            st.header(f"🗺️ Parcours : {CATALOGUE[code_actif]['nom']}")
         
-        # 1. CRÉATION DES 4 SOUS-ONGLETS (Type Slide)
-        sub_tab_prog, sub_tab_outils, sub_tab_bilan, sub_tab_histo = st.tabs([
-            "📍 Progression", 
-            "🚀 Exercices", 
-            "📝 Échelles", 
-            "📜 Historique"
-        ])
+            # 1. CRÉATION DES 4 SOUS-ONGLETS (Type Slide)
+            sub_tab_prog, sub_tab_outils, sub_tab_bilan, sub_tab_histo = st.tabs([
+                "📍 Progression", 
+                "🚀 Exercices", 
+                "📝 Échelles", 
+                "📜 Historique"
+            ])
 
         # -------------------------------------------------
         # A. SOUS-ONGLET : PROGRESSION
@@ -386,7 +398,7 @@ def afficher_vue_patient(patient_id):
                             time.sleep(1)
                             st.rerun()
 
-# -------------------------------------------------
+        # -------------------------------------------------
         # D. SOUS-ONGLET : HISTORIQUE (Basé sur la configuration stricte)
         # -------------------------------------------------
         with sub_tab_histo:
