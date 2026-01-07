@@ -352,7 +352,7 @@ def afficher_vue_patient(patient_id):
                             st.rerun()
 
 # -------------------------------------------------
-        # D. SOUS-ONGLET : HISTORIQUE (Fusion Graphique Précis + Cartes)
+        # D. SOUS-ONGLET : HISTORIQUE (Structure "Visualisations")
         # -------------------------------------------------
         with sub_tab_histo:
             st.subheader("📜 Historique de vos suivis")
@@ -361,15 +361,15 @@ def afficher_vue_patient(patient_id):
                 st.info("📭 Aucun historique pour le moment. Commencez par remplir un bilan !")
             else:
                 # =========================================================
-                # PARTIE 1 : VISUALISATION DES ÉMOTIONS (LOGIQUE INTELLIGENTE)
+                # PARTIE 1 : VISUALISATIONS GRAPHIQUES (Style Onglet "Visualisations")
                 # =========================================================
                 
-                # 1. Préparation des données pour le graphique
-                # On exclut les exercices textuels
+                # 1. Parsing des données pour extraire les courbes
+                # On exclut les exercices textuels pour ne garder que les questionnaires chiffrés
                 df_clean = df_history[~df_history["Questionnaire"].str.contains("Exercice", na=False)].copy()
                 rows_emotions = []
 
-                # Mots-clés pour classer les émotions automatiquement
+                # Mots-clés pour classer les questions automatiquement
                 CAT_ANXIETE = ["anxiété", "peur", "stress", "nervosité", "inquiétude", "panique"]
                 CAT_DEPRESSION = ["tristesse", "déprime", "découragement", "désespoir", "vide"]
                 CAT_POSITIF = ["joie", "bonheur", "satisfaction", "calme", "fierté", "enthousiasme", "énergie"]
@@ -381,58 +381,73 @@ def afficher_vue_patient(patient_id):
                         date_entry = row["Date"]
                         
                         for question, valeur in details.items():
-                            # On cherche des valeurs numériques (0-8)
+                            # On ne garde que les valeurs numériques (échelles 0-8)
                             try:
                                 val_num = float(valeur)
                                 q_lower = question.lower()
                                 
-                                category = "Autre"
+                                category = None
                                 if any(x in q_lower for x in CAT_ANXIETE): category = "Anxiété"
                                 elif any(x in q_lower for x in CAT_DEPRESSION): category = "Dépression"
                                 elif any(x in q_lower for x in CAT_POSITIF): category = "Émotions Positives"
                                 elif any(x in q_lower for x in CAT_NEGATIF_AUTRE): category = "Autres Négatives"
                                 
-                                if category != "Autre":
+                                if category:
                                     rows_emotions.append({
                                         "Date": date_entry,
-                                        "Emotion": question, # Ex: "Tristesse"
-                                        "Score": val_num,
-                                        "Categorie": category # Ex: "Dépression"
+                                        "Emotion": question,    # Ex: "Tristesse"
+                                        "Score": val_num,       # Ex: 6
+                                        "Categorie": category   # Ex: "Dépression"
                                     })
                             except: pass
                     except: pass
 
                 df_emotions = pd.DataFrame(rows_emotions)
 
-                # 2. Affichage du Graphique
+                # 2. Interface de sélection (Comme l'onglet Visualisations)
                 if not df_emotions.empty:
-                    with st.expander("📈 Voir les courbes d'évolution émotionnelle", expanded=True):
+                    with st.container(border=True):
+                        st.markdown("##### 📊 Analyse des courbes")
                         
-                        # Filtres (Pills)
-                        options_cat = ["Anxiété", "Dépression", "Émotions Positives", "Autres Négatives"]
-                        choix_cat = st.pills("Filtrer par famille d'émotions :", options_cat, default=["Anxiété", "Dépression"], selection_mode="multi", key="pills_histo_proto")
+                        c_filtre_per, c_filtre_type = st.columns([1, 2])
                         
-                        if choix_cat:
-                            df_chart = df_emotions[df_emotions["Categorie"].isin(choix_cat)]
+                        with c_filtre_per:
+                            choix_periode = st.selectbox("Période :", ["Tout", "30 derniers jours", "3 derniers mois"], key="hist_per")
+                        
+                        with c_filtre_type:
+                            options_cat = ["Anxiété", "Dépression", "Émotions Positives", "Autres Négatives"]
+                            # On ne montre que les catégories qui ont des données
+                            cat_dispo = [c for c in options_cat if c in df_emotions["Categorie"].unique()]
+                            choix_cat = st.selectbox("Indicateur à visualiser :", cat_dispo, key="hist_cat")
+
+                        # 3. Application des filtres
+                        df_chart = df_emotions[df_emotions["Categorie"] == choix_cat].copy()
+                        
+                        if choix_periode == "30 derniers jours":
+                            cutoff = datetime.now() - pd.Timedelta(days=30)
+                            df_chart = df_chart[df_chart["Date"] >= cutoff]
+                        elif choix_periode == "3 derniers mois":
+                            cutoff = datetime.now() - pd.Timedelta(days=90)
+                            df_chart = df_chart[df_chart["Date"] >= cutoff]
+
+                        # 4. Affichage du Graphique
+                        if not df_chart.empty:
+                            st.divider()
+                            chart = alt.Chart(df_chart).mark_line(point=True, strokeWidth=3).encode(
+                                x=alt.X('Date', axis=alt.Axis(format='%d/%m', title='Date')),
+                                y=alt.Y('Score', title='Intensité (0-8)', scale=alt.Scale(domain=[0, 8])),
+                                color=alt.Color('Emotion', legend=alt.Legend(title="Détail", orient="bottom")),
+                                tooltip=['Date', 'Emotion', 'Score']
+                            ).properties(height=350).interactive()
                             
-                            if not df_chart.empty:
-                                chart = alt.Chart(df_chart).mark_line(point=True, strokeWidth=3).encode(
-                                    x=alt.X('Date', axis=alt.Axis(format='%d/%m', title='Date')),
-                                    y=alt.Y('Score', title='Intensité (0-8)', scale=alt.Scale(domain=[0, 8])),
-                                    color=alt.Color('Emotion', legend=alt.Legend(title="Émotion spécifique")),
-                                    tooltip=['Date', 'Emotion', 'Score', 'Categorie']
-                                ).properties(height=350).interactive()
-                                
-                                st.altair_chart(chart, use_container_width=True)
-                            else:
-                                st.warning("Pas de données pour ces catégories.")
+                            st.altair_chart(chart, use_container_width=True)
                         else:
-                            st.info("Sélectionnez une catégorie ci-dessus.")
-                
+                            st.warning("Pas assez de données sur cette période pour afficher le graphique.")
+
                 st.divider()
 
                 # =========================================================
-                # PARTIE 2 : ENTRÉES DÉTAILLÉES (TON CODE ORIGINAL)
+                # PARTIE 2 : ENTRÉES DÉTAILLÉES (TON CODE ORIGINAL PRÉSERVÉ)
                 # =========================================================
                 st.write("##### 🗓️ Entrées détaillées")
 
@@ -494,6 +509,7 @@ def afficher_vue_patient(patient_id):
                                         # Petite ligne avec point puce
                                         st.markdown(f"• **{q_clean}** : {r}")
 
+                                        
     # ======================================================
     # VUE 3 : AGENDAS
     # ======================================================
