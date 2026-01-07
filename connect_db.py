@@ -107,22 +107,52 @@ def delete_data_flexible(nom_onglet, criteres_dict):
 # Ici, on utilise @st.cache_data pour mémoriser les RÉSULTATS (les DataFrames)
 # et rendre l'appli rapide.
 
-@st.cache_data(ttl=600)
+#@st.cache_data(ttl=600)
 def verifier_therapeute(identifiant, mot_de_passe):
+    """
+    Vérifie les identifiants et retourne (user_id, liste_licences).
+    Retourne (None, []) si échec.
+    """
     try:
-        data = load_data("Therapeutes")
-        if data:
-            df = pd.DataFrame(data)
-            # Nettoyage pour éviter les erreurs d'espaces ou de types
-            df["Identifiant"] = df["Identifiant"].astype(str).str.strip()
-            df["MotDePasse"] = df["MotDePasse"].astype(str).str.strip()
-            user_clean = str(identifiant).strip()
-            pwd_clean = str(mot_de_passe).strip()
+        # On suppose que tu as une fonction load_data qui lit "Therapeutes"
+        # Si tu utilises une autre méthode pour lire le sheet, adapte cette ligne
+        users = load_data("Therapeutes") 
+        
+        if users:
+            df = pd.DataFrame(users)
+            # Nettoyage des chaînes
+            identifiant = str(identifiant).strip()
+            mot_de_passe = str(mot_de_passe).strip()
             
-            user_row = df[(df["Identifiant"] == user_clean) & (df["MotDePasse"] == pwd_clean)]
-            if not user_row.empty: return user_row.iloc[0]["ID"] 
-    except: pass
-    return None
+            # Recherche de l'utilisateur (exemple simple)
+            # Adapte les noms de colonnes selon ton Sheet exact ("Identifiant", "MotDePasse", "ID")
+            match = df[
+                (df["Identifiant"].astype(str).str.strip() == identifiant) & 
+                (df["MotDePasse"].astype(str).str.strip() == mot_de_passe)
+            ]
+            
+            if not match.empty:
+                user_row = match.iloc[0]
+                user_id = user_row["ID"] # ou la colonne qui sert d'ID unique
+                
+                # --- RECUPERATION DES LICENCES ---
+                # On regarde si la colonne "Licences" existe et contient quelque chose
+                liste_licences = []
+                if "Licences" in user_row and pd.notna(user_row["Licences"]):
+                    raw_licences = str(user_row["Licences"])
+                    # On sépare par la virgule : "barlow,estime" -> ["barlow", "estime"]
+                    liste_licences = [x.strip() for x in raw_licences.split(",") if x.strip()]
+                
+                # Si la colonne est vide ou n'existe pas, on peut donner un accès par défaut ou rien
+                if not liste_licences:
+                    liste_licences = ["barlow"] # Optionnel : Barlow par défaut pour tous
+                
+                return user_id, liste_licences
+
+    except Exception as e:
+        print(f"Erreur connexion : {e}")
+        
+    return None, []
 
 @st.cache_data(ttl=300)
 def recuperer_mes_patients(therapeute_id):
