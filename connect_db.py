@@ -2,6 +2,7 @@ import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
+import os 
 import json
 import pandas as pd
 import secrets
@@ -431,22 +432,50 @@ def sauvegarder_note_journal(patient_id, date_seance, contenu):
 def charger_permissions_patient(patient_id):
     """
     Retourne la liste des codes protocoles autorisés pour ce patient.
-    Ex: ["barlow"]
     """
-    data = load_data("Permissions_Patients") # Ce fichier sera créé automatiquement
-    if data and patient_id in data:
-        return data[patient_id]
-    return [] # Par défaut, aucun accès tant que le thérapeute n'a pas assigné
+    filepath = "data/Permissions_Patients.json"
+    
+    # Si le fichier n'existe pas encore, on renvoie une liste vide
+    if not os.path.exists(filepath):
+        return []
+
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            # On retourne la liste pour ce patient, ou vide si pas trouvé
+            return data.get(patient_id, [])
+    except Exception as e:
+        print(f"Erreur lecture permissions : {e}")
+        return []
 
 def sauvegarder_permissions_patient(patient_id, liste_codes):
     """
-    Enregistre les droits. Ex: patient_id="PAT-01", liste_codes=["barlow", "estime"]
+    Enregistre les droits. Crée le dossier et le fichier si nécessaires.
     """
-    data = load_data("Permissions_Patients")
-    if not data: data = {}
+    filepath = "data/Permissions_Patients.json"
     
+    # --- CORRECTION ICI : CRÉATION AUTOMATIQUE DU DOSSIER ---
+    # On vérifie si le dossier 'data' existe, sinon on le crée
+    dossier = os.path.dirname(filepath)
+    if dossier and not os.path.exists(dossier):
+        os.makedirs(dossier, exist_ok=True)
+    # --------------------------------------------------------
+
+    # 1. On charge l'existant pour ne pas écraser les autres patients
+    data = {}
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                # Si le fichier est vide ou corrompu, on gère l'erreur
+                content = f.read()
+                if content:
+                    data = json.loads(content)
+        except:
+            data = {} # Repart de zéro en cas de fichier corrompu
+    
+    # 2. On met à jour pour CE patient
     data[patient_id] = liste_codes
     
-    # Petite fonction interne pour sauver le JSON (adapte si tu as déjà une fonction générique)
-    with open("data/Permissions_Patients.json", "w", encoding="utf-8") as f:
+    # 3. On sauvegarde le tout
+    with open(filepath, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
