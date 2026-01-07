@@ -7,7 +7,7 @@ import altair as alt
 from datetime import datetime
 
 # Imports Configuration & DB
-from protocoles import CATALOGUE
+from protocole_config import PROTOCOLE_BARLOW, QUESTIONS_HEBDO
 from connect_db import (
     charger_progression, charger_etat_devoirs, charger_suivi_global,
     charger_outils_autorises, sauvegarder_progression,
@@ -15,7 +15,7 @@ from connect_db import (
     sauvegarder_reponse_hebdo, supprimer_reponse, load_data,
     charger_message_therapeute, charger_taches_assignees,
     charger_journal_patient, sauvegarder_note_journal, 
-    charger_donnees_specifiques, charger_permissions_patient
+    charger_donnees_specifiques
 )
 
 from visualisations import (
@@ -47,49 +47,8 @@ def charger_historique_local(uid):
 def afficher_vue_patient(patient_id):
     st.title(f"👋 Espace de {patient_id}")
 
-    # --- 1. RECUPERATION DES DROITS & PROTOCOLE ACTIF ---
-    from protocoles import CATALOGUE
-    from connect_db import charger_permissions_patient
-
-    droits = charger_permissions_patient(patient_id)
-    
-    # Variables par défaut (si aucun protocole assigné)
-    CONFIG_ACTIVE = {}
-    QUESTIONS_ACTIVE = {}
-    code_actif = None
-    nom_proto = "Aucun parcours actif"
-
-    # Si le patient a des droits, on charge la config
-    if droits:
-        # Gestion de la session pour le choix du protocole
-        if "proto_patient_actif" not in st.session_state or st.session_state.proto_patient_actif not in droits:
-            st.session_state.proto_patient_actif = droits[0]
-        
-        code_actif = st.session_state.proto_patient_actif
-        
-        # Chargement des données du protocole actif
-        if code_actif in CATALOGUE:
-            CONFIG_ACTIVE = CATALOGUE[code_actif]["modules"]
-            QUESTIONS_ACTIVE = CATALOGUE[code_actif]["questions"]
-            nom_proto = CATALOGUE[code_actif]["nom"]
-
-    # --- 2. SIDEBAR (Sélecteur de protocole) ---
-    if droits:
-        st.sidebar.divider()
-        st.sidebar.header("📚 Mon Programme")
-        if len(droits) > 1:
-            choix = st.sidebar.radio(
-                "Changer de protocole :",
-                droits,
-                format_func=lambda x: CATALOGUE[x]["nom"] if x in CATALOGUE else x,
-                key="radio_proto_patient"
-            )
-            st.session_state.proto_patient_actif = choix
-            st.rerun() # Recharger la page si on change
-        else:
-            st.sidebar.caption(f"Programme : {nom_proto}")
-    
-    # --- 3. NAVIGATION PRINCIPALE ---
+    # 2. NAVIGATION PRINCIPALE (STABLE)
+    # On définit les onglets
     liste_onglets = [
         "🏠 Tableau de Bord", 
         "🗺️ Protocole", 
@@ -216,25 +175,19 @@ def afficher_vue_patient(patient_id):
     # VUE 2 : PROTOCOLE (SOUS-ONGLETS SLIDE)
     # ======================================================
     elif onglet_actif == "🗺️ Protocole":
-        if not droits or not CONFIG_ACTIVE:
-            st.info("🚧 Votre thérapeute ne vous a pas encore assigné de modules de protocole.")
-            st.caption("Vous pouvez tout de même utiliser les Agendas et le Journal dans les autres onglets.")
-        else:
-            # --- LE CODE NORMAL DU PROTOCOLE S'EXÉCUTE ICI ---
-            progression = charger_progression(patient_id)
-            valides, notes_therapeute = charger_suivi_global(patient_id)
-            devoirs = charger_etat_devoirs(patient_id)
-            df_history = charger_historique_local(patient_id)
-            
-            st.header(f"🗺️ Parcours : {CATALOGUE[code_actif]['nom']}")
+        progression = charger_progression(patient_id)
+        valides, notes_therapeute = charger_suivi_global(patient_id)
+        devoirs = charger_etat_devoirs(patient_id)
+        df_history = charger_historique_local(patient_id)
+        st.header("🗺️ Mon Parcours TCC")
         
-            # 1. CRÉATION DES 4 SOUS-ONGLETS (Type Slide)
-            sub_tab_prog, sub_tab_outils, sub_tab_bilan, sub_tab_histo = st.tabs([
-                "📍 Progression", 
-                "🚀 Exercices", 
-                "📝 Échelles", 
-                "📜 Historique"
-            ])
+        # 1. CRÉATION DES 4 SOUS-ONGLETS (Type Slide)
+        sub_tab_prog, sub_tab_outils, sub_tab_bilan, sub_tab_histo = st.tabs([
+            "📍 Progression", 
+            "🚀 Exercices", 
+            "📝 Échelles", 
+            "📜 Historique"
+        ])
 
         # -------------------------------------------------
         # A. SOUS-ONGLET : PROGRESSION
@@ -244,7 +197,7 @@ def afficher_vue_patient(patient_id):
             if "last_active_module" not in st.session_state: 
                 st.session_state.last_active_module = None
 
-            for code_mod, data in CONFIG_ACTIVE.items():
+            for code_mod, data in PROTOCOLE_BARLOW.items():
                 if code_mod in progression:
                     icon_valid = "✅" if code_mod in valides else ""
                     is_expanded = (code_mod == st.session_state.last_active_module)
@@ -258,7 +211,7 @@ def afficher_vue_patient(patient_id):
                             
                             with col_step:
                                 st.markdown("#### 📝 Ce que nous avons vu")
-                                if data.get('etapes_seance'):
+                                if data['etapes_seance']:
                                     for etape in data['etapes_seance']:
                                         st.markdown(f"- **{etape['titre']}**")
                                         if etape.get('details'): st.caption(f"_{etape.get('details')}_")
@@ -268,7 +221,7 @@ def afficher_vue_patient(patient_id):
                                 st.markdown("#### 🏠 Travail à la maison")
                                 exclus = devoirs.get(code_mod, [])
                                 a_faire = False
-                                if data.get('taches_domicile'):
+                                if data['taches_domicile']:
                                     for j, dev in enumerate(data['taches_domicile']):
                                         if j not in exclus:
                                             a_faire = True
@@ -310,7 +263,7 @@ def afficher_vue_patient(patient_id):
             exos_trouves = False
 
             # On parcourt TOUS les modules (sans filtrer par progression au début)
-            for code_mod, data in CONFIG_ACTIVE.items():
+            for code_mod, data in PROTOCOLE_BARLOW.items():
                 
                 # S'il y a des exercices dans ce module
                 if "exercices" in data and data["exercices"]:
@@ -364,10 +317,10 @@ def afficher_vue_patient(patient_id):
             st.subheader("Bilan Hebdomadaire")
             
             # Ajout d'une clé (key) pour stabiliser le selectbox
-            choix_q = st.selectbox("Questionnaire :", list(QUESTIONS_ACTIVE.keys()), key="sb_bilan_hebdo")
+            choix_q = st.selectbox("Questionnaire :", list(QUESTIONS_HEBDO.keys()), key="sb_bilan_hebdo")
             
             if choix_q:
-                cfg = QUESTIONS_ACTIVE[choix_q]
+                cfg = QUESTIONS_HEBDO[choix_q]
                 with st.container(border=True):
                     st.markdown(f"**{cfg['titre']}**")
                     st.caption(cfg['description'])
@@ -398,8 +351,8 @@ def afficher_vue_patient(patient_id):
                             time.sleep(1)
                             st.rerun()
 
-        # -------------------------------------------------
-        # D. SOUS-ONGLET : HISTORIQUE (Basé sur la configuration stricte)
+# -------------------------------------------------
+        # D. SOUS-ONGLET : HISTORIQUE (Structure "Visualisations")
         # -------------------------------------------------
         with sub_tab_histo:
             st.subheader("📜 Historique de vos suivis")
@@ -408,93 +361,93 @@ def afficher_vue_patient(patient_id):
                 st.info("📭 Aucun historique pour le moment. Commencez par remplir un bilan !")
             else:
                 # =========================================================
-                # PARTIE 1 : VISUALISATIONS GRAPHIQUES (4 ÉCHELLES)
+                # PARTIE 1 : VISUALISATIONS GRAPHIQUES (Style Onglet "Visualisations")
                 # =========================================================
                 
-                # 1. On prépare les données proprement
-                # On exclut les exercices (qui ne sont pas des bilans hebdo)
-                df_clean = df_history[~df_history["Questionnaire"].str.contains("Exercice", case=False, na=False)].copy()
-                
-                # 2. Fonction pour catégoriser selon VOTRE configuration
-                def trouver_categorie(nom_questionnaire):
-                    nom = str(nom_questionnaire)
-                    if "Anxiété" in nom: return "Anxiété"
-                    if "Dépression" in nom: return "Dépression"
-                    if "Positives" in nom: return "Émotions Positives"
-                    if "Autres" in nom: return "Autres Émotions Négatives"
-                    return None # Cas non géré (ex: ancien test)
+                # 1. Parsing des données pour extraire les courbes
+                # On exclut les exercices textuels pour ne garder que les questionnaires chiffrés
+                df_clean = df_history[~df_history["Questionnaire"].str.contains("Exercice", na=False)].copy()
+                rows_emotions = []
 
-                df_clean["Categorie"] = df_clean["Questionnaire"].apply(trouver_categorie)
-                
-                # On ne garde que les lignes qui correspondent à l'une des 4 catégories
-                df_graph = df_clean.dropna(subset=["Categorie"]).copy()
-                
-                # S'assurer que le Score est bien numérique
-                df_graph["Score_Global"] = pd.to_numeric(df_graph["Score_Global"], errors='coerce')
+                # Mots-clés pour classer les questions automatiquement
+                CAT_ANXIETE = ["anxiété", "peur", "stress", "nervosité", "inquiétude", "panique"]
+                CAT_DEPRESSION = ["tristesse", "déprime", "découragement", "désespoir", "vide"]
+                CAT_POSITIF = ["joie", "bonheur", "satisfaction", "calme", "fierté", "enthousiasme", "énergie"]
+                CAT_NEGATIF_AUTRE = ["colère", "honte", "culpabilité", "frustration", "irritabilité"]
 
-                # 3. Affichage du Graphique interactif
-                if not df_graph.empty:
-                    with st.container(border=True):
-                        st.markdown("##### 📈 Courbes d'évolution")
+                for _, row in df_clean.iterrows():
+                    try:
+                        details = json.loads(row["Details_Json"])
+                        date_entry = row["Date"]
                         
-                        # --- A. FILTRES ---
-                        c_per, c_cat = st.columns([1, 2])
-                        with c_per:
-                            choix_periode = st.selectbox("Période :", ["Tout", "30 derniers jours", "3 derniers mois"], key="hist_per_fix")
-                        with c_cat:
-                            # On liste les catégories disponibles dans les données du patient
-                            cats_dispo = df_graph["Categorie"].unique().tolist()
-                            # On met un ordre logique si possible
-                            ordre_prefere = ["Anxiété", "Dépression", "Autres Émotions Négatives", "Émotions Positives"]
-                            cats_triees = [c for c in ordre_prefere if c in cats_dispo]
-                            
-                            if cats_triees:
-                                choix_cat = st.selectbox("Échelle à visualiser :", cats_triees, key="hist_cat_fix")
-                            else:
-                                choix_cat = None
-
-                        if choix_cat:
-                            # --- B. FILTRAGE DES DONNÉES ---
-                            df_final = df_graph[df_graph["Categorie"] == choix_cat].copy()
-                            
-                            # Filtre Date
-                            if choix_periode == "30 derniers jours":
-                                cutoff = datetime.now() - pd.Timedelta(days=30)
-                                df_final = df_final[df_final["Date"] >= cutoff]
-                            elif choix_periode == "3 derniers mois":
-                                cutoff = datetime.now() - pd.Timedelta(days=90)
-                                df_final = df_final[df_final["Date"] >= cutoff]
-
-                            # --- C. GRAPHIQUE ---
-                            if not df_final.empty:
-                                st.divider()
+                        for question, valeur in details.items():
+                            # On ne garde que les valeurs numériques (échelles 0-8)
+                            try:
+                                val_num = float(valeur)
+                                q_lower = question.lower()
                                 
-                                # Création du graphique Altair
-                                # Axe Y : Score Global (Somme des items du questionnaire)
-                                chart = alt.Chart(df_final).mark_line(point=True, strokeWidth=3).encode(
-                                    x=alt.X('Date', axis=alt.Axis(format='%d/%m', title='Date')),
-                                    y=alt.Y('Score_Global', title='Score Total'),
-                                    # La couleur change selon l'émotion précise (utile pour "Autres" qui peut varier ex: Colère, Honte...)
-                                    color=alt.Color('Questionnaire', legend=None), 
-                                    tooltip=[
-                                        alt.Tooltip('Date', format='%d/%m/%Y', title='Date'),
-                                        alt.Tooltip('Questionnaire', title='Mesure'),
-                                        alt.Tooltip('Score_Global', title='Score Total')
-                                    ]
-                                ).properties(height=300).interactive()
+                                category = None
+                                if any(x in q_lower for x in CAT_ANXIETE): category = "Anxiété"
+                                elif any(x in q_lower for x in CAT_DEPRESSION): category = "Dépression"
+                                elif any(x in q_lower for x in CAT_POSITIF): category = "Émotions Positives"
+                                elif any(x in q_lower for x in CAT_NEGATIF_AUTRE): category = "Autres Négatives"
                                 
-                                st.altair_chart(chart, use_container_width=True)
-                            else:
-                                st.warning("Pas de données sur cette période.")
+                                if category:
+                                    rows_emotions.append({
+                                        "Date": date_entry,
+                                        "Emotion": question,    # Ex: "Tristesse"
+                                        "Score": val_num,       # Ex: 6
+                                        "Categorie": category   # Ex: "Dépression"
+                                    })
+                            except: pass
+                    except: pass
+
+                df_emotions = pd.DataFrame(rows_emotions)
+
+                # 2. Interface de sélection (Comme l'onglet Visualisations)
+                if not df_emotions.empty:
+                    with st.container(border=True):
+                        st.markdown("##### 📊 Analyse des courbes")
+                        
+                        c_filtre_per, c_filtre_type = st.columns([1, 2])
+                        
+                        with c_filtre_per:
+                            choix_periode = st.selectbox("Période :", ["Tout", "30 derniers jours", "3 derniers mois"], key="hist_per")
+                        
+                        with c_filtre_type:
+                            options_cat = ["Anxiété", "Dépression", "Émotions Positives", "Autres Négatives"]
+                            # On ne montre que les catégories qui ont des données
+                            cat_dispo = [c for c in options_cat if c in df_emotions["Categorie"].unique()]
+                            choix_cat = st.selectbox("Indicateur à visualiser :", cat_dispo, key="hist_cat")
+
+                        # 3. Application des filtres
+                        df_chart = df_emotions[df_emotions["Categorie"] == choix_cat].copy()
+                        
+                        if choix_periode == "30 derniers jours":
+                            cutoff = datetime.now() - pd.Timedelta(days=30)
+                            df_chart = df_chart[df_chart["Date"] >= cutoff]
+                        elif choix_periode == "3 derniers mois":
+                            cutoff = datetime.now() - pd.Timedelta(days=90)
+                            df_chart = df_chart[df_chart["Date"] >= cutoff]
+
+                        # 4. Affichage du Graphique
+                        if not df_chart.empty:
+                            st.divider()
+                            chart = alt.Chart(df_chart).mark_line(point=True, strokeWidth=3).encode(
+                                x=alt.X('Date', axis=alt.Axis(format='%d/%m', title='Date')),
+                                y=alt.Y('Score', title='Intensité (0-8)', scale=alt.Scale(domain=[0, 8])),
+                                color=alt.Color('Emotion', legend=alt.Legend(title="Détail", orient="bottom")),
+                                tooltip=['Date', 'Emotion', 'Score']
+                            ).properties(height=350).interactive()
+                            
+                            st.altair_chart(chart, use_container_width=True)
                         else:
-                            st.warning("Aucune donnée d'échelle trouvée.")
-                else:
-                    st.info("Remplissez votre premier Bilan Hebdo pour voir apparaître vos courbes ici.")
+                            st.warning("Pas assez de données sur cette période pour afficher le graphique.")
 
                 st.divider()
 
                 # =========================================================
-                # PARTIE 2 : ENTRÉES DÉTAILLÉES (Code préservé à l'identique)
+                # PARTIE 2 : ENTRÉES DÉTAILLÉES (TON CODE ORIGINAL PRÉSERVÉ)
                 # =========================================================
                 st.write("##### 🗓️ Entrées détaillées")
 
@@ -503,8 +456,7 @@ def afficher_vue_patient(patient_id):
                     
                     # Parsing sécurisé du JSON
                     try:
-                        if isinstance(row["Details_Json"], dict): details = row["Details_Json"]
-                        else: details = json.loads(row["Details_Json"])
+                        details = json.loads(row["Details_Json"])
                     except:
                         details = {"Données brutes": row["Details_Json"]}
                     
@@ -557,7 +509,7 @@ def afficher_vue_patient(patient_id):
                                         # Petite ligne avec point puce
                                         st.markdown(f"• **{q_clean}** : {r}")
 
-
+                                        
     # ======================================================
     # VUE 3 : AGENDAS
     # ======================================================

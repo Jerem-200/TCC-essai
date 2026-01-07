@@ -23,9 +23,7 @@ from visualisations import (
     afficher_activites, afficher_sommeil, afficher_conso, afficher_compulsions,
     afficher_phq9, afficher_gad7, afficher_isi, afficher_peg, afficher_who5, afficher_wsas
 )
-from protocoles import CATALOGUE
-PROTOCOLE_BARLOW = CATALOGUE["barlow"]["modules"]
-QUESTIONS_HEBDO = CATALOGUE["barlow"]["questions"]
+from protocole_config import PROTOCOLE_BARLOW
 
 # IMPORT DE LA VUE PATIENT
 from vue_patient import afficher_vue_patient
@@ -69,26 +67,20 @@ if not st.session_state.authentifie:
                         st.session_state.authentifie = True
                         st.session_state.user_type = "patient"
                         st.session_state.user_id = real_id
-                        st.rerun()
                 
     with t_pro:
         with st.form("login_t"):
             u = st.text_input("Identifiant")
             p = st.text_input("Mot de passe", type="password")
             if st.form_submit_button("Connexion Pro"):
-                tid, licences = verifier_therapeute(u, p)
+                tid = verifier_therapeute(u, p)
                 if tid:
                     st.session_state.authentifie = True
                     st.session_state.user_type = "therapeute"
                     st.session_state.user_id = tid
                     st.session_state.username_pro = u
-                    
-                    # NOUVEAU : On stocke les licences en session
-                    st.session_state.licences_actives = licences
-                    
                     st.rerun()
-                else: 
-                    st.error("Erreur d'identification")
+                else: st.error("Erreur d'identification")
     st.stop()
 
 # =========================================================
@@ -311,6 +303,8 @@ elif st.session_state.user_type == "therapeute":
                     
                     # Sauvegarde Code
                     save_data("Codes_Patients", [ac_code, st.session_state.user_id, id_dossier, str(datetime.now().date())])
+                    # Init Progression (Module 0 uniquement)
+                    sauvegarder_progression(id_dossier, ["module0"])
                     
                     st.success(f"Patient créé ! Code : {ac_code}")
                     # Refresh cache
@@ -319,179 +313,117 @@ elif st.session_state.user_type == "therapeute":
                     time.sleep(1)
                     st.rerun()
 
-# =================================================
+    # =================================================
     # ONGLET 3 : PROTOCOLE (MODULES + OUTILS)
     # =================================================
     with tab_proto:
         patient_sel = st.session_state.patient_selectionne
         
         if not patient_sel:
-            st.info("Veuillez sélectionner un patient...")
+            st.info("Veuillez sélectionner un patient dans l'onglet 'Gestion Patients'.")
         else:
-            # --- 1. GESTION DES ACCÈS (NOUVEAU BLOC) ---
-            st.markdown(f"### ⚙️ Configuration du parcours : {patient_sel}")
+            st.markdown(f"### Gestion du Protocole : **{patient_sel}**")
+
+            # --- 1. PILOTAGE MODULES ---
+            cache_key = f"cache_data_{patient_sel}"
+            if cache_key not in st.session_state:
+                st.session_state[cache_key] = {
+                    "progression": charger_progression(patient_sel),
+                    "devoirs": charger_etat_devoirs(patient_sel),
+                    "valides": charger_suivi_global(patient_sel)[0],
+                    "notes": charger_suivi_global(patient_sel)[1]
+                }
             
-            from protocoles import CATALOGUE
-            from connect_db import charger_permissions_patient, sauvegarder_permissions_patient
+            data_session = st.session_state[cache_key]
+            progression_patient = data_session["progression"]
+            devoirs_exclus_memoire = data_session["devoirs"]
+            modules_valides_db = data_session["valides"]
+            notes_seance_db = data_session["notes"]
             
-            # A. Quelles sont les licences du THÉRAPEUTE ? (Ce qu'il PEUT donner)
-            mes_licences = st.session_state.get("licences_actives", [])
-            
-            # B. Quels sont les droits actuels du PATIENT ?
-            droits_patient = charger_permissions_patient(patient_sel)
-            
-            # C. Interface de sélection
-            with st.expander("Gérer les protocoles assignés à ce patient", expanded=True):
-                # On prépare la liste des choix possibles (intersection Catalogue & Licences Thérapeute)
-                options_possibles = {code: data["nom"] for code, data in CATALOGUE.items() if code in mes_licences}
+            if "last_active_module" not in st.session_state: st.session_state.last_active_module = "module0"
+
+            st.markdown("#### 🗺️ Modules Barlow")
+            nb_total = len(PROTOCOLE_BARLOW)
+            nb_fait = len(modules_valides_db)
+            st.progress(min(nb_fait / nb_total, 1.0), text=f"Avancement : {nb_fait}/{nb_total} modules terminés")
+
+            for code_mod, data in PROTOCOLE_BARLOW.items():
+                if code_mod in modules_valides_db: icon = "✅"
+                elif code_mod in progression_patient: icon = "🟦"
+                else: icon = "🔒"
                 
-                if not options_possibles:
-                    st.error("Vous n'avez aucune licence active.")
-                else:
-                    # Multiselect pour cocher/décocher
-                    nouveaux_droits = st.multiselect(
-                        "Protocoles actifs pour ce patient :",
-                        options=list(options_possibles.keys()),
-                        default=[d for d in droits_patient if d in options_possibles], # On pré-coche ce qu'il a déjà
-                        format_func=lambda x: options_possibles[x]
-                    )
-                    
-                    if st.button("💾 Mettre à jour les accès"):
-                        sauvegarder_permissions_patient(patient_sel, nouveaux_droits)
-                        st.success("Accès mis à jour !")
-                        time.sleep(0.5)
-                        st.rerun()
-
-            st.divider()
-
-            # --- 2. AFFICHAGE DU PROTOCOLE (SÉLECTEUR) ---
-            # Le thérapeute doit choisir quel protocole il veut REGARDER maintenant
-            droits_actuels = charger_permissions_patient(patient_sel)
-            
-            if not droits_actuels:
-                st.warning("Ce patient n'a aucun protocole assigné. Utilisez le menu ci-dessus.")
-            else:
-                # Sélecteur pour changer la vue du Thérapeute
-                if "view_proto_therapeute" not in st.session_state: 
-                     st.session_state.view_proto_therapeute = droits_actuels[0]
+                should_be_expanded = (code_mod == st.session_state.last_active_module)
                 
-                # Si le patient a plusieurs protocoles, on affiche un sélecteur
-                if len(droits_actuels) > 1:
-                    code_visu = st.selectbox(
-                        "Quel protocole voulez-vous consulter ?",
-                        droits_actuels,
-                        format_func=lambda x: CATALOGUE[x]["nom"],
-                        key="sel_proto_th"
-                    )
-                else:
-                    code_visu = droits_actuels[0]
-                    st.caption(f"Visualisation : **{CATALOGUE[code_visu]['nom']}**")
-
-                # --- CHARGEMENT DE LA CONFIGURATION CHOISIE ---
-                CONFIG_ACTIVE = CATALOGUE[code_visu]["modules"]
-
-                # --- 1. PILOTAGE MODULES ---
-                cache_key = f"cache_data_{patient_sel}"
-                if cache_key not in st.session_state:
-                    st.session_state[cache_key] = {
-                        "progression": charger_progression(patient_sel),
-                        "devoirs": charger_etat_devoirs(patient_sel),
-                        "valides": charger_suivi_global(patient_sel)[0],
-                        "notes": charger_suivi_global(patient_sel)[1]
-                    }
-                
-                data_session = st.session_state[cache_key]
-                progression_patient = data_session["progression"]
-                devoirs_exclus_memoire = data_session["devoirs"]
-                modules_valides_db = data_session["valides"]
-                notes_seance_db = data_session["notes"]
-                
-                if "last_active_module" not in st.session_state: st.session_state.last_active_module = "module0"
-
-                st.markdown(f"#### 🗺️ Modules : {CATALOGUE[code_visu]['nom']}") # Titre dynamique
-                nb_total = len(CONFIG_ACTIVE)
-                nb_fait = len(modules_valides_db)
-                st.progress(min(nb_fait / nb_total, 1.0), text=f"Avancement : {nb_fait}/{nb_total} modules terminés")
-
-                for code_mod, data in CONFIG_ACTIVE.items():
-                    if code_mod in modules_valides_db: icon = "✅"
-                    elif code_mod in progression_patient: icon = "🟦"
-                    else: icon = "🔒"
-                    
-                    should_be_expanded = (code_mod == st.session_state.last_active_module)
-                    
-                    col_mod, col_btn = st.columns([0.85, 0.15])
-                    with col_mod:
-                        with st.expander(f"{icon} {data['titre']}", expanded=should_be_expanded):
-                            t_act, t_doc = st.tabs(["⚡ Séance", "📂 Docs"])
-                            with t_act:
-                                with st.form(key=f"form_{patient_sel}_{code_mod}"):
-                                    check_list = []
-                                    if data.get('examen_devoirs'):
-                                        st.caption("Examen tâches")
-                                        for idx, d in enumerate(data['examen_devoirs']):
-                                            check_list.append(st.checkbox(d['titre'], key=f"ex_{patient_sel}_{code_mod}_{idx}"))
-                                    st.caption("Étapes Séance")
-                                    if data.get('etapes_seance'):
-                                        for idx_e, etape in enumerate(data['etapes_seance']):
-                                            check_list.append(st.checkbox(etape['titre'], key=f"st_{patient_sel}_{code_mod}_{idx_e}", help=etape.get('details')))
+                col_mod, col_btn = st.columns([0.85, 0.15])
+                with col_mod:
+                    with st.expander(f"{icon} {data['titre']}", expanded=should_be_expanded):
+                        t_act, t_doc = st.tabs(["⚡ Séance", "📂 Docs"])
+                        with t_act:
+                            with st.form(key=f"form_{patient_sel}_{code_mod}"):
+                                check_list = []
+                                if data['examen_devoirs']:
+                                    st.caption("Examen tâches")
+                                    for idx, d in enumerate(data['examen_devoirs']):
+                                        check_list.append(st.checkbox(d['titre'], key=f"ex_{patient_sel}_{code_mod}_{idx}"))
+                                st.caption("Étapes Séance")
+                                for idx_e, etape in enumerate(data['etapes_seance']):
+                                    check_list.append(st.checkbox(etape['titre'], key=f"st_{patient_sel}_{code_mod}_{idx_e}", help=etape.get('details')))
+                                dev_temp = []
+                                if data['taches_domicile']:
+                                    st.caption("Assignation Devoirs")
+                                    excl = devoirs_exclus_memoire.get(code_mod, [])
+                                    for j, dev in enumerate(data['taches_domicile']):
+                                        dev_temp.append(st.checkbox(dev['titre'], value=(j not in excl), key=f"dv_{patient_sel}_{code_mod}_{j}"))
+                                note = st.text_area("Note", value=notes_seance_db.get(code_mod, ""), height=80)
+                                
+                                if st.form_submit_button("💾 Enregistrer"):
+                                    notes_seance_db[code_mod] = note
+                                    st.session_state[cache_key]["notes"] = notes_seance_db
                                     
-                                    dev_temp = []
                                     if data['taches_domicile']:
-                                        st.caption("Assignation Devoirs")
-                                        excl = devoirs_exclus_memoire.get(code_mod, [])
-                                        for j, dev in enumerate(data['taches_domicile']):
-                                            dev_temp.append(st.checkbox(dev['titre'], value=(j not in excl), key=f"dv_{patient_sel}_{code_mod}_{j}"))
-                                    note = st.text_area("Note", value=notes_seance_db.get(code_mod, ""), height=80)
+                                        new_excl = [k for k, c in enumerate(dev_temp) if not c]
+                                        devoirs_exclus_memoire[code_mod] = new_excl
+                                        st.session_state[cache_key]["devoirs"] = devoirs_exclus_memoire
+                                        sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
+
+                                    if code_mod not in progression_patient:
+                                        progression_patient.append(code_mod)
+                                        sauvegarder_progression(patient_sel, progression_patient)
+                                        st.session_state[cache_key]["progression"] = progression_patient
+
+                                    all_ok = all(check_list) if check_list else True
+                                    if all_ok: 
+                                        if code_mod not in modules_valides_db: modules_valides_db.append(code_mod)
+                                    else:
+                                        if code_mod in modules_valides_db: modules_valides_db.remove(code_mod)
                                     
-                                    if st.form_submit_button("💾 Enregistrer"):
-                                        notes_seance_db[code_mod] = note
-                                        st.session_state[cache_key]["notes"] = notes_seance_db
-                                        
-                                        if data['taches_domicile']:
-                                            new_excl = [k for k, c in enumerate(dev_temp) if not c]
-                                            devoirs_exclus_memoire[code_mod] = new_excl
-                                            st.session_state[cache_key]["devoirs"] = devoirs_exclus_memoire
-                                            sauvegarder_etat_devoirs(patient_sel, devoirs_exclus_memoire)
+                                    st.session_state[cache_key]["valides"] = modules_valides_db
+                                    sauvegarder_suivi_global(patient_sel, modules_valides_db, notes_seance_db)
+                                    st.session_state.last_active_module = code_mod
+                                    st.success("Sauvegardé")
+                                    time.sleep(0.2)
+                                    st.rerun()
 
-                                        if code_mod not in progression_patient:
-                                            progression_patient.append(code_mod)
-                                            sauvegarder_progression(patient_sel, progression_patient)
-                                            st.session_state[cache_key]["progression"] = progression_patient
+                        with t_doc:
+                             if data.get('pdfs_module'):
+                                for p in data['pdfs_module']:
+                                    if os.path.exists(p):
+                                        with open(p, "rb") as f:
+                                            st.download_button(f"📥 {os.path.basename(p)}", f, file_name=os.path.basename(p))
 
-                                        all_ok = all(check_list) if check_list else True
-                                        if all_ok: 
-                                            if code_mod not in modules_valides_db: modules_valides_db.append(code_mod)
-                                        else:
-                                            if code_mod in modules_valides_db: modules_valides_db.remove(code_mod)
-                                        
-                                        st.session_state[cache_key]["valides"] = modules_valides_db
-                                        sauvegarder_suivi_global(patient_sel, modules_valides_db, notes_seance_db)
-                                        st.session_state.last_active_module = code_mod
-                                        st.success("Sauvegardé")
-                                        time.sleep(0.2)
-                                        st.rerun()
-
-                            with t_doc:
-                                if data.get('pdfs_module'):
-                                    for p in data['pdfs_module']:
-                                        if os.path.exists(p):
-                                            with open(p, "rb") as f:
-                                                st.download_button(f"📥 {os.path.basename(p)}", f, file_name=os.path.basename(p))
-
-                    with col_btn:
-                        if code_mod in progression_patient:
-                            if st.button("🔓", key=f"lk_{patient_sel}_{code_mod}", help="Bloquer"):
-                                progression_patient.remove(code_mod)
-                                sauvegarder_progression(patient_sel, progression_patient)
-                                st.session_state[cache_key]["progression"] = progression_patient
-                                st.rerun()
-                        else:
-                            if st.button("🔒", key=f"ulk_{patient_sel}_{code_mod}", type="primary", help="Débloquer"):
-                                progression_patient.append(code_mod)
-                                sauvegarder_progression(patient_sel, progression_patient)
-                                st.session_state[cache_key]["progression"] = progression_patient
-                                st.rerun()
+                with col_btn:
+                    if code_mod in progression_patient:
+                        if st.button("🔓", key=f"lk_{patient_sel}_{code_mod}", help="Bloquer"):
+                            progression_patient.remove(code_mod)
+                            sauvegarder_progression(patient_sel, progression_patient)
+                            st.session_state[cache_key]["progression"] = progression_patient
+                            st.rerun()
+                    else:
+                        if st.button("🔒", key=f"ulk_{patient_sel}_{code_mod}", type="primary", help="Débloquer"):
+                            progression_patient.append(code_mod)
+                            sauvegarder_progression(patient_sel, progression_patient)
+                            st.session_state[cache_key]["progression"] = progression_patient
+                            st.rerun()
 
     # =================================================
     # ONGLET 4 : GESTION EXERCICES
@@ -594,6 +526,79 @@ elif st.session_state.user_type == "therapeute":
                         st.success("Alertes mises à jour pour le patient !")
                         time.sleep(0.5)
                         st.rerun()
+
+            st.divider()
+            st.subheader("🎯 Assigner un exercice spécifique du Protocole")
+            st.caption("Sélectionnez un exercice précis (ex: 'Respiration diaphragmatique').")
+
+            # 1. On charge la progression pour la vérification
+            progression_patient = charger_progression(patient_sel)
+
+            # 2. On construit la liste de tous les exercices disponibles dans le code
+            # Format de la liste : dictionnaire pour retrouver les infos
+            liste_options_proto = []
+            map_proto = {} # Pour retrouver les infos quand on sélectionne
+
+            for code_mod, data in PROTOCOLE_BARLOW.items():
+                if "exercices" in data and data["exercices"]:
+                    for i, exo in enumerate(data["exercices"]):
+                        # On crée un identifiant unique pour la sauvegarde
+                        id_technique = f"PROTO_{code_mod}_{i}" 
+                        label = f"{exo['titre']} ({data['titre']})"
+                        
+                        liste_options_proto.append(label)
+                        map_proto[label] = {
+                            "id": id_technique,
+                            "mod_code": code_mod,
+                            "titre_mod": data['titre']
+                        }
+
+            # 3. L'interface d'assignation
+            col_sel, col_btn = st.columns([3, 1])
+            
+            with col_sel:
+                choix_exo = st.selectbox("Choisir l'exercice :", ["Selectionner..."] + liste_options_proto, label_visibility="collapsed")
+            
+            with col_btn:
+                if st.button("➕ Assigner", type="primary"):
+                    if choix_exo != "Selectionner...":
+                        info = map_proto[choix_exo]
+                        
+                        # --- VERIFICATION DE SECURITÉ ---
+                        if info["mod_code"] in progression_patient:
+                            # 1. On récupère la liste actuelle
+                            taches_now = charger_taches_assignees(patient_sel)
+                            # 2. On ajoute si pas déjà présent
+                            if info["id"] not in taches_now:
+                                taches_now.append(info["id"])
+                                sauvegarder_taches_assignees(patient_sel, taches_now)
+                                st.success(f"Exercice '{choix_exo}' ajouté aux alertes !")
+                                time.sleep(1)
+                                st.rerun()
+                            else:
+                                st.warning("Cet exercice est déjà dans les alertes.")
+                        else:
+                            # ALERTE SI BLOQUÉ
+                            st.error(f"🚫 Impossible ! Le module '{info['titre_mod']}' est encore verrouillé pour ce patient.")
+                            st.caption("Débloquez d'abord le module dans l'onglet 'Protocole'.")
+                    else:
+                        st.warning("Choisissez un exercice.")
+            
+            # Petit affichage des tâches protocolaires actuelles pour info
+            taches_actuelles = charger_taches_assignees(patient_sel)
+            taches_proto = [t for t in taches_actuelles if t.startswith("PROTO_")]
+            if taches_proto:
+                st.caption("Exercices protocolaires en cours :")
+                for t in taches_proto:
+                    # On essaie de retrouver le nom lisible
+                    parts = t.split("_") # PROTO, module, index
+                    if len(parts) == 3:
+                        try:
+                            mod = parts[1]
+                            idx = int(parts[2])
+                            nom = PROTOCOLE_BARLOW[mod]["exercices"][idx]["titre"]
+                            st.text(f"- {nom}")
+                        except: st.text(f"- {t}")
 
     # =================================================
     # ONGLET 5 : VISUALISATION
