@@ -236,326 +236,326 @@ def afficher_vue_patient(patient_id):
                 "📜 Historique"
             ])
 
-        # -------------------------------------------------
-        # A. SOUS-ONGLET : PROGRESSION
-        # -------------------------------------------------
-        with sub_tab_prog:
-            st.markdown("### 📍 Ma progression")
-            if "last_active_module" not in st.session_state: 
-                st.session_state.last_active_module = None
+            # -------------------------------------------------
+            # A. SOUS-ONGLET : PROGRESSION
+            # -------------------------------------------------
+            with sub_tab_prog:
+                st.markdown("### 📍 Ma progression")
+                if "last_active_module" not in st.session_state: 
+                    st.session_state.last_active_module = None
 
-            for code_mod, data in CONFIG_ACTIVE.items():
-                if code_mod in progression:
-                    icon_valid = "✅" if code_mod in valides else ""
-                    is_expanded = (code_mod == st.session_state.last_active_module)
+                for code_mod, data in CONFIG_ACTIVE.items():
+                    if code_mod in progression:
+                        icon_valid = "✅" if code_mod in valides else ""
+                        is_expanded = (code_mod == st.session_state.last_active_module)
+                        
+                        with st.expander(f"{icon_valid} {data['titre']}", expanded=is_expanded):
+                            t_seance, t_doc = st.tabs(["📖 Résumé Séance", "📂 Documents"])
+                            
+                            with t_seance:
+                                st.info(f"**Objectifs :** {data['objectifs']}")
+                                col_step, col_home = st.columns(2)
+                                
+                                with col_step:
+                                    st.markdown("#### 📝 Ce que nous avons vu")
+                                    if data['etapes_seance']:
+                                        for etape in data['etapes_seance']:
+                                            st.markdown(f"- **{etape['titre']}**")
+                                            if etape.get('details'): st.caption(f"_{etape.get('details')}_")
+                                    else: st.caption("Pas d'étapes listées.")
+                                
+                                with col_home:
+                                    st.markdown("#### 🏠 Travail à la maison")
+                                    exclus = devoirs.get(code_mod, [])
+                                    a_faire = False
+                                    if data['taches_domicile']:
+                                        for j, dev in enumerate(data['taches_domicile']):
+                                            if j not in exclus:
+                                                a_faire = True
+                                                st.markdown(f"👉 **{dev['titre']}**")
+                                                if dev.get('pdf') and os.path.exists(dev['pdf']):
+                                                    with open(dev['pdf'], "rb") as f:
+                                                        st.download_button("📥 Support", f, file_name=os.path.basename(dev['pdf']), key=f"d_home_{code_mod}_{j}")
+                                    
+                                    if not a_faire: st.success("🎉 Rien de spécial.")
+                                    else:
+                                        st.write("")
+                                        with st.expander("📸 Envoyer une photo"):
+                                            st.camera_input("Photo", key=f"cam_{code_mod}")
+
+                            with t_doc:
+                                st.write("Tous les fichiers du module :")
+                                if data.get('pdfs_module'):
+                                    for p in data['pdfs_module']:
+                                        if os.path.exists(p):
+                                            with open(p, "rb") as f:
+                                                st.download_button(f"📥 {os.path.basename(p)}", f, file_name=os.path.basename(p), key=f"da_{code_mod}_{os.path.basename(p)}")
+                                else: st.caption("Aucun document.")
+                    else:
+                        with st.container():
+                            st.markdown(f"🔒 **{data['titre']}** _(Verrouillé)_")
+                            st.divider()
+
+            # -------------------------------------------------
+            # B. SOUS-ONGLET : LANCEUR RAPIDE (Table des matières active)
+            # -------------------------------------------------
+            with sub_tab_outils:
+                st.subheader("🚀 Accès aux outexercices")
+                st.caption("Voici tous les exercices du protocole. Ils se déverrouillent au fur et à mesure.")
+                st.write("")
+
+                # On utilise une grille de 3 colonnes pour faire propre
+                cols = st.columns(3)
+                idx_card = 0
+                exos_trouves = False
+
+                # On parcourt TOUS les modules (sans filtrer par progression au début)
+                for code_mod, data in CONFIG_ACTIVE.items():
                     
-                    with st.expander(f"{icon_valid} {data['titre']}", expanded=is_expanded):
-                        t_seance, t_doc = st.tabs(["📖 Résumé Séance", "📂 Documents"])
+                    # S'il y a des exercices dans ce module
+                    if "exercices" in data and data["exercices"]:
                         
-                        with t_seance:
-                            st.info(f"**Objectifs :** {data['objectifs']}")
-                            col_step, col_home = st.columns(2)
+                        # C'est ICI qu'on vérifie si c'est débloqué
+                        est_debloque = (code_mod in progression)
+
+                        for i, exo in enumerate(data["exercices"]):
+                            exos_trouves = True
                             
-                            with col_step:
-                                st.markdown("#### 📝 Ce que nous avons vu")
-                                if data['etapes_seance']:
-                                    for etape in data['etapes_seance']:
-                                        st.markdown(f"- **{etape['titre']}**")
-                                        if etape.get('details'): st.caption(f"_{etape.get('details')}_")
-                                else: st.caption("Pas d'étapes listées.")
+                            # Affichage dans la grille
+                            with cols[idx_card % 3]:
+                                
+                                # Style visuel : on encadre
+                                with st.container(border=True):
+                                    
+                                    # En-tête : Titre + Petit cadenas
+                                    c_titre, c_lock = st.columns([6, 1])
+                                    with c_titre:
+                                        # Titre de l'exercice
+                                        style_titre = f"**{exo['titre']}**" if est_debloque else f"**🔒 {exo['titre']}**"
+                                        st.markdown(style_titre)
+                                    with c_lock:
+                                        if not est_debloque: st.write("🔒")
+
+                                    # Sous-titre : Nom du module
+                                    st.caption(f"📍 {data['titre']}")
+                                    st.write("") # Espace
+
+                                    # Bouton d'action
+                                    key_btn = f"btn_fast_launch_{code_mod}_{i}"
+                                    
+                                    if est_debloque:
+                                        # CAS 1 : Ouvert -> Bouton vert/actif
+                                        if st.button("👉 Ouvrir", key=key_btn, use_container_width=True, type="secondary"):
+                                            st.session_state["exercice_actif"] = {"mod_code": code_mod, "exo_data": exo}
+                                            st.switch_page("pages/21_Barlow_Exercice.py")
+                                    else:
+                                        # CAS 2 : Fermé -> Bouton gris
+                                        st.button("Verrouillé", key=key_btn, disabled=True, use_container_width=True)
                             
-                            with col_home:
-                                st.markdown("#### 🏠 Travail à la maison")
-                                exclus = devoirs.get(code_mod, [])
-                                a_faire = False
-                                if data['taches_domicile']:
-                                    for j, dev in enumerate(data['taches_domicile']):
-                                        if j not in exclus:
-                                            a_faire = True
-                                            st.markdown(f"👉 **{dev['titre']}**")
-                                            if dev.get('pdf') and os.path.exists(dev['pdf']):
-                                                with open(dev['pdf'], "rb") as f:
-                                                    st.download_button("📥 Support", f, file_name=os.path.basename(dev['pdf']), key=f"d_home_{code_mod}_{j}")
-                                
-                                if not a_faire: st.success("🎉 Rien de spécial.")
-                                else:
-                                    st.write("")
-                                    with st.expander("📸 Envoyer une photo"):
-                                        st.camera_input("Photo", key=f"cam_{code_mod}")
+                            idx_card += 1
 
-                        with t_doc:
-                            st.write("Tous les fichiers du module :")
-                            if data.get('pdfs_module'):
-                                for p in data['pdfs_module']:
-                                    if os.path.exists(p):
-                                        with open(p, "rb") as f:
-                                            st.download_button(f"📥 {os.path.basename(p)}", f, file_name=os.path.basename(p), key=f"da_{code_mod}_{os.path.basename(p)}")
-                            else: st.caption("Aucun document.")
-                else:
-                    with st.container():
-                        st.markdown(f"🔒 **{data['titre']}** _(Verrouillé)_")
-                        st.divider()
+                if not exos_trouves:
+                    st.info("Aucun exercice n'est configuré dans le protocole.")
 
-        # -------------------------------------------------
-        # B. SOUS-ONGLET : LANCEUR RAPIDE (Table des matières active)
-        # -------------------------------------------------
-        with sub_tab_outils:
-            st.subheader("🚀 Accès aux outexercices")
-            st.caption("Voici tous les exercices du protocole. Ils se déverrouillent au fur et à mesure.")
-            st.write("")
-
-            # On utilise une grille de 3 colonnes pour faire propre
-            cols = st.columns(3)
-            idx_card = 0
-            exos_trouves = False
-
-            # On parcourt TOUS les modules (sans filtrer par progression au début)
-            for code_mod, data in CONFIG_ACTIVE.items():
+            # -------------------------------------------------
+            # C. SOUS-ONGLET : BILAN HEBDO
+            # -------------------------------------------------
+            with sub_tab_bilan:
+                st.subheader("Bilan Hebdomadaire")
                 
-                # S'il y a des exercices dans ce module
-                if "exercices" in data and data["exercices"]:
-                    
-                    # C'est ICI qu'on vérifie si c'est débloqué
-                    est_debloque = (code_mod in progression)
-
-                    for i, exo in enumerate(data["exercices"]):
-                        exos_trouves = True
-                        
-                        # Affichage dans la grille
-                        with cols[idx_card % 3]:
-                            
-                            # Style visuel : on encadre
-                            with st.container(border=True):
-                                
-                                # En-tête : Titre + Petit cadenas
-                                c_titre, c_lock = st.columns([6, 1])
-                                with c_titre:
-                                    # Titre de l'exercice
-                                    style_titre = f"**{exo['titre']}**" if est_debloque else f"**🔒 {exo['titre']}**"
-                                    st.markdown(style_titre)
-                                with c_lock:
-                                    if not est_debloque: st.write("🔒")
-
-                                # Sous-titre : Nom du module
-                                st.caption(f"📍 {data['titre']}")
-                                st.write("") # Espace
-
-                                # Bouton d'action
-                                key_btn = f"btn_fast_launch_{code_mod}_{i}"
-                                
-                                if est_debloque:
-                                    # CAS 1 : Ouvert -> Bouton vert/actif
-                                    if st.button("👉 Ouvrir", key=key_btn, use_container_width=True, type="secondary"):
-                                        st.session_state["exercice_actif"] = {"mod_code": code_mod, "exo_data": exo}
-                                        st.switch_page("pages/21_Barlow_Exercice.py")
-                                else:
-                                    # CAS 2 : Fermé -> Bouton gris
-                                    st.button("Verrouillé", key=key_btn, disabled=True, use_container_width=True)
-                        
-                        idx_card += 1
-
-            if not exos_trouves:
-                st.info("Aucun exercice n'est configuré dans le protocole.")
-
-        # -------------------------------------------------
-        # C. SOUS-ONGLET : BILAN HEBDO
-        # -------------------------------------------------
-        with sub_tab_bilan:
-            st.subheader("Bilan Hebdomadaire")
-            
-            # Ajout d'une clé (key) pour stabiliser le selectbox
-            choix_q = st.selectbox("Questionnaire :", list(QUESTIONS_ACTIVE.keys()), key="sb_bilan_hebdo")
-            
-            if choix_q:
-                cfg = QUESTIONS_ACTIVE[choix_q]
-                with st.container(border=True):
-                    st.markdown(f"**{cfg['titre']}**")
-                    st.caption(cfg['description'])
-                    with st.form(f"form_bilan_{choix_q}"):
-                        rep = {}
-                        score = 0
-                        if cfg.get("ask_emotion"): rep["Emotion"] = st.text_input("Emotion :")
-                        
-                        if cfg['type'] == "scale_0_8":
-                            for q in cfg['questions']:
-                                val = st.slider(q, 0, 8, 0)
-                                rep[q] = val
-                                score += val
-                        elif cfg['type'] == "qcm_oasis":
-                             for item in cfg['questions']:
-                                lbl = item['label']
-                                res = st.radio(lbl, item['options'])
-                                try: score += int(res.split("=")[0])
-                                except: pass
-                                rep[lbl] = res
-
-                        if st.form_submit_button("Enregistrer"):
-                            lbl = choix_q
-                            if "Emotion" in rep: lbl += f" ({rep['Emotion']})"
-                            sauvegarder_reponse_hebdo(patient_id, lbl, str(score), rep)
-                            st.success("Sauvegardé !")
-                            charger_historique_local.clear()
-                            time.sleep(1)
-                            st.rerun()
-
-        # -------------------------------------------------
-        # D. SOUS-ONGLET : HISTORIQUE (Basé sur la configuration stricte)
-        # -------------------------------------------------
-        with sub_tab_histo:
-            st.subheader("📜 Historique de vos suivis")
-            
-            if df_history.empty:
-                st.info("📭 Aucun historique pour le moment. Commencez par remplir un bilan !")
-            else:
-                # =========================================================
-                # PARTIE 1 : VISUALISATIONS GRAPHIQUES (4 ÉCHELLES)
-                # =========================================================
+                # Ajout d'une clé (key) pour stabiliser le selectbox
+                choix_q = st.selectbox("Questionnaire :", list(QUESTIONS_ACTIVE.keys()), key="sb_bilan_hebdo")
                 
-                # 1. On prépare les données proprement
-                # On exclut les exercices (qui ne sont pas des bilans hebdo)
-                df_clean = df_history[~df_history["Questionnaire"].str.contains("Exercice", case=False, na=False)].copy()
-                
-                # 2. Fonction pour catégoriser selon VOTRE configuration
-                def trouver_categorie(nom_questionnaire):
-                    nom = str(nom_questionnaire)
-                    if "Anxiété" in nom: return "Anxiété"
-                    if "Dépression" in nom: return "Dépression"
-                    if "Positives" in nom: return "Émotions Positives"
-                    if "Autres" in nom: return "Autres Émotions Négatives"
-                    return None # Cas non géré (ex: ancien test)
-
-                df_clean["Categorie"] = df_clean["Questionnaire"].apply(trouver_categorie)
-                
-                # On ne garde que les lignes qui correspondent à l'une des 4 catégories
-                df_graph = df_clean.dropna(subset=["Categorie"]).copy()
-                
-                # S'assurer que le Score est bien numérique
-                df_graph["Score_Global"] = pd.to_numeric(df_graph["Score_Global"], errors='coerce')
-
-                # 3. Affichage du Graphique interactif
-                if not df_graph.empty:
+                if choix_q:
+                    cfg = QUESTIONS_ACTIVE[choix_q]
                     with st.container(border=True):
-                        st.markdown("##### 📈 Courbes d'évolution")
-                        
-                        # --- A. FILTRES ---
-                        c_per, c_cat = st.columns([1, 2])
-                        with c_per:
-                            choix_periode = st.selectbox("Période :", ["Tout", "30 derniers jours", "3 derniers mois"], key="hist_per_fix")
-                        with c_cat:
-                            # On liste les catégories disponibles dans les données du patient
-                            cats_dispo = df_graph["Categorie"].unique().tolist()
-                            # On met un ordre logique si possible
-                            ordre_prefere = ["Anxiété", "Dépression", "Autres Émotions Négatives", "Émotions Positives"]
-                            cats_triees = [c for c in ordre_prefere if c in cats_dispo]
+                        st.markdown(f"**{cfg['titre']}**")
+                        st.caption(cfg['description'])
+                        with st.form(f"form_bilan_{choix_q}"):
+                            rep = {}
+                            score = 0
+                            if cfg.get("ask_emotion"): rep["Emotion"] = st.text_input("Emotion :")
                             
-                            if cats_triees:
-                                choix_cat = st.selectbox("Échelle à visualiser :", cats_triees, key="hist_cat_fix")
-                            else:
-                                choix_cat = None
+                            if cfg['type'] == "scale_0_8":
+                                for q in cfg['questions']:
+                                    val = st.slider(q, 0, 8, 0)
+                                    rep[q] = val
+                                    score += val
+                            elif cfg['type'] == "qcm_oasis":
+                                for item in cfg['questions']:
+                                    lbl = item['label']
+                                    res = st.radio(lbl, item['options'])
+                                    try: score += int(res.split("=")[0])
+                                    except: pass
+                                    rep[lbl] = res
 
-                        if choix_cat:
-                            # --- B. FILTRAGE DES DONNÉES ---
-                            df_final = df_graph[df_graph["Categorie"] == choix_cat].copy()
-                            
-                            # Filtre Date
-                            if choix_periode == "30 derniers jours":
-                                cutoff = datetime.now() - pd.Timedelta(days=30)
-                                df_final = df_final[df_final["Date"] >= cutoff]
-                            elif choix_periode == "3 derniers mois":
-                                cutoff = datetime.now() - pd.Timedelta(days=90)
-                                df_final = df_final[df_final["Date"] >= cutoff]
-
-                            # --- C. GRAPHIQUE ---
-                            if not df_final.empty:
-                                st.divider()
-                                
-                                # Création du graphique Altair
-                                # Axe Y : Score Global (Somme des items du questionnaire)
-                                chart = alt.Chart(df_final).mark_line(point=True, strokeWidth=3).encode(
-                                    x=alt.X('Date', axis=alt.Axis(format='%d/%m', title='Date')),
-                                    y=alt.Y('Score_Global', title='Score Total'),
-                                    # La couleur change selon l'émotion précise (utile pour "Autres" qui peut varier ex: Colère, Honte...)
-                                    color=alt.Color('Questionnaire', legend=None), 
-                                    tooltip=[
-                                        alt.Tooltip('Date', format='%d/%m/%Y', title='Date'),
-                                        alt.Tooltip('Questionnaire', title='Mesure'),
-                                        alt.Tooltip('Score_Global', title='Score Total')
-                                    ]
-                                ).properties(height=300).interactive()
-                                
-                                st.altair_chart(chart, use_container_width=True)
-                            else:
-                                st.warning("Pas de données sur cette période.")
-                        else:
-                            st.warning("Aucune donnée d'échelle trouvée.")
-                else:
-                    st.info("Remplissez votre premier Bilan Hebdo pour voir apparaître vos courbes ici.")
-
-                st.divider()
-
-                # =========================================================
-                # PARTIE 2 : ENTRÉES DÉTAILLÉES (Code préservé à l'identique)
-                # =========================================================
-                st.write("##### 🗓️ Entrées détaillées")
-
-                # On trie pour avoir le plus récent en haut
-                for idx, row in df_history.sort_values("Date", ascending=False).iterrows():
-                    
-                    # Parsing sécurisé du JSON
-                    try:
-                        if isinstance(row["Details_Json"], dict): details = row["Details_Json"]
-                        else: details = json.loads(row["Details_Json"])
-                    except:
-                        details = {"Données brutes": row["Details_Json"]}
-                    
-                    # Préparation des variables d'affichage
-                    date_str = row['Date'].strftime("📅 %d/%m/%Y à %H:%M")
-                    titre_card = f"{row['Questionnaire']}"
-                    score = row.get("Score_Global", None)
-                    
-                    # --- DÉBUT DE LA CARTE ---
-                    with st.container(border=True):
-                        # En-tête de la carte : Titre + Bouton Supprimer
-                        c_head_txt, c_head_del = st.columns([6, 1])
-                        with c_head_txt:
-                            st.markdown(f"**{titre_card}**")
-                            st.caption(date_str)
-                        with c_head_del:
-                            if st.button("🗑️", key=f"del_{idx}", help="Supprimer cette entrée"):
-                                supprimer_reponse(patient_id, row["Date"], row["Questionnaire"])
+                            if st.form_submit_button("Enregistrer"):
+                                lbl = choix_q
+                                if "Emotion" in rep: lbl += f" ({rep['Emotion']})"
+                                sauvegarder_reponse_hebdo(patient_id, lbl, str(score), rep)
+                                st.success("Sauvegardé !")
                                 charger_historique_local.clear()
+                                time.sleep(1)
                                 st.rerun()
 
-                        # Corps de la carte
-                        c_score, c_details = st.columns([1, 3])
-                        
-                        # Colonne gauche : Le Score (si applicable)
-                        with c_score:
-                            if pd.notna(score) and score != 0:
-                                st.metric("Score", f"{int(score)}")
-                            
-                            # Si on trouve une "Emotion" dans les détails, on l'affiche ici en gros
-                            if "Emotion" in details and details["Emotion"]:
-                                st.markdown(f"**Ressenti :**")
-                                st.pills("Emotion", [details["Emotion"]], selection_mode="single", default=[details["Emotion"]], disabled=True, key=f"pill_{idx}")
-                                # On retire l'émotion de la liste des détails pour ne pas faire doublon
-                                details = {k: v for k, v in details.items() if k != "Emotion"}
+            # -------------------------------------------------
+            # D. SOUS-ONGLET : HISTORIQUE (Basé sur la configuration stricte)
+            # -------------------------------------------------
+            with sub_tab_histo:
+                st.subheader("📜 Historique de vos suivis")
+                
+                if df_history.empty:
+                    st.info("📭 Aucun historique pour le moment. Commencez par remplir un bilan !")
+                else:
+                    # =========================================================
+                    # PARTIE 1 : VISUALISATIONS GRAPHIQUES (4 ÉCHELLES)
+                    # =========================================================
+                    
+                    # 1. On prépare les données proprement
+                    # On exclut les exercices (qui ne sont pas des bilans hebdo)
+                    df_clean = df_history[~df_history["Questionnaire"].str.contains("Exercice", case=False, na=False)].copy()
+                    
+                    # 2. Fonction pour catégoriser selon VOTRE configuration
+                    def trouver_categorie(nom_questionnaire):
+                        nom = str(nom_questionnaire)
+                        if "Anxiété" in nom: return "Anxiété"
+                        if "Dépression" in nom: return "Dépression"
+                        if "Positives" in nom: return "Émotions Positives"
+                        if "Autres" in nom: return "Autres Émotions Négatives"
+                        return None # Cas non géré (ex: ancien test)
 
-                        # Colonne droite : Les réponses détaillées
-                        with c_details:
-                            with st.expander("Voir les réponses détaillées"):
-                                for q, r in details.items():
-                                    # Nettoyage visuel de la question (enlève les underscores si besoin)
-                                    q_clean = q.replace("_", " ").strip()
+                    df_clean["Categorie"] = df_clean["Questionnaire"].apply(trouver_categorie)
+                    
+                    # On ne garde que les lignes qui correspondent à l'une des 4 catégories
+                    df_graph = df_clean.dropna(subset=["Categorie"]).copy()
+                    
+                    # S'assurer que le Score est bien numérique
+                    df_graph["Score_Global"] = pd.to_numeric(df_graph["Score_Global"], errors='coerce')
+
+                    # 3. Affichage du Graphique interactif
+                    if not df_graph.empty:
+                        with st.container(border=True):
+                            st.markdown("##### 📈 Courbes d'évolution")
+                            
+                            # --- A. FILTRES ---
+                            c_per, c_cat = st.columns([1, 2])
+                            with c_per:
+                                choix_periode = st.selectbox("Période :", ["Tout", "30 derniers jours", "3 derniers mois"], key="hist_per_fix")
+                            with c_cat:
+                                # On liste les catégories disponibles dans les données du patient
+                                cats_dispo = df_graph["Categorie"].unique().tolist()
+                                # On met un ordre logique si possible
+                                ordre_prefere = ["Anxiété", "Dépression", "Autres Émotions Négatives", "Émotions Positives"]
+                                cats_triees = [c for c in ordre_prefere if c in cats_dispo]
+                                
+                                if cats_triees:
+                                    choix_cat = st.selectbox("Échelle à visualiser :", cats_triees, key="hist_cat_fix")
+                                else:
+                                    choix_cat = None
+
+                            if choix_cat:
+                                # --- B. FILTRAGE DES DONNÉES ---
+                                df_final = df_graph[df_graph["Categorie"] == choix_cat].copy()
+                                
+                                # Filtre Date
+                                if choix_periode == "30 derniers jours":
+                                    cutoff = datetime.now() - pd.Timedelta(days=30)
+                                    df_final = df_final[df_final["Date"] >= cutoff]
+                                elif choix_periode == "3 derniers mois":
+                                    cutoff = datetime.now() - pd.Timedelta(days=90)
+                                    df_final = df_final[df_final["Date"] >= cutoff]
+
+                                # --- C. GRAPHIQUE ---
+                                if not df_final.empty:
+                                    st.divider()
                                     
-                                    # Affichage Question / Réponse propre
-                                    # Si la réponse est longue, on la met en dessous, sinon à côté
-                                    if isinstance(r, str) and len(r) > 50:
-                                        st.markdown(f"**{q_clean}**")
-                                        st.info(r)
-                                    else:
-                                        # Petite ligne avec point puce
-                                        st.markdown(f"• **{q_clean}** : {r}")
+                                    # Création du graphique Altair
+                                    # Axe Y : Score Global (Somme des items du questionnaire)
+                                    chart = alt.Chart(df_final).mark_line(point=True, strokeWidth=3).encode(
+                                        x=alt.X('Date', axis=alt.Axis(format='%d/%m', title='Date')),
+                                        y=alt.Y('Score_Global', title='Score Total'),
+                                        # La couleur change selon l'émotion précise (utile pour "Autres" qui peut varier ex: Colère, Honte...)
+                                        color=alt.Color('Questionnaire', legend=None), 
+                                        tooltip=[
+                                            alt.Tooltip('Date', format='%d/%m/%Y', title='Date'),
+                                            alt.Tooltip('Questionnaire', title='Mesure'),
+                                            alt.Tooltip('Score_Global', title='Score Total')
+                                        ]
+                                    ).properties(height=300).interactive()
+                                    
+                                    st.altair_chart(chart, use_container_width=True)
+                                else:
+                                    st.warning("Pas de données sur cette période.")
+                            else:
+                                st.warning("Aucune donnée d'échelle trouvée.")
+                    else:
+                        st.info("Remplissez votre premier Bilan Hebdo pour voir apparaître vos courbes ici.")
+
+                    st.divider()
+
+                    # =========================================================
+                    # PARTIE 2 : ENTRÉES DÉTAILLÉES (Code préservé à l'identique)
+                    # =========================================================
+                    st.write("##### 🗓️ Entrées détaillées")
+
+                    # On trie pour avoir le plus récent en haut
+                    for idx, row in df_history.sort_values("Date", ascending=False).iterrows():
+                        
+                        # Parsing sécurisé du JSON
+                        try:
+                            if isinstance(row["Details_Json"], dict): details = row["Details_Json"]
+                            else: details = json.loads(row["Details_Json"])
+                        except:
+                            details = {"Données brutes": row["Details_Json"]}
+                        
+                        # Préparation des variables d'affichage
+                        date_str = row['Date'].strftime("📅 %d/%m/%Y à %H:%M")
+                        titre_card = f"{row['Questionnaire']}"
+                        score = row.get("Score_Global", None)
+                        
+                        # --- DÉBUT DE LA CARTE ---
+                        with st.container(border=True):
+                            # En-tête de la carte : Titre + Bouton Supprimer
+                            c_head_txt, c_head_del = st.columns([6, 1])
+                            with c_head_txt:
+                                st.markdown(f"**{titre_card}**")
+                                st.caption(date_str)
+                            with c_head_del:
+                                if st.button("🗑️", key=f"del_{idx}", help="Supprimer cette entrée"):
+                                    supprimer_reponse(patient_id, row["Date"], row["Questionnaire"])
+                                    charger_historique_local.clear()
+                                    st.rerun()
+
+                            # Corps de la carte
+                            c_score, c_details = st.columns([1, 3])
+                            
+                            # Colonne gauche : Le Score (si applicable)
+                            with c_score:
+                                if pd.notna(score) and score != 0:
+                                    st.metric("Score", f"{int(score)}")
+                                
+                                # Si on trouve une "Emotion" dans les détails, on l'affiche ici en gros
+                                if "Emotion" in details and details["Emotion"]:
+                                    st.markdown(f"**Ressenti :**")
+                                    st.pills("Emotion", [details["Emotion"]], selection_mode="single", default=[details["Emotion"]], disabled=True, key=f"pill_{idx}")
+                                    # On retire l'émotion de la liste des détails pour ne pas faire doublon
+                                    details = {k: v for k, v in details.items() if k != "Emotion"}
+
+                            # Colonne droite : Les réponses détaillées
+                            with c_details:
+                                with st.expander("Voir les réponses détaillées"):
+                                    for q, r in details.items():
+                                        # Nettoyage visuel de la question (enlève les underscores si besoin)
+                                        q_clean = q.replace("_", " ").strip()
+                                        
+                                        # Affichage Question / Réponse propre
+                                        # Si la réponse est longue, on la met en dessous, sinon à côté
+                                        if isinstance(r, str) and len(r) > 50:
+                                            st.markdown(f"**{q_clean}**")
+                                            st.info(r)
+                                        else:
+                                            # Petite ligne avec point puce
+                                            st.markdown(f"• **{q_clean}** : {r}")
 
 
     # ======================================================
