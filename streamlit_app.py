@@ -318,7 +318,7 @@ elif st.session_state.user_type == "therapeute":
                     time.sleep(1)
                     st.rerun()
 
-    # =================================================
+# =================================================
     # ONGLET 3 : PROTOCOLE (MODULES + OUTILS)
     # =================================================
     with tab_proto:
@@ -389,7 +389,6 @@ elif st.session_state.user_type == "therapeute":
                 # --- CHARGEMENT DE LA CONFIGURATION CHOISIE ---
                 CONFIG_ACTIVE = CATALOGUE[code_visu]["modules"]
 
-
                 # --- 1. PILOTAGE MODULES ---
                 cache_key = f"cache_data_{patient_sel}"
                 if cache_key not in st.session_state:
@@ -408,7 +407,7 @@ elif st.session_state.user_type == "therapeute":
                 
                 if "last_active_module" not in st.session_state: st.session_state.last_active_module = "module0"
 
-                st.markdown("#### 🗺️ Modules Barlow")
+                st.markdown(f"#### 🗺️ Modules : {CATALOGUE[code_visu]['nom']}") # Titre dynamique
                 nb_total = len(CONFIG_ACTIVE)
                 nb_fait = len(modules_valides_db)
                 st.progress(min(nb_fait / nb_total, 1.0), text=f"Avancement : {nb_fait}/{nb_total} modules terminés")
