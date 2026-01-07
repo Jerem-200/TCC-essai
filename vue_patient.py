@@ -183,17 +183,17 @@ def afficher_vue_patient(patient_id):
         
         # 1. CRÉATION DES 4 SOUS-ONGLETS (Type Slide)
         sub_tab_prog, sub_tab_outils, sub_tab_bilan, sub_tab_histo = st.tabs([
-            "📍 Ma Progression", 
-            "🚀 Mes Exercices", 
-            "📝 Mes échelles", 
-            "📜 Mon Historique"
+            "📍 Progression", 
+            "🚀 Exercices", 
+            "📝 Échelles", 
+            "📜 Historique"
         ])
 
         # -------------------------------------------------
         # A. SOUS-ONGLET : PROGRESSION
         # -------------------------------------------------
         with sub_tab_prog:
-            st.markdown("### 📍 Mon cheminement")
+            st.markdown("### 📍 Ma progression")
             if "last_active_module" not in st.session_state: 
                 st.session_state.last_active_module = None
 
@@ -253,7 +253,7 @@ def afficher_vue_patient(patient_id):
         # B. SOUS-ONGLET : LANCEUR RAPIDE (Table des matières active)
         # -------------------------------------------------
         with sub_tab_outils:
-            st.subheader("🚀 Accès rapide aux outils")
+            st.subheader("🚀 Accès aux outexercices")
             st.caption("Voici tous les exercices du protocole. Ils se déverrouillent au fur et à mesure.")
             st.write("")
 
