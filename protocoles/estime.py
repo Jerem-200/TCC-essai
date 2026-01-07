@@ -32,6 +32,7 @@ PROTOCOLE_ESTIME = {
         "objectifs": "Identifier le critique intérieur.",
         "outils": "Journal autocritique",
         "pdfs_module": [],
+        "examen_devoirs": [],
         "etapes_seance": [],
         "taches_domicile": []
     }

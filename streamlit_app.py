@@ -426,13 +426,15 @@ elif st.session_state.user_type == "therapeute":
                             with t_act:
                                 with st.form(key=f"form_{patient_sel}_{code_mod}"):
                                     check_list = []
-                                    if data['examen_devoirs']:
+                                    if data.get('examen_devoirs'):
                                         st.caption("Examen tâches")
                                         for idx, d in enumerate(data['examen_devoirs']):
                                             check_list.append(st.checkbox(d['titre'], key=f"ex_{patient_sel}_{code_mod}_{idx}"))
                                     st.caption("Étapes Séance")
-                                    for idx_e, etape in enumerate(data['etapes_seance']):
-                                        check_list.append(st.checkbox(etape['titre'], key=f"st_{patient_sel}_{code_mod}_{idx_e}", help=etape.get('details')))
+                                    if data.get('etapes_seance'):
+                                        for idx_e, etape in enumerate(data['etapes_seance']):
+                                            check_list.append(st.checkbox(etape['titre'], key=f"st_{patient_sel}_{code_mod}_{idx_e}", help=etape.get('details')))
+                                    
                                     dev_temp = []
                                     if data['taches_domicile']:
                                         st.caption("Assignation Devoirs")

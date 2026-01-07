@@ -258,7 +258,7 @@ def afficher_vue_patient(patient_id):
                             
                             with col_step:
                                 st.markdown("#### 📝 Ce que nous avons vu")
-                                if data['etapes_seance']:
+                                if data.get('etapes_seance'):
                                     for etape in data['etapes_seance']:
                                         st.markdown(f"- **{etape['titre']}**")
                                         if etape.get('details'): st.caption(f"_{etape.get('details')}_")
@@ -268,7 +268,7 @@ def afficher_vue_patient(patient_id):
                                 st.markdown("#### 🏠 Travail à la maison")
                                 exclus = devoirs.get(code_mod, [])
                                 a_faire = False
-                                if data['taches_domicile']:
+                                if data.get('taches_domicile'):
                                     for j, dev in enumerate(data['taches_domicile']):
                                         if j not in exclus:
                                             a_faire = True
